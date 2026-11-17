@@ -1,0 +1,17 @@
+{
+  "name": "station-drift",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5190 --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --port 5191"
+  },
+  "dependencies": {
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.6"
+  }
+}
