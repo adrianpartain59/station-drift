@@ -86,32 +86,36 @@ export class Autopilot {
     const coins = this.course.coins;
     const keys = { steer: 0, drift: false, brake: false };
     const steps = Math.round(o.horizon / o.dt), lagSteps = Math.round(o.latency / o.dt);
-    let best = this.target, bestCost = Infinity;
+    let best = this.target, bestCost = Infinity, stayCost = Infinity;
     for (let li = 0; li < o.lanes; li++) {
       const cand = li === 0 ? this.target : -lim * 0.92 + (2 * lim * 0.92 * (li - 1)) / (o.lanes - 2);
       sim.copy(ship);
       this.simHits = 0; this.simGrazes = 0;
-      let cost = Math.abs(cand - this.target) * 0.25 + cand * cand * 0.01, ci = this.course.ci, got = 0;
+      // changing lanes costs more once there is something ahead to get wrong
+      let cost = Math.abs(cand - this.target) * (obs.length ? 0.7 : 0.25) + cand * cand * 0.01, ci = this.course.ci, got = 0, minClear = 9;
       for (let n = 0; n < steps; n++) {
         this.keys(sim, n < lagSteps ? this.target : cand, keys);
         sim.step(o.dt, keys);
-        let hit = false, tight = 0;
+        let hit = false;
         for (const ob of obs) {
           if (Math.abs(ob.s - sim.s) > 14) continue;
           const c = clearance(ob, sim.s, sim.x) - SHIP.RADIUS;
           if (c < 0.15) { hit = true; break; }
-          if (c < 1.2) tight = Math.max(tight, 1.2 - c);
+          if (c < minClear) minClear = c;
         }
         if (hit) { cost += 4000 * (1.5 - n / steps); break; }
-        cost += tight * 0.6;
         if (o.coins) {
           while (ci < coins.length && coins[ci].s < sim.s - 2.3) ci++;
           if (ci < coins.length && Math.abs(coins[ci].s - sim.s) < 2.3 && Math.abs(coins[ci].x - sim.x) < 2.2 && !coins[ci].taken) { got++; ci++; }
         }
       }
-      cost += this.simHits * 400 + this.simGrazes * 60 - got * 1.2;
+      // room to spare is worth more than coins: a line that only just clears is a line that sometimes does not
+      cost += Math.max(0, 2.4 - minClear) * 5 + this.simHits * 400 + this.simGrazes * 60 - got * (obs.length ? 0.4 : 1.2);
+      if (li === 0) stayCost = cost;
       if (cost < bestCost - 1e-9) { bestCost = cost; best = cand; }
     }
+    // commit: leave the lane you are in only for a clear gain (no dithering between two ways round)
+    if (best !== this.target && bestCost > stayCost - 2.5) best = this.target;
     return best;
   }
 }
