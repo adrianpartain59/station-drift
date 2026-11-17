@@ -28,7 +28,7 @@ export const SHIP = {
   WALL_INSET: 0.85,      // station ribs and light bars stand this far proud of the wall
   CRUISE: [38, 50],      // cruise speed at difficulty 0 and 1 (difficulty = distance / 7.5 km)
   START_SPEED: 26,
-  ACCEL: 15,             // toward cruise
+  ACCEL: 12,             // toward cruise: speed you throw away takes a while to come back
   COAST: 9,              // back down to cruise after a boost
   BRAKE_DECEL: 36,
   BRAKE_FACTOR: 0.56,    // brake holds this fraction of cruise
@@ -44,20 +44,24 @@ export const SHIP = {
   STEER_TAU: 0.1,        // s: how eagerly the ship swings to the asked angle
   ALIGN_TAU: 0.16,       // s: hands off, it settles back along the corridor
   ASSIST_K: 1 / 110,     // bends gentler than this are followed for you
-  ASSIST_K_OFF: 1 / 78,  // tighter than this, hands off means straight on (you must steer or drift)
+  ASSIST_K_OFF: 1 / 78,  // tighter than this, hands off only half-follows (you must steer or drift)
+  HANDS_OFF: 0.45,       // share of a real bend the ship still follows with no input
   GUARD: 0.8,            // share of turning ability the wall guard assumes when it limits your angle
+  SAVE: 0.6,             // the guard turns the ship away by itself once stopping would use this share of the gap
   NOSE_LEAD: 0.2,        // s: nose points this far ahead of the turn in grip (liveliness only)
 
   // Walls: a glancing touch slides along, a square hit bounces and costs speed. Never damage.
   GRAZE_SPEED: 7,        // m/s into the wall below which it is a graze
-  GRAZE_KEEP: 0.985,
-  SCRAPE_DRAG: 5,        // m/s^2 while rubbing
-  HIT_KEEP: [0.9, 0.55], // speed kept on a hard hit: light .. square-on
+  GRAZE_KEEP: 0.975,
+  SCRAPE_DRAG: 11,       // m/s^2 while rubbing
+  HIT_KEEP: [0.84, 0.5], // speed kept on a hard hit: light .. square-on
+  SCRUB: 20,             // m/s^2 lost while steering harder than grip can turn (running wide = slowing down)
+  SCRUB_FLOOR: 0.55,     // ...but never below this share of cruise
   HIT_BOUNCE: 0.09,      // rad of rebound
   SPACE_SOFT: 0.35,      // open-space lane rails are energy fields: this much of a wall's penalty
 
   // Obstacles: you smash through, lose most of your speed and your combo, and flicker for a moment.
-  CRASH_KEEP: 0.34,
+  CRASH_KEEP: 0.3,
   CRASH_MIN: 12,
   GHOST: 1.5,            // s of no-collision after a crash
 };
@@ -67,7 +71,10 @@ export const SHIP = {
 export const DRIFT = {
   MIN_SPEED: 16,
   R_TIGHT: 19,           // tightest arc a drift can hold (the map's sharpest corner is 30 m)
-  R_WIDE: 150,           // a drift always curves at least this much: on a straight it creeps inward
+  R_WIDE: 150,           // a drift always curves at least this much: on a straight it creeps inward...
+  HOOK_DELAY: 0.14,      // ...but only after this long on the straight,
+  HOOK_RAMP: 0.5,        // easing in over this long (so a late release at a bend exit is forgiven)
+  INSIDE_GAP: 0.95,      // how close to the inside wall the guard lets a held slide settle
   R_COUNTER: 520,        // ...unless you steer against it, which nearly straightens the slide
   ANGLE: 0.21,           // rad: travel angle across the corridor at full steer while drifting
   TAU: 0.2,              // s: lateral response in a drift (heavier than grip: it slides)
@@ -85,9 +92,9 @@ export const DRIFT = {
   CHARGE_COUNTER: 0.45,  // charge rate while counter-steering a straight slide
   SWITCH_KEEP: 0.7,      // charge kept when the drift flips for an S-bend
   TIERS: [
-    { at: 0.55, name: 'SPARK', color: 0x46c8ff, time: 0.7, gain: 0.12 },
-    { at: 1.35, name: 'FLARE', color: 0xffa040, time: 1.1, gain: 0.16 },
-    { at: 2.3,  name: 'NOVA',  color: 0xff4fd8, time: 1.6, gain: 0.2 },
+    { at: 0.55, name: 'SPARK', color: 0x46c8ff, time: 0.7, gain: 0.12, clock: 0.4 },
+    { at: 1.35, name: 'FLARE', color: 0xffa040, time: 1.1, gain: 0.16, clock: 0.8 },
+    { at: 2.3,  name: 'NOVA',  color: 0xff4fd8, time: 1.6, gain: 0.2, clock: 1.4 },
   ],
   BOOST_ACCEL: 46,
   CHAIN_WINDOW: 4,       // s after a banked drift to start the next and keep the chain
@@ -99,14 +106,17 @@ export const DRIFT = {
 // ship can ever go is cruise + this, and the whole course is laid out and proved at that speed.
 export const MAX_BOOST_GAIN = 0.2;
 
-// The clock. Every gate adds time for the stretch to the next one at a par pace that starts
-// generous and tightens with distance. Out of time = run over.
+// The clock. It is the only thing that ends a run. Time comes from two places:
+//  - every gate adds the par time for the stretch to the next gate, at a pace that starts generous
+//    and, a few kilometres in, asks for more than cruise speed alone can give;
+//  - every drift you bank adds time on the spot (see DRIFT.TIERS[].clock). That is what makes up the difference.
+// You never carry more than CARRY seconds of slack through a gate, so the clock stays tight all run.
 export const CLOCK = {
-  START: 26,
-  PACE: [0.7, 0.9],      // share of cruise speed the par assumes, difficulty 0 .. 1
-  PACE_LATE: 0.96,       // by 20 km
-  MAX: 60,               // the bank never holds more than this
-  LOW: 8,                // warning below this
+  START: 18,
+  CARRY: 8,
+  // [distance m, share of cruise speed the par assumes]
+  PACE: [[0, 0.84], [1000, 0.96], [2500, 1.08], [5000, 1.14], [8000, 1.19], [12000, 1.25], [18000, 1.31], [40000, 1.4]],
+  LOW: 6,                // warning below this
   COAST_DECEL: 16,       // engine cut when the clock hits zero; a gate reached while coasting revives it
 };
 

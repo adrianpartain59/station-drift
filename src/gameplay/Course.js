@@ -296,55 +296,31 @@ export class Course {
   zone(a, b, d, kind) {
     if (b < FAIR.NO_ROWS_BEFORE) return;
     a = Math.max(a, FAIR.NO_ROWS_BEFORE);
-    const v = topSpeed(b);
-    const acc = lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * SHIP.GRIP;
-    const tSee = lerp(FAIR.SEE[0], FAIR.SEE[1], d);
+    const ctx = { b, d, v: topSpeed(b), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * SHIP.GRIP, tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
     const line = [];
     let n = 0, at = a;
-    const maxRows = kind === 'hall' ? 4 : 5;
+    const maxRows = 4;
     // a row laid in the piece before still counts while it is close behind
-    if (this.prevRow && a - this.prevRow.end > v * 2.6) this.prevRow = null;
-
-    while (n < maxRows) {
-      const prev = this.prevRow;
-      let placed = null;
-      // design the row for where it will stand; widths change along the track, so settle by iterating
-      let s = Math.max(at, prev ? prev.end + FAIR.MIN_GAP : at);
-      const design = this.designer(kind, d, prev ? prev.y : null, n);
-      for (let it = 0; it < 6 && !placed; it++) {
-        const row = design(s);
-        if (!row) break;
-        const s0 = s - row.front, s1 = s + row.back;
-        if (s1 > b) break;
-        const lim = this.lim(s);
-        const free = freeSet(row.items, lim);
-        if (!free.length) break;
-        const from = prev ? prev.free : [[-lim, lim]];
-        const react = prev ? lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d) : lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d);
-        const move = v * worstTime(from, free, acc, v, lim);
-        // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
-        let seen = 0;
-        for (const it of row.items) seen = Math.max(seen, this.sightStart(s + (it.ds || 0), clamp(0, it.x - halfWidth(it), it.x + halfWidth(it))));
-        let sMin = Math.max(s, seen + v * tSee + row.front);
-        if (prev) {
-          // far enough past the previous row to react and make the move
-          sMin = Math.max(sMin, prev.end + Math.max(FAIR.MIN_GAP, v * react + move) + row.front);
-        } else {
-          // first of a set: seen, reacted to, and the whole move made on the straight (not mid-bend)
-          sMin = Math.max(sMin, seen + v * react + move + row.front, this.straightStart(s) + move + 2 + row.front);
-        }
-        if (sMin > s + 0.5) { s = sMin; continue; }
-        placed = { row, s, s0, s1, free, lim };
-      }
-      if (!placed) break;
+    if (this.prevRow && a - this.prevRow.end > ctx.v * 2.6) this.prevRow = null;
+    const commit = (placed) => {
       const { row, free } = placed;
       for (const it of row.items) this.obstacles.push({ ...it, s: placed.s + (it.ds || 0), id: this.oid++, hit: false, near: 99, passed: false });
       this.rows.push({ s: placed.s, s0: placed.s0, s1: placed.s1, free, y: row.y, kind });
       this.prevRow = { end: placed.s1, free, y: row.y };
       line.push([placed.s, row.y]);
+      if (placed.s1 - placed.s > 8) line.push([placed.s1, row.y]); // the lane runs on through a deep set-piece
       at = placed.s1 + FAIR.MIN_GAP;
+    };
+
+    while (n < maxRows) {
+      const prevY = this.prevRow ? this.prevRow.y : null;
+      // the row we would like; if there is no room for it, something lighter that needs less warning
+      let placed = this.tryPlace(this.designer(kind, d, prevY, n), at, ctx);
+      if (!placed) placed = this.tryPlace(this.designer(kind, d, prevY, n, true), at, ctx);
+      if (!placed) break;
+      commit(placed);
       n++;
-      if (kind === 'station' && d < 0.12 && n >= 2) break; // the first station keeps its sets short
+      if (kind === 'station' && d < 0.12) break; // the first station keeps its sets short
     }
     this.obstacles.sort((p, q) => p.s - q.s);
     if (line.length) {
@@ -356,102 +332,190 @@ export class Course {
   }
 
   /**
-   * Picks what the next row is (its random choices fixed here) and returns a function that builds
-   * it for a given position. A row is { items, y: safe-lane centre, front, back }.
+   * Find the first place at or after `at` where the designed row is fair: the ship has provably had
+   * time to see it and to reach its opening. Returns null if that is past the end of the zone.
    */
-  designer(kind, d, prevY, n) {
+  tryPlace(design, at, ctx) {
+    const { b, d, v, acc, tSee } = ctx;
+    const prev = this.prevRow;
+    // widths change along the track and the row is built for where it stands, so settle by iterating
+    let s = Math.max(at, prev ? prev.end + FAIR.MIN_GAP : at);
+    for (let it = 0; it < 6; it++) {
+      const row = design(s, b);
+      if (!row) return null;
+      const s0 = s - row.front, s1 = s + row.back;
+      if (s1 > b) return null;
+      const lim = this.lim(s);
+      const free = freeSet(row.items, lim);
+      if (!free.length) return null;
+      const from = prev ? prev.free : [[-lim, lim]];
+      const react = prev ? lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d) : lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d);
+      const move = v * worstTime(from, free, acc, v, lim);
+      // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
+      let seen = 0;
+      for (const o of row.items) seen = Math.max(seen, this.sightStart(s + (o.ds || 0), clamp(0, o.x - halfWidth(o), o.x + halfWidth(o))));
+      let sMin = Math.max(s, seen + v * tSee + row.front);
+      if (prev) {
+        // far enough past the previous row to react and make the move
+        sMin = Math.max(sMin, prev.end + Math.max(FAIR.MIN_GAP, v * react + move) + row.front);
+      } else {
+        // first of a set: seen, reacted to, and the whole move made on the straight (not mid-bend)
+        sMin = Math.max(sMin, seen + v * react + move + row.front, this.straightStart(s) + move + 2 + row.front);
+      }
+      if (sMin > s + 0.5) { s = sMin; continue; }
+      return { row, s, s0, s1, free, lim };
+    }
+    return null;
+  }
+
+  /**
+   * Picks what the next set-piece is (its random choices fixed here) and returns a function that
+   * builds it for a position s in a zone ending at b: { items, y: safe-lane centre, front, back }.
+   *
+   * A set-piece may run on for a way: parked haulers and bollards down a closed lane behind a
+   * barricade, a line of columns. Everything after its front only stands where the front already
+   * blocks (its "shadow"), all of it is in sight from the start, and it is laid, checked and
+   * proved as one obstacle. So depth adds presence without adding anything new to dodge.
+   */
+  designer(kind, d, prevY, n, light = false) {
     const lane = lerp(FAIR.LANE[0], FAIR.LANE[1], d);
     const R = SHIP.RADIUS;
-    const u = [this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng()];
+    const u = [this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng()];
     const side0 = prevY == null ? (u[0] < 0.5 ? -1 : 1) : (prevY > 0 ? -1 : 1) * (u[0] < 0.8 ? 1 : -1); // mostly swap sides: a slalom
+    const deepWant = light ? 0 : lerp(14, 62, u[6]);     // how far the set-piece would like to run on
+    const depth = (s, b, min = 12) => { const room = Math.min(deepWant, b - s - 3); return room >= min ? room : 0; };
+    const rr = mulberry32(Math.floor(u[7] * 1e9));
 
     if (kind === 'hall') {
-      return (s) => {
+      const pair = !light && u[4] < 0.4;
+      return (s, b) => {
         const [w] = this.wRange(s - 4, s + 4), lim = w - R - SHIP.WALL_INSET;
-        const side = n % 2 === 0 ? side0 : -Math.sign(prevY || side0) || side0;
-        const r = 1.7, x = side * lerp(2.2, 5.2, u[1]);
-        const items = [{ kind: 'column', shape: 'post', x, r }];
-        let y = x - side * (r + R + 1.5); // pass on the centre side of the column
-        if (d > 0.45 && u[2] < 0.25 + d * 0.5) {
-          // a stalled hauler against the far wall narrows the way through
-          const hx = -side * (lim - 1.2);
-          items.push({ kind: 'hauler', shape: 'box', x: hx, hl: 5.5, hw: 1.7, ds: lerp(-6, 6, u[3]) });
-          y = (x - side * (r + R) + hx + side * (1.7 + R)) / 2;
+        const r = 1.7, D = depth(s, b, 9);
+        const count = 1 + Math.min(3, Math.floor(D / 9.5));   // a line of columns, 9.5 m apart
+        const items = [];
+        const line = (x) => { for (let i = 0; i < count; i++) items.push({ kind: 'column', shape: 'post', x, r, ds: i * 9.5 }); };
+        if (pair) {
+          // two lines of columns either side of a centre aisle
+          const c = lerp(4.9, 6.1, u[1]);
+          line(-c); line(c);
+          return { items, y: 0, front: r, back: r + (count - 1) * 9.5 };
         }
-        return { items, y, front: items.length > 1 ? 11.5 : r, back: items.length > 1 ? 11.5 : r };
+        const side = n % 2 === 0 ? side0 : -Math.sign(prevY || side0) || side0;
+        const x = side * lerp(2.2, 5.2, u[1]);
+        line(x);
+        let y = x - side * (r + R + 1.5); // pass on the centre side of the columns
+        let back = r + (count - 1) * 9.5;
+        if (!light && d > 0.45 && u[2] < 0.25 + d * 0.5) {
+          // a stalled hauler against the far wall narrows the way through
+          const hx = -side * (lim - 1.2), ds = lerp(0, Math.max(0, back - 5.5), u[3]) + 5.5;
+          items.push({ kind: 'hauler', shape: 'box', x: hx, hl: 5.5, hw: 1.7, ds });
+          y = (x - side * (r + R) + hx + side * (1.7 + R)) / 2;
+          back = Math.max(back, ds + 5.5);
+        }
+        return { items, y, front: r, back };
       };
     }
 
     if (kind === 'space') {
-      return (s) => {
+      return (s, b) => {
         const lim = this.lim(s);
         const half = lane + 0.9;
         const y = clamp((prevY ?? 0) + (u[1] * 2 - 1) * lerp(5, 9, d), -(lim - half - 0.5), lim - half - 0.5);
-        const count = 1 + Math.floor(u[2] * (1.6 + d * 2.4));
+        const count = light ? 1 : 1 + Math.floor(u[2] * (1.6 + d * 2.4));
         const items = [];
-        const rr = mulberry32(Math.floor(u[3] * 1e9));
+        const q = mulberry32(Math.floor(u[3] * 1e9));
+        const fits = (x, ds, r) => items.every((o) => Math.hypot(o.ds - ds, o.x - x) > o.r + r + 0.6);
         for (let i = 0; i < count; i++) {
-          const r = lerp(1.5, 3.3, rr());
+          const r = lerp(1.5, 3.3, q());
           // rocks anywhere except across the safe lane
-          const sideR = i === 0 ? (y > 0 ? -1 : 1) : rr() < 0.5 ? -1 : 1;
+          const sideR = i === 0 ? (y > 0 ? -1 : 1) : q() < 0.5 ? -1 : 1;
           const lo = half + R + r + 0.4;
           const room = (sideR > 0 ? lim + 2 - y : y + lim + 2) - lo;
           if (room < 0.5) continue;
-          const x = y + sideR * (lo + rr() * Math.min(room, 9));
-          const big = { kind: rr() < 0.25 ? 'wreck' : 'rock', shape: 'post', x, r, ds: lerp(-7, 7, rr()), spin: rr() * 6.28 };
-          if (items.every((o) => Math.hypot((o.ds - big.ds), o.x - x) > o.r + r + 0.6)) items.push(big);
+          const x = y + sideR * (lo + q() * Math.min(room, 9)), ds = 7 + lerp(-7, 7, q());
+          if (fits(x, ds, r)) items.push({ kind: q() < 0.25 ? 'wreck' : 'rock', shape: 'post', x, r, ds, spin: q() * 6.28 });
         }
-        if (!items.length) items.push({ kind: 'rock', shape: 'post', x: y + (y > 0 ? -1 : 1) * (half + R + 2.6), r: 2.2, ds: 0, spin: u[4] * 6 });
-        return { items, y, front: 10.5, back: 10.5 };
+        if (!items.length) items.push({ kind: 'rock', shape: 'post', x: y + (y > 0 ? -1 : 1) * (half + R + 2.6), r: 2.2, ds: 7, spin: u[4] * 6 });
+        // a trail of smaller rocks strung out behind the big ones, inside their shadows
+        const D = depth(s, b, 16), lead = items.slice();
+        let back = 14;
+        for (let ds = 22; ds <= D + 6 && lead.length; ds += lerp(9, 14, q())) {
+          const big = lead[Math.floor(q() * lead.length)], r = big.r * lerp(0.45, 0.8, q());
+          const x = big.x + (q() * 2 - 1) * (big.r - r);
+          if (fits(x, ds, r)) { items.push({ kind: 'rock', shape: 'post', x, r, ds, spin: q() * 6.28 }); back = ds + r; }
+        }
+        return { items, y, front: 3.5, back: Math.max(back, 17.5) };
       };
     }
 
     // ----- station corridors -----
     const types = [];
     const add = (name, wgt) => { if (wgt > 0) types.push([name, wgt]); };
-    add('barrier', 3.2);
+    add('barrier', light ? 0 : 3.4);
     add('island', 2.2);
     add('pylons', 1.6);
-    add('gate', d < 0.12 ? 0 : 1.2 + d * 1.6);
-    add('convoy', d < 0.2 ? 0 : 0.8 + d * 1.6);
+    add('gate', light || d < 0.12 ? 0 : 1.2 + d * 1.6);
+    add('convoy', light || d < 0.2 ? 0 : 0.8 + d * 1.6);
     let tot = types.reduce((q, t) => q + t[1], 0), roll = u[5] * tot, type = types[0][0];
     for (const [name, wgt] of types) { roll -= wgt; if (roll <= 0) { type = name; break; } }
 
-    return (s) => {
-      const depth = type === 'island' || type === 'convoy' ? 6 : 1;
-      const [w, wMax] = this.wRange(s - depth, s + depth);
+    // what stands in a closed lane [lo, hi] over depth D behind a barricade: haulers where they fit, else bollards
+    const fill = (items, lo, hi, D, flip) => {
+      let k = 0;
+      for (let ds = 9; ds + 1 <= D; k++) {
+        const wide = hi - lo >= 4.4;
+        if (wide && ds + 11 <= D && (k + flip) % 2 === 0) {
+          items.push({ kind: 'hauler', shape: 'box', x: lerp(lo + 1.9, hi - 1.9, rr()), hl: 5.5, hw: 1.7, ds: ds + 5.5 });
+          ds += 11 + lerp(5, 9, rr());
+        } else if (hi - lo >= 1.6) {
+          items.push({ kind: 'pylon', shape: 'post', x: lerp(lo + 0.7, hi - 0.7, rr()), r: 0.7, ds });
+          ds += lerp(7, 11, rr());
+        } else break;
+      }
+    };
+    const backOf = (items, min) => items.reduce((m, o) => Math.max(m, (o.ds || 0) + halfLength(o)), min);
+
+    return (s, b) => {
+      const D = depth(s, b, 14);
+      const [w, wMax] = this.wRange(s - 2, s + Math.max(6, D));
       const lim = w - R - SHIP.WALL_INSET;
       const wall = w - SHIP.WALL_INSET; // where the ship's edge can reach
       switch (type) {
         case 'barrier': {
-          // a roadworks barricade out from one wall; the opening is everything on the other side
+          // a roadworks barricade out from one wall, and behind it that lane stays closed for a while
           const coverMax = Math.min(lerp(0.42, 0.56, d) * 2 * w, w + lim - 2 * lane - R - FAIR.PAD);
           const cover = lerp(Math.min(0.28 * 2 * w, coverMax), coverMax, u[1]);
           const side = side0;                       // the wall it grows from
           const edge = side * (w - cover);          // its free end
           const far = side * (wMax + 1.5);          // buried in the wall, so there is never a sliver to squeeze past
           const y = clamp(edge - side * (R + lane * 0.75), -(lim - 0.6), lim - 0.6);
-          return { items: [{ kind: 'barrier', shape: 'box', x: (edge + far) / 2, hl: 0.6, hw: Math.abs(far - edge) / 2, side }], y, front: 0.6, back: 0.6 };
+          const items = [{ kind: 'barrier', shape: 'box', x: (edge + far) / 2, hl: 0.6, hw: Math.abs(far - edge) / 2, side, ds: 0 }];
+          if (D) fill(items, Math.min(edge, side * wall) + 0.4, Math.max(edge, side * wall) - 0.4, D, 0);
+          items[0].deep = items.length > 1 ? backOf(items, 0.6) : 0; // how far the closed lane runs on (for its floor markings)
+          return { items, y, front: 0.6, back: backOf(items, 0.6) };
         }
         case 'gate': {
-          // barricades from both walls, one opening between them
+          // barricades from both walls, one opening between them, and the squeeze runs on behind
           const open = lane * 0.85 + 0.3;           // half-opening for the ship's centre
           const span = lim - open - 0.4;
           const c = clamp((prevY ?? 0) + (u[1] * 2 - 1) * lerp(3, 6.5, d), -span, span);
           const le = c - open - R, re = c + open + R;
           const items = [];
-          if (le > -wall + 0.8) items.push({ kind: 'barrier', shape: 'box', x: (le - wMax - 1.5) / 2, hl: 0.6, hw: (le + wMax + 1.5) / 2, side: -1 });
-          if (re < wall - 0.8) items.push({ kind: 'barrier', shape: 'box', x: (re + wMax + 1.5) / 2, hl: 0.6, hw: (wMax + 1.5 - re) / 2, side: 1 });
-          return { items, y: c, front: 0.6, back: 0.6 };
+          if (le > -wall + 0.8) { items.push({ kind: 'barrier', shape: 'box', x: (le - wMax - 1.5) / 2, hl: 0.6, hw: (le + wMax + 1.5) / 2, side: -1, ds: 0 }); if (D) fill(items, -wall + 0.4, le - 0.4, D * 0.7, 0); }
+          if (re < wall - 0.8) { items.push({ kind: 'barrier', shape: 'box', x: (re + wMax + 1.5) / 2, hl: 0.6, hw: (wMax + 1.5 - re) / 2, side: 1, ds: 0 }); if (D) fill(items, re + 0.4, wall - 0.4, D * 0.7, 1); }
+          if (!items.length) return null;
+          return { items, y: c, front: 0.6, back: backOf(items, 0.6) };
         }
         case 'island': {
-          // one stalled hauler; room on both sides
+          // stalled haulers nose to tail; room on both sides, plenty on one
           const need = Math.max(FAIR.OPEN, 2 * (lane + R) * 0.9);         // the wider side is at least this
           const cMin = Math.max(0, need - wall + 1.7), cMax = Math.max(cMin, wall - 1.7 - 0.6);
           const c = (u[2] < 0.5 ? -1 : 1) * lerp(cMin, cMax, u[1]);
           const side = c > 0 ? -1 : 1;                                    // pass on the wide side
           const y = clamp(c + side * (1.7 + R + lane * 0.7), -(lim - 0.5), lim - 0.5);
-          return { items: [{ kind: 'hauler', shape: 'box', x: c, hl: 5.5, hw: 1.7 }], y, front: 5.5, back: 5.5 };
+          const items = [{ kind: 'hauler', shape: 'box', x: c, hl: 5.5, hw: 1.7, ds: 5.5 }];
+          for (let ds = 18.5; ds + 5.5 <= D && items.length < 3; ds += 13) items.push({ kind: 'hauler', shape: 'box', x: c, hl: 5.5, hw: 1.7, ds });
+          return { items, y, front: 0, back: backOf(items, 11) };
         }
         case 'convoy': {
           // haulers parked in two of three lanes when the corridor is wide enough, else one
@@ -462,27 +526,31 @@ export class Course {
           // one hauler: the middle lane only where that still leaves a proper opening beside it
           const midOk = wall - 1.7 >= FAIR.OPEN;
           const blocked = two ? [0, 1, 2].filter((l) => l !== openLane) : [openLane === 1 || !midOk ? (openLane === 0 ? 2 : openLane === 2 ? 0 : u[3] < 0.5 ? 0 : 2) : 1];
-          const items = blocked.map((l) => ({ kind: 'hauler', shape: 'box', x: (l - 1) * laneW, hl: 5.5, hw: 1.7, ds: two ? (l - 1) * lerp(-3, 3, u[4]) : 0 }));
+          const items = [];
+          for (const l of blocked) {
+            const first = 5.5 + (two ? Math.abs(l - 1) * lerp(0, 5, u[4]) : 0);
+            for (let ds = first, k = 0; k < 3 && (k === 0 || ds + 5.5 <= D); ds += 13, k++) items.push({ kind: 'hauler', shape: 'box', x: (l - 1) * laneW, hl: 5.5, hw: 1.7, ds });
+          }
           const y = two ? (openLane === 1 ? 0 : ((openLane - 1) * (lim + 1.7 + R + FAIR.PAD)) / 2) : clamp((openLane - 1) * laneW, -(lim - 0.6), lim - 0.6);
-          return { items, y, front: 9, back: 9 };
+          return { items, y, front: 0, back: backOf(items, 11) };
         }
         default: {
           // bollards scattered clear of the lane
           const y = clamp((prevY ?? 0) + (u[1] * 2 - 1) * lerp(2.5, 5, d), -(lim - lane), lim - lane);
-          const rr = mulberry32(Math.floor(u[2] * 1e9));
+          const q = mulberry32(Math.floor(u[2] * 1e9));
           const count = 2 + Math.floor(u[3] * (1.5 + d * 1.5));
           const items = [];
           for (let i = 0; i < count; i++) {
-            const r = 0.7, sideP = i === 0 ? (y > 0 ? -1 : 1) : rr() < 0.5 ? -1 : 1;
+            const r = 0.7, sideP = i === 0 ? (y > 0 ? -1 : 1) : q() < 0.5 ? -1 : 1;
             const lo = lane + R + r + 0.3;
             const room = (sideP > 0 ? wall - r - y : y + wall - r) - lo;
             if (room < 0) continue;
-            const x = y + sideP * (lo + rr() * room);
-            const ds = lerp(-5, 5, rr());
+            const x = y + sideP * (lo + q() * room);
+            const ds = lerp(0, 11, q());
             if (items.every((o) => Math.hypot(o.ds - ds, o.x - x) > 3.2)) items.push({ kind: 'pylon', shape: 'post', x, r, ds });
           }
           if (!items.length) return null;
-          return { items, y, front: 6, back: 6 };
+          return { items, y, front: 0.7, back: backOf(items, 6) };
         }
       }
     };

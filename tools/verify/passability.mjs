@@ -17,8 +17,9 @@
 //             with the player's knowledge limited to what is visible, not one made with hindsight.
 //
 // 3. DRIVE    Two keyboard-limited bots drive the real physics: one flat out, drifting every bend and
-//             taking every boost; one that never drifts and brakes for bends. Neither may hit an obstacle.
-//             The flat-out bot must also never hit a wall hard or run out of clock.
+//             taking every boost; one that never drifts and brakes for bends. Neither may hit an obstacle,
+//             and the flat-out bot may never hit a wall hard. (How far each gets on the clock is reported,
+//             not judged: the clock is meant to run out on anyone eventually.)
 //
 // The search is written here from scratch on purpose: it shares no placement code with Course.js.
 
@@ -26,7 +27,7 @@ import { Track } from '../../src/level/Track.js';
 import { Course, clearance, halfLength, halfWidth } from '../../src/gameplay/Course.js';
 import { ShipPhysics } from '../../src/gameplay/ShipPhysics.js';
 import { Autopilot } from '../../src/gameplay/Autopilot.js';
-import { topSpeed, cruiseSpeed } from '../../src/gameplay/Pace.js';
+import { topSpeed, cruiseSpeed, clockAfterGate } from '../../src/gameplay/Pace.js';
 import { SHIP, CLOCK, DRIFT } from '../../src/core/Constants.js';
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i < 0 ? def : Number(process.argv[i + 1]); };
@@ -213,18 +214,18 @@ function checkSeed(seed) {
       const T2 = new Track(seed); T2.ensure(L + 1500);
       const C2 = new Course(T2, seed);
       const st = { crash: 0, wall: 0, graze: 0, drifts: 0, tiers: [0, 0, 0, 0], lost: 0, coins: 0, near: 0, minClock: 99, time: 0, outOfTime: null };
+      let clock = CLOCK.START, t = 0;
       const p = new ShipPhysics(T2, (name, d) => {
         if (name === 'wallHit') { st.wall++; if (mode === 'pace') out.fails.push(`seed ${seed} pace bot: hard wall hit at s=${p.s.toFixed(0)}`); }
         else if (name === 'graze') st.graze++;
-        else if (name === 'driftEnd') { st.drifts++; st.tiers[d.tier + 1]++; }
+        else if (name === 'driftEnd') { st.drifts++; st.tiers[d.tier + 1]++; if (d.tier >= 0 && clock > 0) clock += DRIFT.TIERS[d.tier].clock; }
         else if (name === 'driftLost') st.lost++;
       });
       const bot = new Autopilot(T2, C2, mode === 'grip' ? { drift: false, brakeForBends: true } : {});
-      let clock = CLOCK.START, t = 0;
       const hooks = {
         crash: (o) => { if (!p.crash()) return false; st.crash++; out.fails.push(`seed ${seed} ${mode} bot: hit ${o.kind} at s=${o.s.toFixed(0)}`); return true; },
         nearMiss: () => st.near++, coin: () => st.coins++, pad: () => p.boost(DRIFT.PAD_TIME, DRIFT.PAD_GAIN, 0),
-        gate: (g, bonus) => { clock = Math.min(CLOCK.MAX, clock + bonus); },
+        gate: (g, bonus) => { clock = clockAfterGate(clock, bonus); },
       };
       const dt = 1 / 120;
       while (p.s < L && t < 2000) {
@@ -233,7 +234,6 @@ function checkSeed(seed) {
         if (clock <= 0 && st.outOfTime === null) st.outOfTime = p.s;
       }
       st.time = t; st.avg = L / t;
-      if (mode === 'pace' && st.outOfTime !== null) out.fails.push(`seed ${seed} pace bot: clock ran out at s=${st.outOfTime.toFixed(0)}`);
       out[mode] = st;
     }
   }
@@ -257,8 +257,9 @@ console.log(`  narrowest opening: ${min((r) => r.minOpen).toFixed(2)} m for a ${
 console.log(`  search: ${sum((r) => r.searchStates).toLocaleString('en-US')} start states tested at cruise + ${(100 * (topSpeed(0) / cruiseSpeed(0) - 1)).toFixed(0)}%, ${RULE.ACC * 100}% of grip, ${RULE.REACT} s reaction, ${RULE.MARGIN} m margin`);
 if (BOTS) {
   const P = (k) => sum((r) => r.pace[k]), G = (k) => sum((r) => r.grip[k]);
-  console.log(`  flat-out bot: obstacle hits ${P('crash')}, hard wall hits ${P('wall')}, grazes ${P('graze')}, drifts banked ${P('drifts')} (none/spark/flare/nova ${all.reduce((a, r) => a.map((v, i) => v + r.pace.tiers[i]), [0, 0, 0, 0]).join('/')}), lost ${P('lost')}, avg ${(sum((r) => r.pace.avg) / SEEDS).toFixed(1)} m/s, lowest clock ${min((r) => r.pace.minClock).toFixed(1)} s`);
-  console.log(`  no-drift bot: obstacle hits ${G('crash')}, hard wall hits ${G('wall')}, grazes ${G('graze')}, avg ${(sum((r) => r.grip.avg) / SEEDS).toFixed(1)} m/s, ran out of clock on ${all.filter((r) => r.grip.outOfTime !== null).length} of ${SEEDS} seeds` + (all.some((r) => r.grip.outOfTime !== null) ? ` (earliest at ${(min((r) => r.grip.outOfTime ?? Infinity) / 1000).toFixed(1)} km)` : ''));
+  const clockOut = (m) => { const d = all.map((r) => r[m].outOfTime).filter((x) => x !== null).sort((a, b) => a - b); return d.length ? `clock ran out on ${d.length} of ${SEEDS} runs, median at ${(d[d.length >> 1] / 1000).toFixed(1)} km` : 'clock never ran out'; };
+  console.log(`  flat-out bot: obstacle hits ${P('crash')}, hard wall hits ${P('wall')}, grazes ${P('graze')}, drifts banked ${P('drifts')} (none/spark/flare/nova ${all.reduce((a, r) => a.map((v, i) => v + r.pace.tiers[i]), [0, 0, 0, 0]).join('/')}), lost ${P('lost')}, avg ${(sum((r) => r.pace.avg) / SEEDS).toFixed(1)} m/s; ${clockOut('pace')}`);
+  console.log(`  no-drift bot: obstacle hits ${G('crash')}, hard wall hits ${G('wall')}, grazes ${G('graze')}, avg ${(sum((r) => r.grip.avg) / SEEDS).toFixed(1)} m/s; ${clockOut('grip')}`);
 }
 console.log(`  ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 if (fails.length) {

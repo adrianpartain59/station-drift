@@ -100,6 +100,11 @@ export class CourseView {
         }
         // green floor strip on the open side
         this.mesh(g, G.box, M.safe, tip - o.side * 1.6, 0.04, 0, 2.6, 0.05, 0.35);
+        // the lane behind it stays closed: an amber line along its edge and hatching across it
+        if (o.deep > 2) {
+          this.mesh(g, G.box, M.hazard, tip, 0.04, -o.deep / 2, 0.16, 0.05, o.deep);
+          for (let z = 5; z < o.deep; z += 7) this.mesh(g, G.box, m.hazard, o.x, 0.03, -z, w, 0.04, 0.7);
+        }
         break;
       }
       case 'hauler': {

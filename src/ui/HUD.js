@@ -82,10 +82,11 @@ export class HUD {
     setTimeout(() => d.remove(), 1300);
   }
 
-  /** Time added at a gate. */
-  addTime(seconds) {
+  /** Time added to the clock (a gate, or a banked drift in its tier colour). */
+  addTime(seconds, color = '#7dffc0') {
     const a = this.el.clockAdd;
     a.textContent = `+${seconds.toFixed(1)} s`;
+    a.style.color = color; a.style.textShadow = `0 0 14px ${color}`;
     a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
   }
 
@@ -118,6 +119,8 @@ export class HUD {
       <div class="row"><span>DRIFTS BANKED</span><b>${s.drifts}</b></div>
       <div class="row"><span>BEST DRIFT</span><b>${fmt(s.bestDrift)}</b></div>
       <div class="row"><span>LONGEST CHAIN</span><b>x${s.bestChain}</b></div>
-      <div class="row"><span>COINS</span><b>${fmt(s.coins)} ◎</b></div>`;
+      <div class="row"><span>TIME EARNED DRIFTING</span><b>+${s.driftTime.toFixed(1)} s</b></div>
+      <div class="row"><span>COINS</span><b>${fmt(s.coins)} ◎</b></div>
+      <div class="tip">${s.tip}</div>`;
   }
 }

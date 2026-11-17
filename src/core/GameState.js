@@ -33,6 +33,7 @@ class State {
     this.lastDriftEnd = -99;
     this.bestDrift = 0;
     this.drifts = 0;
+    this.driftTime = 0;       // seconds of clock earned by drifting
     this.crashes = 0;
     this.gates = 0;
     this.stations = 0;

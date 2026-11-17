@@ -13,10 +13,12 @@ export const topSpeed = (s) => cruiseSpeed(s) * (1 + MAX_BOOST_GAIN);
 
 /** Share of cruise speed the clock's par assumes at distance s. */
 export function pace(s) {
-  const d = difficulty(s);
-  const base = lerp(CLOCK.PACE[0], CLOCK.PACE[1], d);
-  const late = Math.min(1, Math.max(0, (s - 7500) / 12500));
-  return lerp(base, CLOCK.PACE_LATE, late);
+  const P = CLOCK.PACE;
+  if (s <= P[0][0]) return P[0][1];
+  for (let i = 1; i < P.length; i++) {
+    if (s <= P[i][0]) return lerp(P[i - 1][1], P[i][1], (s - P[i - 1][0]) / (P[i][0] - P[i - 1][0]));
+  }
+  return P[P.length - 1][1];
 }
 
 /** Seconds the clock gives for the stretch s0..s1. */
@@ -24,3 +26,6 @@ export function parTime(s0, s1) {
   const mid = (s0 + s1) / 2;
   return (s1 - s0) / (cruiseSpeed(mid) * pace(mid));
 }
+
+/** The clock after passing a gate worth `bonus` seconds: slack carried over is capped. */
+export const clockAfterGate = (clock, bonus) => Math.min(Math.max(0, clock), CLOCK.CARRY) + bonus;

@@ -44,6 +44,7 @@ export class ShipPhysics {
     this.ghost = 0;
     this.touch = 0; this.wallSide = 0; this.scrape = 0;
     this.engineCut = false; this.braking = false;
+    this.straightT = 0; this.scrub = 0;
     this.yawRate = 0; this.k = 0; this.w = 10; this.zone = 1; this.lim = 8;
     this.dist = 0;
   }
@@ -60,6 +61,7 @@ export class ShipPhysics {
     this.boostT = o.boostT; this.boostGain = o.boostGain; this.boostTier = o.boostTier; this.ghost = o.ghost;
     this.touch = o.touch; this.wallSide = o.wallSide; this.scrape = o.scrape;
     this.engineCut = o.engineCut; this.braking = o.braking; this.yawRate = o.yawRate;
+    this.straightT = o.straightT; this.scrub = o.scrub;
     this.k = o.k; this.w = o.w; this.zone = o.zone; this.lim = o.lim; this.dist = o.dist;
     return this;
   }
@@ -76,7 +78,7 @@ export class ShipPhysics {
   }
 
   startDrift(dir, carry = 0) {
-    this.drift = true; this.driftDir = dir; this.driftT = 0; this.armed = false;
+    this.drift = true; this.driftDir = dir; this.driftT = 0; this.armed = false; this.straightT = 0;
     this.charge = carry; this.tier = tierFor(carry);
     if (!carry) { this.driftDist = 0; this.driftPts = 0; }
     this.emit('driftStart', { dir, switched: carry > 0 });
@@ -127,6 +129,9 @@ export class ShipPhysics {
     const k = T.K[Math.min(T.len - 1, Math.floor(this.s + this.v * 0.04))];
     this.k = k; this.w = w; this.zone = zone; this.lim = lim;
     const v = this.v;
+    // walls closing in (the corridor narrowing): how fast, in metres per metre
+    const i0 = Math.min(T.len - 2, Math.max(0, Math.floor(this.s)));
+    const closing = Math.max(0, T.W[i0] - T.W[Math.min(T.len - 1, i0 + 2)]) / 2;
     const sdot = (v * Math.cos(this.theta)) / Math.max(0.5, 1 + k * this.x);
 
     const raw = clamp(inp.steer || 0, -1, 1);
@@ -162,14 +167,26 @@ export class ShipPhysics {
       const into = steer * D;                       // + = steering to the inside
       const build = smooth(this.driftT / DRIFT.ENTRY);
       const bend = -k * D;                          // how hard the corridor bends the drift's way (1/m)
-      const kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build;
+      // the hook: a slide has to keep curving, but on a straight that only comes in after a moment
+      this.straightT = bend < DRIFT.ARM_K * 0.5 ? this.straightT + dt : 0;
+      const hook = smooth((this.straightT - DRIFT.HOOK_DELAY) / DRIFT.HOOK_RAMP);
+      const kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build * (bend > 0 ? 1 : hook);
       const kMax = lerp(Math.min(K_TIGHT, SHIP.GRIP / Math.max(v * v, 1)), K_TIGHT, build);
       // wall guard: only ask for an angle the drift could still pull out of before the wall
       const gapIn = lim - D * this.x, gapOut = lim + D * this.x;
-      const maxIn = Math.sqrt(2 * SHIP.GUARD * Math.max(0, bend - kMin) * Math.max(0, gapIn - 0.35));
-      const maxOut = Math.sqrt(2 * SHIP.GUARD * Math.max(0, kMax - bend) * Math.max(0, gapOut - 0.35));
+      // a slide can only pull away from the inside wall while the corridor is still bending, so the
+      // guard looks ahead: if the bend is about to end, it stops closing on the inside now
+      const n = T.len - 1;
+      const bendSoon = Math.min(bend, -T.K[Math.min(n, Math.floor(this.s + v * 0.22))] * D, -T.K[Math.min(n, Math.floor(this.s + v * 0.44))] * D);
+      const away = Math.max(0, bendSoon - K_WIDE), toward = Math.max(0, kMax - bend);
+      const maxIn = Math.sqrt(2 * SHIP.GUARD * away * Math.max(0, gapIn - DRIFT.INSIDE_GAP)) - closing;
+      const maxOut = Math.sqrt(2 * SHIP.GUARD * toward * Math.max(0, gapOut - 0.35)) - closing;
       const thDes = D * clamp(into * DRIFT.ANGLE, -maxOut, maxIn);
       om = (thDes - this.theta) / DRIFT.TAU - k * sdot;
+      // the save: already heading at a wall faster than a gentle correction can stop -> turn as hard as the slide can
+      const out = -D * this.theta, inn = D * this.theta;
+      if (out > 0 && out * out > 2 * toward * SHIP.SAVE * Math.max(0, gapOut - 0.4)) om = D * v * kMax;
+      else if (inn > 0 && inn * inn > 2 * Math.max(1e-4, bend - kMin) * SHIP.SAVE * Math.max(0, gapIn - 0.4)) om = D * v * kMin;
       om = D * clamp(D * om, v * kMin, v * kMax);
       betaDes = D * (DRIFT.SLIP + DRIFT.SLIP_IN * Math.max(0, into) - DRIFT.SLIP_OUT * Math.max(0, -into));
       if (this.driftT < 0.24) betaDes += D * DRIFT.FLICK * Math.sin((Math.PI * this.driftT) / 0.24);
@@ -187,16 +204,27 @@ export class ShipPhysics {
     } else {
       const capW = Math.min(SHIP.MAX_YAW, SHIP.GRIP / Math.max(v, 1));
       const capK = capW / Math.max(v, 1);
-      const maxR = Math.sqrt(2 * SHIP.GUARD * capK * Math.max(0, lim - this.x - 0.35));
-      const maxL = Math.sqrt(2 * SHIP.GUARD * capK * Math.max(0, lim + this.x - 0.35));
+      const gapR = lim - this.x, gapL = lim + this.x;
+      const maxR = Math.sqrt(2 * SHIP.GUARD * capK * Math.max(0, gapR - 0.35)) - closing;
+      const maxL = Math.sqrt(2 * SHIP.GUARD * capK * Math.max(0, gapL - 0.35)) - closing;
       const thDes = clamp(steer * SHIP.STEER_ANGLE, -maxL, maxR);
+      const gentle = Math.abs(k) < SHIP.ASSIST_K;
       if (Math.abs(raw) > 0.05 || Math.abs(steer) > 0.25) {
         om = (thDes - this.theta) / SHIP.STEER_TAU - k * sdot;
       } else {
-        // hands off: settle along the corridor on straights and gentle bends; in a real corner, straight on
-        const follow = this.exitT > 0 ? 1 : 1 - smooth((Math.abs(k) - SHIP.ASSIST_K) / (SHIP.ASSIST_K_OFF - SHIP.ASSIST_K));
+        // hands off: settle along the corridor on straights and gentle bends; a real corner is only half-followed
+        const follow = this.exitT > 0 ? 1 : 1 - (1 - SHIP.HANDS_OFF) * smooth((Math.abs(k) - SHIP.ASSIST_K) / (SHIP.ASSIST_K_OFF - SHIP.ASSIST_K));
         om = follow * ((thDes - this.theta) / SHIP.ALIGN_TAU - k * sdot);
       }
+      // the save, on straights only: heading at a wall faster than a gentle correction can stop -> full grip away from it
+      if (gentle || this.exitT > 0) {
+        const th = this.theta;
+        if (th > 0 && th * th > 2 * capK * SHIP.SAVE * Math.max(0, gapR - 0.4)) om = -capW;
+        else if (th < 0 && th * th > 2 * capK * SHIP.SAVE * Math.max(0, gapL - 0.4)) om = capW;
+      }
+      // asking for more turn than grip has: the ship runs wide and scrubs speed off, like any car
+      const over = Math.abs(om) - capW;
+      this.scrub = over > 0 && Math.abs(raw) > 0.05 ? Math.min(1, over / capW) : 0;
       om = clamp(om, -capW, capW);
       betaDes = clamp(om * SHIP.NOSE_LEAD, -0.16, 0.16);
       if (this.exitT > 0) { this.exitT -= dt; betaDes -= this.exitDir * 0.1 * Math.sin((Math.PI * Math.max(0, this.exitT)) / 0.34); }
@@ -245,6 +273,8 @@ export class ShipPhysics {
     const dv = target - this.v;
     if (dv > 0) this.v += Math.min(dv, (this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL) * dt);
     else this.v -= Math.min(-dv, (this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST) * dt);
+    if (!this.drift && this.scrub > 0 && this.v > cruise * SHIP.SCRUB_FLOOR) this.v -= SHIP.SCRUB * this.scrub * dt;
+    if (this.drift) this.scrub = 0;
     if (this.v < 0) this.v = 0;
     if (this.drift && this.v < DRIFT.MIN_SPEED * 0.8) this.loseDrift('slow');
 

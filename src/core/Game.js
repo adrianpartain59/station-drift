@@ -11,6 +11,7 @@ import { Materials } from '../level/Materials.js';
 import { WorldBuilder } from '../level/WorldBuilder.js';
 import { Sky, Dust } from '../level/Sky.js';
 import { Course } from '../gameplay/Course.js';
+import { clockAfterGate } from '../gameplay/Pace.js';
 import { CourseView } from '../gameplay/CourseView.js';
 import { ShipPhysics } from '../gameplay/ShipPhysics.js';
 import { ShipModel } from '../gameplay/ShipModel.js';
@@ -183,7 +184,13 @@ export class Game {
     g.bank += g.coins;
     g.persist();
     this.hud.hint('');
-    this.hud.gameOver({ score: g.score, best: g.best, newBest, distance: g.distance, stations: g.stations, drifts: g.drifts, bestDrift: g.bestDrift, bestChain: Math.max(1, g.bestChain), coins: g.coins });
+    // one line on what would have got further
+    const km = Math.max(0.3, g.distance / 1000), perKm = g.drifts / km;
+    const tip = perKm < 2 ? 'Every drift you bank adds time. Hold SPACE through each bend and let go on the way out.'
+      : g.driftTime / Math.max(1, g.drifts) < 0.65 ? 'Start the slide earlier and ride the inside wall: FLARE and NOVA add twice the time.'
+      : g.crashes > km ? 'The coins trace a safe line through every obstacle.'
+      : 'Chain drifts without touching a wall and the score multiplier climbs.';
+    this.hud.gameOver({ score: g.score, best: g.best, newBest, distance: g.distance, stations: g.stations, drifts: g.drifts, bestDrift: g.bestDrift, bestChain: Math.max(1, g.bestChain), coins: g.coins, driftTime: g.driftTime, tip });
     this.hud.phase('over');
   }
 
@@ -222,8 +229,12 @@ export class Game {
           g.drifts++; g.learned++;
           const pts = Math.round(d.points * SCORE.DRIFT_PER_METRE * this.mult);
           g.score += pts; g.bestDrift = Math.max(g.bestDrift, pts);
-          const col = hexOf(DRIFT.TIERS[tier].color);
-          hud.pop(`${DRIFT.TIERS[tier].name} BOOST  +${pts.toLocaleString('en-US')}`, col, tier >= 1);
+          // a banked drift buys time: this is how you stay ahead of the clock
+          const T = DRIFT.TIERS[tier];
+          if (!g.clockOut) g.clock += T.clock;
+          g.driftTime += T.clock;
+          hud.pop(`${T.name}  +${T.clock.toFixed(1)} s`, hexOf(T.color), tier >= 1);
+          hud.addTime(T.clock, hexOf(T.color));
         }
         break;
       }
@@ -279,7 +290,7 @@ export class Game {
         this.lastGateS = gate.s;
         if (gate.kind !== 'mid') au.whoosh();
         if (!this.playing) return;
-        g.clock = Math.min(CLOCK.MAX, Math.max(0, g.clock) + bonus);
+        g.clock = clockAfterGate(g.clock, bonus);
         g.clockOut = false; this.phys.engineCut = false;
         g.gates++; g.score += SCORE.GATE;
         au.gate(); hud.addTime(bonus); hud.flash('rgba(90,255,190,0.14)');
@@ -323,6 +334,7 @@ export class Game {
     if (g.phase === 'paused' || this.frozen) { inp.endFrame(); this.composer.render(); return; }
     // Test hook: ?stopwhen=drift freezes the game the first time a slide is well under way, for screenshots.
     if (params.get('stopwhen') === 'drift' && g.time > 0.5 && ph.drift && ph.driftT > 0.6) this.frozen = true;
+    if (params.has('stopat') && ph.s >= Number(params.get('stopat'))) this.frozen = true; // ?stopat=<metres>
 
     // hit-stop: a few frames of near-freeze on impact
     let dt = raw;
