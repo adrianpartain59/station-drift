@@ -18,3 +18,12 @@
 - Checked in the in-app browser with stepped frames: title, chase and cockpit views (straight + mid-drift), each
   obstacle kind, gate, boost, game over; synthetic keyboard run banks drifts and earns clock. No console errors.
 - Not checked: real hands on a keyboard, audio by ear, gamepad, touch.
+
+### Final scripted-player table (8 seeds x 16 km, committed code)
+| player | crashes/km | hard wall hits/km | grazes/km | speed vs cruise | clock runs out at |
+|---|---|---|---|---|---|
+| touches nothing | 1.16 | 1.56 | 0.94 | 92% | 4.3-5.7 km |
+| steers at the coins, never drifts | 0.00 | 0.68 | 0.13 | 98% | 5.5-6.1 km |
+| holds SPACE late in bends, never steers | 1.01 | 0.17 | 0.24 | 97% | 6.6-11.1 km |
+| SPACE + inside key, late, follows coins | 0.01 | 0.00 | 0.04 | 102% | 9.4-13.6 km |
+| presses early, follows coins | 0.00 | 0.01 | 0.00 | 103% | 10.8-15.3 km |

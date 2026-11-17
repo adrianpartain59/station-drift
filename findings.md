@@ -52,3 +52,16 @@ Research content below is summarised from web sources by a research subagent. Tr
 - Pieces: entry 70 m; corner = lead 14-26 + arc (0.65-1.55 rad, R 48-72 -> 30-46 with difficulty) + out 20-34;
   chicane = 14 + arc + 6-14 + opposite arc + 16; hall 110-160 m at half-width 13; run 90-170 m; link 10-24; exit 60.
   Space: lead 50, arcs R 120-240 or straights 70-130, funnel 120.
+
+## Confirmed while building (2026-11-16)
+- Speed penalties barely move a checkpoint clock: a player who touches nothing kept 87-94% of cruise speed.
+  Losing 20% of speed and regaining it within a second costs about 0.1 s. Survival is therefore tied to the
+  drift itself (banked drifts add clock time) and gate par rises past cruise speed from about 2.5 km.
+- A one-direction slide cannot turn away from its own inside wall once the bend ends. Holding SPACE + the inside
+  key (the natural input) hit that wall 1.4 times/km until the guard looked ahead for the bend ending.
+- Obstacle rows closer than about 1.5-2.4 s apart at top speed cannot be made fair for a ship that may already be
+  sliding sideways. On this map that is roughly one dodge per straight. Density has to come from depth inside
+  a set-piece's own shadow, not from more rows.
+- The layout carries about 20 m of margin over the verifier's bar (self-test: a 45 m shove fails everywhere,
+  a 20 m shove almost nowhere).
+- Final numbers and the scripted-player table are in progress.md.
