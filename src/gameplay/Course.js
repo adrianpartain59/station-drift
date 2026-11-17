@@ -204,6 +204,16 @@ export class Course {
     while (this.gi < this.gates.length && this.gates[this.gi].s < s) { this.gates[this.gi].passed = true; this.gi++; }
   }
 
+  /**
+   * Where the corridor has stopped narrowing on the straight that s sits on (the start of the straight
+   * if it never narrows). Walls that close in push a ship sideways, so a move can only be counted from here.
+   */
+  settledStart(s) {
+    const W = this.track.W, start = this.straightStart(s);
+    for (let i = clamp(Math.round(s), 1, W.length - 1) - 1; i >= start; i--) if (W[i + 1] < W[i] - 1e-9) return i + 1;
+    return start;
+  }
+
   /** Where the straight that s sits on begins. */
   straightStart(s) {
     const K = this.track.K;
@@ -340,27 +350,36 @@ export class Course {
     const prev = this.prevRow;
     // widths change along the track and the row is built for where it stands, so settle by iterating
     let s = Math.max(at, prev ? prev.end + FAIR.MIN_GAP : at);
-    for (let it = 0; it < 6; it++) {
+    for (let it = 0; it < 10; it++) {
       const row = design(s, b);
       if (!row) return null;
       const s0 = s - row.front, s1 = s + row.back;
       if (s1 > b) return null;
+      // a set-piece never stands where the corridor is changing width
+      const [wLo, wHi] = this.wRange(s0 - 1, s1 + 1);
+      if (wHi - wLo > 0.02) { s += 4; continue; }
       const lim = this.lim(s);
       const free = freeSet(row.items, lim);
       if (!free.length) return null;
-      const from = prev ? prev.free : [[-lim, lim]];
-      const react = prev ? lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d) : lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d);
+      // Where the ship may be coming from. With a row close behind and the walls unchanged since, it came
+      // through that row's opening. Otherwise (first of a set, or the corridor has narrowed in between)
+      // it can be anywhere across the corridor, sliding either way.
+      const settled = this.settledStart(s);
+      const fresh = !prev || settled > prev.end;
+      const from = fresh ? [[-lim, lim]] : prev.free;
+      const react = fresh ? lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d) : lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d);
       const move = v * worstTime(from, free, acc, v, lim);
       // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
       let seen = 0;
       for (const o of row.items) seen = Math.max(seen, this.sightStart(s + (o.ds || 0), clamp(0, o.x - halfWidth(o), o.x + halfWidth(o))));
       let sMin = Math.max(s, seen + v * tSee + row.front);
-      if (prev) {
-        // far enough past the previous row to react and make the move
-        sMin = Math.max(sMin, prev.end + Math.max(FAIR.MIN_GAP, v * react + move) + row.front);
+      if (prev) sMin = Math.max(sMin, prev.end + FAIR.MIN_GAP + row.front);
+      if (fresh) {
+        // seen, reacted to, and the whole move made on the straight, after any narrowing (never mid-bend)
+        sMin = Math.max(sMin, seen + v * react + move + row.front, settled + move + 2 + row.front);
       } else {
-        // first of a set: seen, reacted to, and the whole move made on the straight (not mid-bend)
-        sMin = Math.max(sMin, seen + v * react + move + row.front, this.straightStart(s) + move + 2 + row.front);
+        // far enough past the previous row to react and make the move
+        sMin = Math.max(sMin, prev.end + v * react + move + row.front);
       }
       if (sMin > s + 0.5) { s = sMin; continue; }
       return { row, s, s0, s1, free, lim };
