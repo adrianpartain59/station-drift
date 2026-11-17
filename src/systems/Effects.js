@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Sparks, wingtip light trails and speed streaks. All pooled, nothing allocated per frame.
+// Sparks, tail-light streaks, skid marks and speed streaks. All pooled, nothing allocated per frame.
 
 export class Sparks {
   constructor(scene, max = 1400) {
@@ -72,7 +72,7 @@ export class Sparks {
   }
 }
 
-// A light ribbon that follows a point (wingtip trails, like tail lights in a long exposure).
+// A light ribbon that follows a point (tail lights in a long exposure).
 export class Trail {
   constructor(scene, n = 44, width = 0.1) {
     this.n = n; this.width = width;
@@ -115,48 +115,56 @@ export class Trail {
   }
 }
 
-// The drift aim line: glowing dots on the floor along the arc the ship will follow if you keep holding.
-// Turns red from the point where that arc meets a wall.
-export class AimGuide {
-  constructor(scene, n = 22) {
-    this.n = n;
-    this.pts = Array.from({ length: n }, () => ({ s: 0, x: 0 }));
-    this.pos = new Float32Array(n * 3); this.col = new Float32Array(n * 3); this.size = new Float32Array(n);
+// Scorch lines on the floor behind the rear pods while the ship slides: the skid marks.
+// A ribbon of fixed length in world space; each point remembers how hard the ship was sliding.
+export class Skid {
+  constructor(scene, n = 110, width = 0.3) {
+    this.n = n; this.width = width; this.head = 0; this.count = 0;
+    this.px = new Float32Array(n); this.pz = new Float32Array(n); this.sx = new Float32Array(n); this.sz = new Float32Array(n);
+    this.a = new Float32Array(n); this.age = new Float32Array(n);
+    this.last = new THREE.Vector3(1e9, 0, 0);
+    const pos = new Float32Array(n * 2 * 3), alpha = new Float32Array(n * 2);
+    const idx = [];
+    for (let i = 0; i < n - 1; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('size', new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('alpha', new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setIndex(idx);
     this.geo = g;
-    const mat = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
-      vertexShader: `attribute float size; attribute vec3 color; varying vec3 vC;
-        void main(){ vC = color; vec4 mv = modelViewMatrix*vec4(position,1.0); gl_PointSize = size * 300.0 / max(-mv.z, 0.5); gl_Position = projectionMatrix*mv; }`,
-      fragmentShader: `varying vec3 vC; void main(){ float d = length(gl_PointCoord-0.5); float a = smoothstep(0.5,0.15,d); gl_FragColor = vec4(vC*a, 1.0); }`,
+    this.mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      polygonOffset: true, polygonOffsetFactor: -2,
+      uniforms: { color: { value: new THREE.Color(0x46c8ff) } },
+      vertexShader: `attribute float alpha; varying float vA; void main(){ vA = alpha; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `uniform vec3 color; varying float vA; void main(){ gl_FragColor = vec4(color * vA, 1.0); }`,
     });
-    this.points = new THREE.Points(g, mat);
-    this.points.frustumCulled = false;
-    scene.add(this.points);
-    this.alpha = 0;
-    this.c = new THREE.Color(); this.red = new THREE.Color(1.6, 0.15, 0.2);
-    this.f = {};
+    this.mesh = new THREE.Mesh(g, this.mat);
+    this.mesh.frustumCulled = false;
+    scene.add(this.mesh);
   }
-
-  // Returns the world point about 0.45 s ahead (for the camera to look toward).
-  update(dt, ph, track, color, show, y, out) {
-    this.alpha += ((show ? 1 : 0) - this.alpha) * (1 - Math.exp(-(show ? 14 : 6) * dt));
-    const hit = ph.predict(this.pts);
-    for (let i = 0; i < this.n; i++) {
-      const p = this.pts[i], f = track.sample(p.s, this.f);
-      this.pos[i * 3] = f.x - Math.cos(f.h) * p.x; this.pos[i * 3 + 1] = y; this.pos[i * 3 + 2] = f.z + Math.sin(f.h) * p.x;
-      const bad = hit >= 0 && i >= hit;
-      this.c.copy(bad ? this.red : color);
-      const fade = 1.8 * this.alpha * (1 - 0.7 * i / this.n) * (i < 2 ? 0.3 : 1);
-      this.col[i * 3] = this.c.r * fade; this.col[i * 3 + 1] = this.c.g * fade; this.col[i * 3 + 2] = this.c.b * fade;
-      this.size[i] = this.alpha > 0.01 ? (bad ? 0.95 : 0.75) : 0;
+  reset() { this.count = 0; this.head = 0; this.last.set(1e9, 0, 0); this.geo.setDrawRange(0, 0); }
+  /** p: world point on the floor under a rear pod; side: unit vector across the ship; strength 0..1. */
+  update(dt, p, side, strength, color, y = 0.05) {
+    const n = this.n;
+    for (let i = 0; i < this.count; i++) this.age[i] += dt;
+    if (this.last.distanceToSquared(p) > 0.7 * 0.7) {
+      this.head = (this.head + n - 1) % n;
+      const h = this.head;
+      this.px[h] = p.x; this.pz[h] = p.z; this.sx[h] = side.x; this.sz[h] = side.z; this.a[h] = strength; this.age[h] = 0;
+      this.count = Math.min(n, this.count + 1);
+      this.last.copy(p);
     }
-    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true; this.geo.attributes.size.needsUpdate = true;
-    const k = Math.min(this.n - 1, 9);
-    return out.set(this.pos[k * 3], this.pos[k * 3 + 1], this.pos[k * 3 + 2]);
+    const pos = this.geo.attributes.position.array, al = this.geo.attributes.alpha.array, w = this.width;
+    for (let i = 0; i < this.count; i++) {
+      const k = (this.head + i) % n;
+      pos[i * 6] = this.px[k] + this.sx[k] * w; pos[i * 6 + 1] = y; pos[i * 6 + 2] = this.pz[k] + this.sz[k] * w;
+      pos[i * 6 + 3] = this.px[k] - this.sx[k] * w; pos[i * 6 + 4] = y; pos[i * 6 + 5] = this.pz[k] - this.sz[k] * w;
+      const fade = Math.max(0, 1 - this.age[k] / 1.5);
+      al[i * 2] = al[i * 2 + 1] = this.a[k] * fade * fade;
+    }
+    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.alpha.needsUpdate = true;
+    this.geo.setDrawRange(0, Math.max(0, (this.count - 1) * 6));
+    this.mat.uniforms.color.value.copy(color);
   }
 }
 

@@ -15,12 +15,13 @@ const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 // ---------------------------------------------------------------------------------------------
 export const FAIR = {
   LANE: [3.3, 2.4],        // half-width (ship centre) of the safe lane, difficulty 0 .. 1
-  COMFORT: [0.42, 0.62],   // share of lateral grip the layout assumes you use
-  REACT_FIRST: [0.7, 0.55],// s to notice the first row of a set
-  REACT_NEXT: [0.34, 0.26],// s between rows inside a set (you already saw it coming)
-  SEE: [1.5, 1.15],        // s any row must be in plain sight before you reach it
+  COMFORT: [0.5, 0.68],    // share of lateral grip the layout assumes you use
+  REACT_FIRST: [0.62, 0.5],// s to notice the first row of a set
+  REACT_NEXT: [0.3, 0.24], // s between rows inside a set (you already saw it coming)
+  SEE: [1.5, 1.2],         // s any row must be in plain sight before you reach it
   MIN_GAP: 30,             // m between rows, whatever the maths says
   PAD: 0.35,               // extra clearance around every obstacle when planning the lane
+  OPEN: 6.3,               // m: no opening is ever narrower than this (the hull is 2.5 m)
   NO_ROWS_BEFORE: 330,     // m: the first stretch is a warm-up
 };
 
@@ -49,25 +50,36 @@ export function freeSet(items, lim, pad = FAIR.PAD) {
   return free.filter(([a, b]) => b - a > 0.2);
 }
 
-/** Furthest any point of `from` is from the nearest point of `to` (how far the ship may have to slide). */
-export function worstShift(from, to) {
+/**
+ * Worst-case seconds for the ship to get itself into one of the `to` openings, starting anywhere in
+ * `from` and already sliding sideways as fast as it could be without having doomed itself against a
+ * wall. Model: kill the slide, then move over and stop (bang-bang at `acc`, sideways speed capped at
+ * the ship's real limit). That is slower than the best possible manoeuvre, so it errs on the safe side.
+ */
+export function worstTime(from, to, acc, v, lim) {
+  const vmax = v * Math.sin(SHIP.STEER_ANGLE);
+  const go = (dist) => {
+    if (dist <= 0) return 0;
+    const tri = 2 * Math.sqrt(dist / acc);
+    return (acc * tri) / 2 > vmax ? dist / vmax + vmax / acc : tri;
+  };
   let worst = 0;
   for (const [a, b] of from) {
-    for (let x = a; x <= b + 1e-6; x += 0.25) {
-      let best = Infinity;
-      for (const [c, d] of to) best = Math.min(best, x < c ? c - x : x > d ? x - d : 0);
-      if (best > worst) worst = best;
+    for (let x = a; x <= b + 1e-6; x += 0.5) {
+      for (const dir of [-1, 0, 1]) {
+        // fastest it can be sliding that way and still stop short of the wall
+        const v0 = dir === 0 ? 0 : Math.min(vmax, Math.sqrt(2 * acc * Math.max(0, lim - dir * x)));
+        const stop = x + (dir * v0 * v0) / (2 * acc);
+        let best = Infinity;
+        for (const [c, d] of to) {
+          const inside = x >= c && x <= d && stop >= c && stop <= d;
+          best = Math.min(best, inside ? 0 : v0 / acc + go(stop < c ? c - stop : stop > d ? stop - d : 0));
+        }
+        if (best > worst) worst = best;
+      }
     }
   }
   return worst;
-}
-
-/** Seconds to slide sideways by `shift` metres using `acc` m/s^2, with travel angle capped as the ship's is. */
-export function shiftTime(shift, acc, v) {
-  if (shift <= 0) return 0;
-  const vlat = v * Math.sin(SHIP.STEER_ANGLE) * 0.92;
-  const tri = 2 * Math.sqrt(shift / acc);
-  return (acc * tri) / 2 > vlat ? shift / vlat + vlat / acc : tri;
 }
 
 /**
@@ -192,6 +204,14 @@ export class Course {
     while (this.gi < this.gates.length && this.gates[this.gi].s < s) { this.gates[this.gi].passed = true; this.gi++; }
   }
 
+  /** Where the straight that s sits on begins. */
+  straightStart(s) {
+    const K = this.track.K;
+    let i = clamp(Math.round(s), 0, K.length - 1);
+    while (i > 0 && Math.abs(K[i - 1]) < 1e-6) i--;
+    return i;
+  }
+
   // ---------- pieces ----------
   dress(p) {
     const T = this.track, sec = T.sections[p.sec];
@@ -300,15 +320,19 @@ export class Course {
         const free = freeSet(row.items, lim);
         if (!free.length) break;
         const from = prev ? prev.free : [[-lim, lim]];
-        const shift = worstShift(from, free);
         const react = prev ? lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d) : lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d);
-        const need = v * (react + shiftTime(shift, acc, v));
-        // (1) far enough past the previous row to make the move
-        let sMin = prev ? prev.end + Math.max(FAIR.MIN_GAP, need) + row.front : s;
-        // (2) in plain sight for long enough: the whole move if it is the first of a set
-        const sightNeed = Math.max(v * tSee, prev ? 0 : need);
-        const seen = this.sightStart(s, 0);
-        if (s0 - seen < sightNeed) sMin = Math.max(sMin, seen + sightNeed + row.front + 1);
+        const move = v * worstTime(from, free, acc, v, lim);
+        // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
+        let seen = 0;
+        for (const it of row.items) seen = Math.max(seen, this.sightStart(s + (it.ds || 0), clamp(0, it.x - halfWidth(it), it.x + halfWidth(it))));
+        let sMin = Math.max(s, seen + v * tSee + row.front);
+        if (prev) {
+          // far enough past the previous row to react and make the move
+          sMin = Math.max(sMin, prev.end + Math.max(FAIR.MIN_GAP, v * react + move) + row.front);
+        } else {
+          // first of a set: seen, reacted to, and the whole move made on the straight (not mid-bend)
+          sMin = Math.max(sMin, seen + v * react + move + row.front, this.straightStart(s) + move + 2 + row.front);
+        }
         if (sMin > s + 0.5) { s = sMin; continue; }
         placed = { row, s, s0, s1, free, lim };
       }
@@ -422,10 +446,10 @@ export class Course {
         }
         case 'island': {
           // one stalled hauler; room on both sides
-          const c = (u[1] * 2 - 1) * Math.max(0, lim - 3.6);
-          const sidePass = prevY != null ? Math.sign(prevY - c) || side0 : (c > 0 ? -1 : 1);
-          const roomS = sidePass > 0 ? lim - (c + 1.7 + R) : (c - 1.7 - R) + lim;
-          const side = roomS > 2 * lane * 0.6 ? sidePass : -sidePass;
+          const need = Math.max(FAIR.OPEN, 2 * (lane + R) * 0.9);         // the wider side is at least this
+          const cMin = Math.max(0, need - wall + 1.7), cMax = Math.max(cMin, wall - 1.7 - 0.6);
+          const c = (u[2] < 0.5 ? -1 : 1) * lerp(cMin, cMax, u[1]);
+          const side = c > 0 ? -1 : 1;                                    // pass on the wide side
           const y = clamp(c + side * (1.7 + R + lane * 0.7), -(lim - 0.5), lim - 0.5);
           return { items: [{ kind: 'hauler', shape: 'box', x: c, hl: 5.5, hw: 1.7 }], y, front: 5.5, back: 5.5 };
         }
@@ -435,9 +459,11 @@ export class Course {
           const sideFree = lim - (1.7 + R + FAIR.PAD);   // free width in a side lane when the middle is blocked
           const two = sideFree >= 2 * lane * 0.95 && u[1] < 0.3 + d * 0.5;
           const openLane = prevY == null ? Math.floor(u[2] * 3) : clamp(Math.round(prevY / laneW) + 1 + (u[2] < 0.5 ? -1 : 1), 0, 2);
-          const blocked = two ? [0, 1, 2].filter((l) => l !== openLane) : [openLane === 1 ? (u[3] < 0.5 ? 0 : 2) : 1];
+          // one hauler: the middle lane only where that still leaves a proper opening beside it
+          const midOk = wall - 1.7 >= FAIR.OPEN;
+          const blocked = two ? [0, 1, 2].filter((l) => l !== openLane) : [openLane === 1 || !midOk ? (openLane === 0 ? 2 : openLane === 2 ? 0 : u[3] < 0.5 ? 0 : 2) : 1];
           const items = blocked.map((l) => ({ kind: 'hauler', shape: 'box', x: (l - 1) * laneW, hl: 5.5, hw: 1.7, ds: two ? (l - 1) * lerp(-3, 3, u[4]) : 0 }));
-          const y = openLane === 1 ? 0 : (openLane - 1) * (lim + 1.7 + R + FAIR.PAD) / 2;
+          const y = two ? (openLane === 1 ? 0 : ((openLane - 1) * (lim + 1.7 + R + FAIR.PAD)) / 2) : clamp((openLane - 1) * laneW, -(lim - 0.6), lim - 0.6);
           return { items, y, front: 9, back: 9 };
         }
         default: {

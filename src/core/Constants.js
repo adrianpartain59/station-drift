@@ -26,7 +26,7 @@ export const SHIP = {
   RADIUS: 1.25,          // collision circle against walls, and the size obstacles are laid out for
   HIT_RADIUS: 1.0,       // what actually counts as hitting an obstacle (smaller than the hull: forgiving)
   WALL_INSET: 0.85,      // station ribs and light bars stand this far proud of the wall
-  CRUISE: [38, 54],      // cruise speed at difficulty 0 and 1 (difficulty = distance / 7.5 km)
+  CRUISE: [38, 50],      // cruise speed at difficulty 0 and 1 (difficulty = distance / 7.5 km)
   START_SPEED: 26,
   ACCEL: 15,             // toward cruise
   COAST: 9,              // back down to cruise after a boost
@@ -39,7 +39,7 @@ export const SHIP = {
   // you go the wider the tightest turn: R = v^2 / GRIP. That is what makes the drift matter.
   GRIP: 31,              // m/s^2 of lateral acceleration
   MAX_YAW: 1.7,          // rad/s cap at low speed
-  STEER_ANGLE: 0.27,     // rad: travel angle held at full steer (about 15 degrees)
+  STEER_ANGLE: 0.22,     // rad: travel angle held at full steer (about 12.5 degrees)
   STEER_SMOOTH: 14,      // 1/s: key press -> steering ramp
   STEER_TAU: 0.1,        // s: how eagerly the ship swings to the asked angle
   ALIGN_TAU: 0.16,       // s: hands off, it settles back along the corridor
@@ -69,7 +69,7 @@ export const DRIFT = {
   R_TIGHT: 19,           // tightest arc a drift can hold (the map's sharpest corner is 30 m)
   R_WIDE: 150,           // a drift always curves at least this much: on a straight it creeps inward
   R_COUNTER: 520,        // ...unless you steer against it, which nearly straightens the slide
-  ANGLE: 0.24,           // rad: travel angle across the corridor at full steer while drifting
+  ANGLE: 0.21,           // rad: travel angle across the corridor at full steer while drifting
   TAU: 0.2,              // s: lateral response in a drift (heavier than grip: it slides)
   ARM_LOOK: 0.55,        // s: button held with no steer -> the drift starts itself this far before a bend
   ARM_K: 1 / 125,        // bends at least this tight count for that
@@ -85,25 +85,27 @@ export const DRIFT = {
   CHARGE_COUNTER: 0.45,  // charge rate while counter-steering a straight slide
   SWITCH_KEEP: 0.7,      // charge kept when the drift flips for an S-bend
   TIERS: [
-    { at: 0.55, name: 'SPARK', color: 0x46c8ff, time: 0.7, gain: 0.2 },
-    { at: 1.35, name: 'FLARE', color: 0xffa040, time: 1.05, gain: 0.26 },
-    { at: 2.3,  name: 'NOVA',  color: 0xff4fd8, time: 1.5, gain: 0.32 },
+    { at: 0.55, name: 'SPARK', color: 0x46c8ff, time: 0.7, gain: 0.12 },
+    { at: 1.35, name: 'FLARE', color: 0xffa040, time: 1.1, gain: 0.16 },
+    { at: 2.3,  name: 'NOVA',  color: 0xff4fd8, time: 1.6, gain: 0.2 },
   ],
   BOOST_ACCEL: 46,
   CHAIN_WINDOW: 4,       // s after a banked drift to start the next and keep the chain
   MAX_CHAIN: 8,
   PAD_TIME: 0.9,         // boost pads
-  PAD_GAIN: 0.24,
+  PAD_GAIN: 0.14,
 };
-export const MAX_BOOST_GAIN = 0.32;
+// Boosts are small in metres per second and big on screen (the camera sells them): the fastest the
+// ship can ever go is cruise + this, and the whole course is laid out and proved at that speed.
+export const MAX_BOOST_GAIN = 0.2;
 
 // The clock. Every gate adds time for the stretch to the next one at a par pace that starts
 // generous and tightens with distance. Out of time = run over.
 export const CLOCK = {
   START: 26,
-  PACE: [0.68, 0.9],     // share of cruise speed the par assumes, difficulty 0 .. 1
-  PACE_LATE: 0.95,       // by 20 km
-  MAX: 99.9,
+  PACE: [0.7, 0.9],      // share of cruise speed the par assumes, difficulty 0 .. 1
+  PACE_LATE: 0.96,       // by 20 km
+  MAX: 60,               // the bank never holds more than this
   LOW: 8,                // warning below this
   COAST_DECEL: 16,       // engine cut when the clock hits zero; a gate reached while coasting revives it
 };
@@ -123,8 +125,8 @@ export const CAMERA = {
   FOV: 70,
   FOV_SPEED: 13,
   FOV_BOOST: 11,
-  CHASE_DIST: 9.2,
-  CHASE_HEIGHT: 3.3,
+  CHASE_DIST: 10.4,
+  CHASE_HEIGHT: 3.6,
   LOOK_AHEAD: 15,
   SMOOTH: 6.5,
   FP_FOV: 84,

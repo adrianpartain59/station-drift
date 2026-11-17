@@ -1,19 +1,24 @@
 import { GameState } from '../core/GameState.js';
-import { DRIFT, SHIP } from '../core/Constants.js';
+import { DRIFT, CLOCK } from '../core/Constants.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toLocaleString('en-US');
 const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+const TOP = DRIFT.TIERS[DRIFT.TIERS.length - 1].at;
 
 export class HUD {
   constructor() {
     this.el = {
-      hud: $('hud'), score: $('score'), dist: $('dist'), coins: $('coins'), speed: $('speed'),
-      thrust: $('thrustFill'), hull: $('hullFill'), drift: $('drift'), driftPts: $('driftPts'), driftMult: $('driftMult'), driftTier: $('driftTier'),
-      banner: $('banner'), bannerTop: $('bannerTop'), bannerMain: $('bannerMain'), pops: $('pops'),
-      title: $('title'), pause: $('pause'), over: $('over'), overStats: $('overStats'), best: $('bestTitle'), cam: $('camLabel'), chain: $('chain'), flash: $('flash'),
+      hud: $('hud'), score: $('score'), dist: $('dist'), coins: $('coins'), speed: $('speed'), chain: $('chain'),
+      clockBox: $('clockBox'), clock: $('clock'), clockAdd: $('clockAdd'),
+      gateDist: $('gateDist'), gateFill: $('gateFill'), boostFill: $('boostFill'),
+      drift: $('drift'), driftPts: $('driftPts'), driftMult: $('driftMult'), driftTier: $('driftTier'),
+      banner: $('banner'), bannerTop: $('bannerTop'), bannerMain: $('bannerMain'), pops: $('pops'), hint: $('hint'),
+      title: $('title'), pause: $('pause'), over: $('over'), overStats: $('overStats'), best: $('bestTitle'), cam: $('camLabel'), flash: $('flash'),
     };
-    this.bannerT = 0;
+    $('tick1').style.left = (DRIFT.TIERS[0].at / TOP) * 100 + '%';
+    $('tick2').style.left = (DRIFT.TIERS[1].at / TOP) * 100 + '%';
+    this.bannerT = 0; this.hintText = ''; this.linger = 0;
   }
 
   show(id, on) { this.el[id].classList.toggle('hidden', !on); }
@@ -26,31 +31,36 @@ export class HUD {
     if (p === 'title') this.el.best.textContent = GameState.best ? `BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
   }
 
-  update(dt) {
+  /** v: { speed (shown units), drifting, charge, tier, points, mult, boost 0..1, boostTier, gateDist, gateFrac } */
+  update(dt, v) {
     const g = GameState, e = this.el;
     e.score.textContent = fmt(g.score);
     e.dist.textContent = (g.distance / 1000).toFixed(2) + ' km';
     e.coins.textContent = fmt(g.coins);
-    e.speed.textContent = Math.round(g.speed * 3.6);
-    e.thrust.style.transform = `scaleX(${g.thrust.toFixed(3)})`;
-    e.thrust.classList.toggle('ready', g.thrust >= 0.34);
-    const hull = Math.max(0, g.hull / SHIP.HULL);
-    e.hull.style.transform = `scaleX(${hull.toFixed(3)})`;
-    e.hull.classList.toggle('low', hull < 0.35);
-    e.chain.textContent = g.chain > 0 ? `CHAIN x${1 + g.chain}` : '';
+    e.speed.textContent = Math.round(v.speed);
+    e.chain.textContent = g.chain > 1 ? `CHAIN x${g.chain}` : '';
 
-    if (g.drifting || g.driftPoints > 0) {
-      e.drift.classList.add('on');
-      e.driftPts.textContent = fmt(g.driftPoints * (1 + g.chain));
-      e.driftMult.textContent = g.chain > 0 ? `x${1 + g.chain}` : '';
-      const tier = g.driftTier;
+    const c = Math.max(0, g.clock);
+    e.clock.innerHTML = `${Math.floor(c)}<small>.${Math.floor((c % 1) * 10)}</small>`;
+    e.clockBox.classList.toggle('low', c < CLOCK.LOW && c > 0);
+    e.clockBox.classList.toggle('out', c <= 0);
+
+    e.gateDist.textContent = v.gateDist != null ? `${Math.max(0, Math.round(v.gateDist / 10) * 10)} m` : '';
+    e.gateFill.style.transform = `scaleX(${Math.max(0, Math.min(1, v.gateFrac || 0)).toFixed(3)})`;
+    e.boostFill.style.transform = `scaleX(${Math.max(0, Math.min(1, v.boost)).toFixed(3)})`;
+    e.boostFill.style.setProperty('--tier', hex(DRIFT.TIERS[Math.max(0, v.boostTier)].color));
+
+    // the drift panel stays up for a moment after the slide so you can read what it banked
+    if (v.drifting) this.linger = 0.9; else this.linger -= dt;
+    if (v.drifting) {
+      const tier = v.tier;
+      e.driftPts.textContent = fmt(v.points);
+      e.driftMult.textContent = v.mult > 1 ? `x${v.mult % 1 ? v.mult.toFixed(1) : v.mult}` : '';
       e.driftTier.textContent = tier >= 0 ? DRIFT.TIERS[tier].name : 'DRIFT';
       e.drift.style.setProperty('--tier', tier >= 0 ? hex(DRIFT.TIERS[tier].color) : '#ffffff');
-      const next = DRIFT.TIERS[Math.min(DRIFT.TIERS.length - 1, tier + 1)];
-      const prevAt = tier >= 0 ? DRIFT.TIERS[tier].at : 0;
-      const prog = tier >= DRIFT.TIERS.length - 1 ? 1 : (g.driftCharge - prevAt) / (next.at - prevAt);
-      e.drift.style.setProperty('--prog', Math.max(0, Math.min(1, prog)).toFixed(3));
-    } else e.drift.classList.remove('on');
+      e.drift.style.setProperty('--prog', Math.max(0, Math.min(1, v.charge / TOP)).toFixed(3));
+    }
+    e.drift.classList.toggle('on', v.drifting || this.linger > 0);
 
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) e.banner.classList.remove('on'); }
   }
@@ -72,9 +82,19 @@ export class HUD {
     setTimeout(() => d.remove(), 1300);
   }
 
-  thrustFail() {
-    const b = this.el.thrust.parentElement;
-    b.classList.remove('fail'); void b.offsetWidth; b.classList.add('fail');
+  /** Time added at a gate. */
+  addTime(seconds) {
+    const a = this.el.clockAdd;
+    a.textContent = `+${seconds.toFixed(1)} s`;
+    a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+  }
+
+  /** A one-line prompt above the speedo. HTML allowed (for <kbd>). Empty string hides it. */
+  hint(html) {
+    if (html === this.hintText) return;
+    this.hintText = html;
+    const h = this.el.hint;
+    if (html) { h.innerHTML = html; h.classList.add('on'); } else h.classList.remove('on');
   }
 
   flash(color = 'rgba(255,60,80,0.35)') {
@@ -89,14 +109,15 @@ export class HUD {
     e.classList.remove('on'); void e.offsetWidth; e.classList.add('on');
   }
 
-  gameOver(stats) {
-    const e = this.el;
-    e.overStats.innerHTML = `
-      <div class="row big"><span>SCORE</span><b>${fmt(stats.score)}</b></div>
-      ${stats.newBest ? '<div class="newbest">NEW PERSONAL BEST</div>' : `<div class="row"><span>BEST</span><b>${fmt(stats.best)}</b></div>`}
-      <div class="row"><span>DISTANCE</span><b>${(stats.distance / 1000).toFixed(2)} km</b></div>
-      <div class="row"><span>STATIONS RUN</span><b>${stats.stations}</b></div>
-      <div class="row"><span>BEST DRIFT</span><b>${fmt(stats.bestDrift)}</b></div>
-      <div class="row"><span>COINS</span><b>${fmt(stats.coins)} ◎</b></div>`;
+  gameOver(s) {
+    this.el.overStats.innerHTML = `
+      <div class="row big"><span>SCORE</span><b>${fmt(s.score)}</b></div>
+      ${s.newBest ? '<div class="newbest">NEW PERSONAL BEST</div>' : `<div class="row"><span>BEST</span><b>${fmt(s.best)}</b></div>`}
+      <div class="row"><span>DISTANCE</span><b>${(s.distance / 1000).toFixed(2)} km</b></div>
+      <div class="row"><span>STATIONS CLEARED</span><b>${s.stations}</b></div>
+      <div class="row"><span>DRIFTS BANKED</span><b>${s.drifts}</b></div>
+      <div class="row"><span>BEST DRIFT</span><b>${fmt(s.bestDrift)}</b></div>
+      <div class="row"><span>LONGEST CHAIN</span><b>x${s.bestChain}</b></div>
+      <div class="row"><span>COINS</span><b>${fmt(s.coins)} ◎</b></div>`;
   }
 }
