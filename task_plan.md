@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 6
+All phases complete. Waiting on Adrian's hands-on playtest.
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -38,10 +38,10 @@ Phase 6
 - Status: complete (stepped frames + synthetic key input + scripted imperfect players; real hands-on feel still needs Adrian)
 
 ### Phase 6: Commit, push branch, open in Adrian's Chrome, hand-over note
-- Status: in_progress
+- Status: complete (branch pushed, not merged; game opened in Chrome; note in the shared notes folder)
 
 ## Next Step
-Final 200-seed verify, build, commit, push, open http://127.0.0.1:5190/ in Chrome, write the hand-over note.
+Adrian plays it at http://127.0.0.1:5190/ and says what feels off; tune from Constants.js, then `npm run verify`.
 
 ## Decisions Made
 | Decision | Why |
@@ -65,3 +65,4 @@ Final 200-seed verify, build, commit, push, open http://127.0.0.1:5190/ in Chrom
 | Shadow rows at 30 m never placed | 1 | Correctly rejected by worstTime (cut-in case). Replaced with deep set-pieces laid as one obstacle |
 | In-app browser screenshots stale or from the wrong page | 2 | One navigation per screenshot, `?stopat=<m>` hook, step frames by hand |
 | Extra seeds (5001-5080) found 1 failure: a lone bollard 22 m after the corridor narrowed, unreachable for a ship being squeezed inward | 1 | Class, not a one-off: the layout maths treated corridor width as constant. Moves are now counted only from where the walls stop closing (`settledStart`), a narrowing between two rows resets the set, and no set-piece stands where the width changes |
+| No-drift bot hit a wreck on seed 351 (1 hit in 1,020 seeds) | 1 | Bot fault, not the course (the search proved a way through): it left an open lane for coins, then dithered. Autopilot now commits to a lane, weighs clearance above coins |

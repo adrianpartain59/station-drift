@@ -30,3 +30,10 @@
 
 - Seeds 1-300 x 12 km and 1001-1012 x 40 km passed; seeds 5001-5080 found one failure (seed 5008, s=8759).
   Root cause: width change ignored by the layout maths. Fixed in Course.tryPlace / settledStart; re-verifying on 1,000+ seeds.
+
+## Final verification (code at d94b626, 2026-11-16)
+- 1,020 seeds, 12,800 km of course (seeds 1-400, 5001-5300, 20001-20300 at 12 km; 1001-1020 at 40 km): PASS.
+  114,843 obstacles in 35,700 groups; shortest time in sight 1.75 s; narrowest opening 6.30 m for a 2.5 m hull;
+  294.6 million start states searched; flat-out bot and no-drift bot: 0 obstacle hits, 0 hard wall hits, 0 grazes.
+- Self-test (obstacles shoved 45 m): 428 problems on 40 of 40 seeds, as it must.
+- `npm run build` passes. In-app browser: no console errors over a 50 s cockpit + chase run and two restarts.
