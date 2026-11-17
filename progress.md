@@ -37,3 +37,5 @@
   294.6 million start states searched; flat-out bot and no-drift bot: 0 obstacle hits, 0 hard wall hits, 0 grazes.
 - Self-test (obstacles shoved 45 m): 428 problems on 40 of 40 seeds, as it must.
 - `npm run build` passes. In-app browser: no console errors over a 50 s cockpit + chase run and two restarts.
+
+- 2026-11-16: Adrian asked to merge. `movement-redesign` merged into `main` (merge commit, no fast-forward) and pushed.

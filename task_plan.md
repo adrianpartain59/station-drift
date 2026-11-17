@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-All phases complete. Waiting on Adrian's hands-on playtest.
+All phases complete and merged into `main`. Hands-on playtest by Adrian still to come.
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -38,7 +38,7 @@ All phases complete. Waiting on Adrian's hands-on playtest.
 - Status: complete (stepped frames + synthetic key input + scripted imperfect players; real hands-on feel still needs Adrian)
 
 ### Phase 6: Commit, push branch, open in Adrian's Chrome, hand-over note
-- Status: complete (branch pushed, not merged; game opened in Chrome; note in the shared notes folder)
+- Status: complete (branch pushed; merged into `main` on 2026-11-16 at Adrian's request; game opened in Chrome; note in the shared notes folder)
 
 ## Next Step
 Adrian plays it at http://127.0.0.1:5190/ and says what feels off; tune from Constants.js, then `npm run verify`.
