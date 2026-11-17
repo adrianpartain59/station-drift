@@ -1,62 +1,58 @@
-# STATION DRIFT — task plan
+# STATION DRIFT: movement + obstacle redesign
+
+Branch `movement-redesign` (baseline `main` @ db2593e). Started 2026-11-16.
 
 ## Goal
-A fast, procedurally generated space runner (three.js) where drifting a ship through space-station
-corridors is the core mechanic. Underground street-drift culture, moved from Tokyo nights to orbit.
+Rebuild from scratch how the ship plays (model, handling, speed, drift, camera feel, scoring,
+pickups, HUD, sounds) and the obstacles (what they are, how they look, placement and sequencing).
+Keep the map and scenery exactly as they are (Track centreline/sections, WorldBuilder, Sky, Materials).
 
-Must have (from Adrian, 2026-11-16):
-- Starts entering a station; stations alternate with open-space stretches between them
-- Windows in stations show space; always near a planet/star (or several); visible space dust
-- Third person + switchable first person (inside the ship)
-- Drifting is THE mechanic (ship-themed, feels like car drifting)
-- Coins, a variety of obstacles, a boost mechanic
-- Scenic, detailed environment; looks like its own thing, not Star Wars
+Adrian's words: "an easy and fun drifting mechanic based on drifting mechanics from other games
+that should feel like a car drifting game." Easy and intuitive, still hard enough not to get boring.
+Old version: movement "extremely hard", "cheap and annoying"; obstacles sequenced so they were
+"impossible to get through".
+
+Done means:
+- Plays in Adrian's Chrome: easy, intuitive, fun, difficulty builds. Both camera views kept.
+- No obstacle or obstacle sequence is ever impossible at the speed the game asks for,
+  proved by an automated check across many seeds.
+- `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 6 (complete) — awaiting Adrian's playtest
+Phase 2
 
 ## Phases
-### Phase 1: Scaffold
-- Status: complete — Vite + three@0.183.0 in ~/LocalStorage/Dev/StationDrift
+### Phase 1: Read the codebase, research drift games, write the design
+- Status: complete (design in findings.md)
 
-### Phase 2: Core loop + track generator + drift physics
-- Status: complete
+### Phase 2: Headless core (no three.js): Constants, Track trim, Course, ShipPhysics, Autopilot
+- Status: in_progress
 
-### Phase 3: World art (station corridors, hull, windows, space lane, sky, planets, dust)
-- Status: complete
+### Phase 3: Verification tooling (tools/verify): reachability proof + sight lines + bot runs, many seeds
+- Status: pending
 
-### Phase 4: Obstacles, coins, boost pads, scoring, HUD, cameras
-- Status: complete
+### Phase 4: Browser layer: ShipModel, CourseView, CameraRig, Effects, Audio, Input, HUD, Game wiring
+- Status: pending
 
-### Phase 5: Procedural audio + game feel
-- Status: complete
+### Phase 5: Browser playtest (stepped frames), tune, `npm run build`, console clean
+- Status: pending
 
-### Phase 6: Playtest in browser, fix, build
-- Status: complete
-
-### Phase 7: Drift rework after Adrian's playtest (2026-11-16)
-- Status: complete — held drift = fixed-radius arc (R 30/55/115 by steer), nose locked at 22-39 deg slip, straighten on release, charge by hold time, floor aim line + camera look into the arc
-
-### Phase 8: Hop replaces manual boost (2026-11-16)
-- Status: complete — W/up = hop (tap short, hold full), costs 1/3 thrust; obstacles have heights (green = hoppable); tripwire + overhead girder added; spinner arm 3.6 m short of walls; starlight off indoors (glare fix)
+### Phase 6: Commit, push branch, open in Adrian's Chrome, hand-over note
+- Status: pending
 
 ## Next Step
-Adrian plays the hop; tune HOP.* and obstacle weights from his notes.
+Write src/core/Constants.js gameplay blocks, trim Track.js to centreline + piece records, then Course.js.
 
 ## Decisions Made
 | Decision | Why |
 |---|---|
-| three.js + Vite, not the BLUESHIFT engine | Adrian wants a scenic, lit, detailed 3D environment; the BLUESHIFT engine is a neon line renderer |
-| Ship physics in the track's local frame (s, x, facing ψ, travel φ) | Exact corridor collision and curvature-driven drift; corners tighter than the steer rate can follow force a drift |
-| Track heading clamped to ±55° of world forward | A procedural path that can't loop back into itself |
-| Bloom on, with a quality toggle | The neon look needs it; the skill says off by default, but this is the look Adrian asked for |
+| Speed cut from 66-128 m/s to ~38-54 m/s cruise | Map corners are car-scale (R 30-72 m, 15-21 m wide). At the old speed a corner lasted under a second; a drift needs 1-3 s to be felt and steered |
+| Drift = hold SPACE: ship follows the bend by itself, steer only shifts your line; release = boost | Mario Kart / OutRun 2 lesson: direction lock, no spin-outs, road-following assist, reward on exit |
+| Grip steering is lateral-acceleration limited (gets wider with speed) | Car intuition: too fast for a corner means run wide, so brake or drift. Early corners can be steered, later ones need the drift |
+| No hull, no hop. Run ends when the checkpoint clock runs out | Walls and obstacles cost speed and combo, never instant death; the clock makes drifting well (boosts) the way to survive |
+| All obstacles are static footprints (boxes and posts) placed around a designed safe line | Passability is geometric, so it can be proved; no timing obstacles (doors, sweeping lasers, spinners) |
+| Gameplay placement moved out of Track.js into src/gameplay/Course.js with its own RNG | Centreline stays a pure function of the seed; map generator untouched |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |---|---|---|
-| Drift charge never built (tier stuck at -1) | 1 | Code read DRIFT.MIN_SLIP; constant lived at SHIP.DRIFT_MIN_SLIP, so the check compared to undefined. Moved to DRIFT.MIN_SLIP |
-| Overblown bloom, white glare | 1-3 | Bloom threshold 1.0, strength 0.5; neon x2; removed ship headlight (floor specular hotspot); thinner trails |
-| Exterior window band visible through glass from inside | 1 | Exterior neon is front-facing and wound outward (neonOut) |
-| Holding drift spun the ship (72 deg nose in 0.5 s, wall before SPARK) | 1 | Drift was a yaw RATE; replaced with a held arc radius + fixed slip angle |
-| White glare in corridors | 3 | Not the laser or camera-near-lights: the sun DirectionalLight lit enclosed corridors (no shadows) -> floor specular hot spot. Found by hiding objects one by one and reading pixels; fixed by fading the sun indoors |
-| Hidden browser pane pauses rAF and shows stale frames | 1 | window.__step(n, dt) runs fixed frames; ?jump=&cam= params; fresh navigation per screenshot |
