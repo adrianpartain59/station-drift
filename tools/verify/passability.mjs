@@ -2,6 +2,7 @@
 // Proves that nothing on the course is impossible to get through at the speed the game asks for.
 //
 //   node tools/verify/passability.mjs [--seeds 200] [--from 1] [--km 12] [--no-bots] [--verbose]
+//   node tools/verify/passability.mjs --self-test [--shove 45]     (must FAIL: see below)
 //
 // For every seed it builds the real track and course and runs three independent checks:
 //
@@ -32,7 +33,10 @@ import { SHIP, CLOCK, DRIFT } from '../../src/core/Constants.js';
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i < 0 ? def : Number(process.argv[i + 1]); };
 const flag = (name) => process.argv.includes('--' + name);
-const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERBOSE = flag('verbose'), BOTS = !flag('no-bots');
+const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERBOSE = flag('verbose');
+// --self-test: slide every obstacle SHOVE metres back toward the bend before it, which makes the course unfair on
+// purpose. The check must then FAIL; if it still passes, the check is not checking anything.
+const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), BOTS = !flag('no-bots') && !SELF_TEST;
 const L = KM * 1000;
 
 const RULE = {
@@ -146,6 +150,7 @@ function checkSeed(seed) {
   const T = new Track(seed); T.ensure(L + 800);
   const C = new Course(T, seed);
   const out = { seed, fails: [], groups: 0, minSight: 99, minOpen: 99, searchStates: 0, obstacles: 0, rowsPerKm: 0 };
+  if (SELF_TEST) for (const o of C.obstacles) o.s -= SHOVE;
   const obs = C.obstacles.filter((o) => o.s < L);
   out.obstacles = obs.length;
 
@@ -262,6 +267,13 @@ if (BOTS) {
   console.log(`  no-drift bot: obstacle hits ${G('crash')}, hard wall hits ${G('wall')}, grazes ${G('graze')}, avg ${(sum((r) => r.grip.avg) / SEEDS).toFixed(1)} m/s; ${clockOut('grip')}`);
 }
 console.log(`  ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+if (SELF_TEST) {
+  const caught = all.filter((r) => r.fails.length).length;
+  console.log(`\nSELF-TEST (every obstacle shoved ${SHOVE} m toward the bend before it): ${fails.length} problems reported on ${caught} of ${SEEDS} seeds.`);
+  for (const f of fails.slice(0, 5)) console.log('  e.g. ' + f);
+  console.log(caught === SEEDS ? 'SELF-TEST OK: the check catches an unfair course.' : 'SELF-TEST FAILED: an unfair course slipped through.');
+  process.exit(caught === SEEDS ? 0 : 1);
+}
 if (fails.length) {
   console.log(`\nFAILED: ${fails.length} problem(s)`);
   for (const f of fails.slice(0, 40)) console.log('  ' + f);

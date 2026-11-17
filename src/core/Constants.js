@@ -63,7 +63,8 @@ export const SHIP = {
   // Obstacles: you smash through, lose most of your speed and your combo, and flicker for a moment.
   CRASH_KEEP: 0.3,
   CRASH_MIN: 12,
-  GHOST: 1.5,            // s of no-collision after a crash
+  GHOST: 1.5,            // s of no-collision after a crash...
+  GHOST_DIST: 55,        // ...and at least this many metres, so one set-piece can only ever cost you once
 };
 
 // The drift. Hold the button: the tail steps out, the ship carries itself round the bend, and

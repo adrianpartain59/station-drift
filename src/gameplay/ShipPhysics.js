@@ -41,7 +41,7 @@ export class ShipPhysics {
     this.charge = 0; this.tier = -1; this.driftDist = 0; this.driftPts = 0; this.apex = 0;
     this.exitT = 0; this.exitDir = 0;
     this.boostT = 0; this.boostGain = 0; this.boostTier = -1;
-    this.ghost = 0;
+    this.ghost = 0; this.ghostDist = 0;
     this.touch = 0; this.wallSide = 0; this.scrape = 0;
     this.engineCut = false; this.braking = false;
     this.straightT = 0; this.scrub = 0;
@@ -58,7 +58,7 @@ export class ShipPhysics {
     this.drift = o.drift; this.driftDir = o.driftDir; this.driftT = o.driftT; this.driftLock = o.driftLock; this.armed = o.armed;
     this.charge = o.charge; this.tier = o.tier; this.driftDist = o.driftDist; this.driftPts = o.driftPts; this.apex = o.apex;
     this.exitT = o.exitT; this.exitDir = o.exitDir;
-    this.boostT = o.boostT; this.boostGain = o.boostGain; this.boostTier = o.boostTier; this.ghost = o.ghost;
+    this.boostT = o.boostT; this.boostGain = o.boostGain; this.boostTier = o.boostTier; this.ghost = o.ghost; this.ghostDist = o.ghostDist;
     this.touch = o.touch; this.wallSide = o.wallSide; this.scrape = o.scrape;
     this.engineCut = o.engineCut; this.braking = o.braking; this.yawRate = o.yawRate;
     this.straightT = o.straightT; this.scrub = o.scrub;
@@ -114,7 +114,7 @@ export class ShipPhysics {
     this.v = Math.max(SHIP.CRASH_MIN, this.v * SHIP.CRASH_KEEP);
     this.boostT = 0; this.boostGain = 0;
     this.theta *= 0.3;
-    this.ghost = SHIP.GHOST;
+    this.ghost = SHIP.GHOST; this.ghostDist = SHIP.GHOST_DIST;
     this.emit('crash', {});
     return true;
   }
@@ -278,7 +278,10 @@ export class ShipPhysics {
     if (this.v < 0) this.v = 0;
     if (this.drift && this.v < DRIFT.MIN_SPEED * 0.8) this.loseDrift('slow');
 
-    if (this.ghost > 0) this.ghost -= dt;
+    if (this.ghost > 0) {
+      this.ghost -= dt; this.ghostDist -= sdot * dt;
+      if (this.ghost <= 0 && this.ghostDist > 0) this.ghost = 1e-3; // not clear of it yet
+    }
   }
 
   /** World position and headings for rendering. */

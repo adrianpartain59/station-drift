@@ -60,7 +60,7 @@ export class CameraRig {
 
     // ---- cockpit: the pilot's head, looking between the nose and the way the ship is going ----
     const ny = pose.yaw, cy = Math.cos(ny), sy = Math.sin(ny);
-    this.cpos.set(pose.x + sy * eye.z + cy * -eye.x, pose.y + eye.y + (pose.bob || 0), pose.z + cy * eye.z - sy * -eye.x);
+    this.cpos.set(pose.x + sy * eye.z, pose.y + eye.y + (pose.bob || 0), pose.z + cy * eye.z);
     const ly = ny + (ty - ny) * 0.6;
     this.clook.set(this.cpos.x + Math.sin(ly) * 30 + ((gx - pose.x) / dg) * 6, this.cpos.y - 1.2, this.cpos.z + Math.cos(ly) * 30 + ((gz - pose.z) / dg) * 6);
 
@@ -68,7 +68,7 @@ export class CameraRig {
     this.look.lerp(this.clook, b);
     cam.up.set(0, 1, 0);
     cam.lookAt(this.look);
-    cam.rotateZ(this.roll * (1 - b) - (pose.roll || 0) * b * 0.6);
+    cam.rotateZ(this.roll * (1 - b) - (pose.roll || 0) * b * 0.4);
 
     // shake (gentler in the cockpit)
     const tr = this.trauma * this.trauma * (1 - b * 0.45);

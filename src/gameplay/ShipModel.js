@@ -137,7 +137,7 @@ export class ShipModel {
     const mark = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.04, 0.03), this.stripe); mark.position.y = 0.14; this.yoke.add(mark);
     c.add(this.yoke);
     for (const s of [-1, 1]) {
-      bar(s * 0.74, 0.4, 0.7, s * 0.46, 1.08, -0.1, 0.05, trim);                           // A-pillar
+      bar(s * 0.76, 0.4, 0.7, s * 0.47, 1.08, -0.1, 0.038, trim);                          // A-pillar
       put(new THREE.BoxGeometry(0.07, 0.16, 1.4), trim, s * 0.82, 0.33, 0.02);             // door top
     }
     // the hood out front, with its stripes
