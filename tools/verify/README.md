@@ -6,8 +6,21 @@ Proves that no obstacle, and no sequence of obstacles, is impossible to get thro
 npm run verify
 ```
 
-That is `node tools/verify/passability.mjs --seeds 200 --km 12` (about 2.5 minutes). Options:
-`--seeds N`, `--from N` (first seed), `--km N`, `--no-bots`, `--verbose`. Exit code 1 on any failure.
+That is `node tools/verify/passability.mjs --seeds 200 --km 12` (about 2.5 minutes) and checks EASY mode.
+`npm run verify:hard` (or `--mode hard`) checks HARD. Other options: `--seeds N`, `--from N` (first seed),
+`--km N`, `--no-bots`, `--verbose`. Exit code 1 on any failure.
+
+Each mode is held to its own stated contract (the `RULE` table at the top of the script):
+
+| | grip the search may use | reaction | margin round the hull | sideways speed the ship may already have | narrowest opening |
+|---|---|---|---|---|---|
+| easy | 75% | 0.45 s | 0.3 m | any | 6.0 m |
+| hard | 90% | 0.35 s | 0.2 m | up to 60% of its top | 5.0 m |
+
+Hard asks more of the player and says so. In hard, a sweeping laser is treated as blocking its whole sweep, so
+the proof never relies on timing. A laser fence that runs on from a cap through a bend is exempt from the
+sight rule (the cap is the decision; the fence only asks that the chosen lane is held), and both bots drive
+every one of them on the real physics.
 
 What it checks on every seed, using the real `Track` and `Course`:
 
@@ -32,5 +45,5 @@ node tools/verify/passability.mjs --self-test
 shoves every obstacle 45 m back toward the bend before it and expects the check to fail on every
 seed. If that ever passes, the check has stopped checking.
 
-When you change anything in `SHIP`, `DRIFT`, `MAX_BOOST_GAIN` (Constants.js) or `FAIR` / the
-designers (Course.js), run it again.
+When you change anything in `SHIP`, `DRIFT`, `FAIR` or `COURSE` (Constants.js), a mode's overrides
+(core/Modes.js) or the designers (Course.js), run it again for both modes.

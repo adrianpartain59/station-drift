@@ -198,7 +198,10 @@ export class Course {
    */
   settledStart(s) {
     const W = this.track.W, start = this.straightStart(s);
-    for (let i = clamp(Math.round(s), 1, W.length - 1) - 1; i >= start; i--) if (W[i + 1] < W[i] - 1e-9) return i + 1;
+    // Hard mode counts a widening the same way: an opening that only exists once the walls have moved
+    // apart should not have to be reached by skirting the wall as it opens.
+    const any = COURSE.SPANS;
+    for (let i = clamp(Math.round(s), 1, W.length - 1) - 1; i >= start; i--) if (W[i + 1] < W[i] - 1e-9 || (any && W[i + 1] > W[i] + 1e-9)) return i + 1;
     return start;
   }
 

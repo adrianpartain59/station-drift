@@ -1,6 +1,6 @@
 import { SHIP, DRIFT } from '../core/Constants.js';
 import { ShipPhysics } from './ShipPhysics.js';
-import { clearance } from './Course.js';
+import { clearance, halfWidth } from './Course.js';
 
 /**
  * A driver that only does what a person at a keyboard can: left / right / nothing, a drift button and
@@ -75,14 +75,19 @@ export class Autopilot {
       const o = O[i];
       if (o.s > far) break;
       if (o.hit) continue;
-      if (o.seen === undefined) o.seen = this.course.sightStart(o.s, o.x);
+      // seen as soon as its end nearest the middle of the corridor is in view (its far end may be buried in a wall)
+      if (o.seen === undefined) o.seen = this.course.sightStart(o.s, Math.max(o.x - halfWidth(o), Math.min(o.x + halfWidth(o), 0)));
       if (o.seen <= ship.s) list.push(o);
     }
     return list;
   }
 
   plan(ship) {
-    const o = this.o, sim = this.sim, lim = ship.lim;
+    const o = this.o, sim = this.sim;
+    // lanes span the widest the corridor gets within the look-ahead, not just where the ship is now:
+    // an opening can lie beyond today's wall if the corridor is about to widen
+    let lim = ship.lim;
+    if (DRIFT.R_HOOK) for (let u = 20; u <= ship.v * o.horizon; u += 20) lim = Math.max(lim, this.course.lim(ship.s + u));
     const obs = this.visible(ship);
     const coins = this.course.coins;
     const keys = { steer: 0, drift: false, brake: false };

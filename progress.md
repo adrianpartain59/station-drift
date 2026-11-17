@@ -39,3 +39,15 @@
 - `npm run build` passes. In-app browser: no console errors over a 50 s cockpit + chase run and two restarts.
 
 - 2026-11-16: Adrian asked to merge. `movement-redesign` merged into `main` (merge commit, no fast-forward) and pushed.
+
+## Hard mode (2026-11-16, branch hard-mode)
+- Adrian's playtest: wants faster base speed, more and more varied obstacles (lasers), a drift that cannot be
+  tapped down a straight for boosts; keep today's game as EASY, build HARD.
+- Modes.js + live constants; easy fingerprint identical after every step.
+- Hard drift, hard course (spans, laser gate / sweep / fenced lane / fenced bend), views, mode UI.
+- Hard scripted players (6 seeds x 14 km): nothing 1.9-3.8 km, steer only 4.5-5.7, late SPACE only 3.9-6.2,
+  sloppy drifter 7.0-9.6, decent drifter 7.1-12.8. Coin lines: 0 of 9,834 coins inside an obstacle's reach.
+- Pacing: hard 5.0 set-pieces/km, median 2.8 s apart (90th pct 7.4 s); easy 2.8/km, 6.1 s (14.9 s).
+- Hard verify, first full run (600 seeds x 12 km): search PASS on all 34,819 groups; bots hit lasers on 7 seeds
+  and walls on 3. Causes fixed (see task_plan errors). Easy 150 seeds: PASS. Hard 20 x 40 km: PASS.
+  Hard self-test: 1,018 problems on 40 of 40 seeds.

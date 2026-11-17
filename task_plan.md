@@ -44,18 +44,20 @@ Phase 7 (hard mode), branch `hard-mode` from main @ e2e6eb5
 His notes: base speed faster; more obstacles, diverse and often, lasers especially; the drift must turn the ship
 enough that it cannot be spammed going straight for boosts, while staying as easy as possible; keep the current
 game as EASY, build HARD with these changes; free to change other things in hard.
-- 7a Mode system: easy = today's numbers and layout, byte-identical (fingerprint 4c21b329... from scratchpad
-  baseline.mjs); hard = overrides. Title selector, HUD badge, best score per mode, `?mode=`, `verify --mode`.
-  Status: pending
-- 7b Hard drift: on a straight the slide commits to a real turn (R about 58 m, almost no delay) and barely
-  charges; in a real bend it still follows the bend. Status: pending
-- 7c Hard course: straights merged into spans (more room for rows), laser gates, laser lane closures through
-  bends, sweeping lasers inside a static envelope, plus the existing kinds. Status: pending
-- 7d Prove it: verifier in hard mode with its own stated contract; bots; scripted players; clock retune. Status: pending
-- 7e Browser check, build, commit, push. Status: pending
+- 7a Mode system: complete. `src/core/Modes.js` lays HARD over the constants; EASY reproduces the pre-change
+  course and bot trace exactly (fingerprint 4c21b329..., scratchpad baseline.mjs). Title and game-over chips,
+  TAB / E / H, HUD tag, best per mode, `?mode=`, `verify --mode`, `npm run verify:hard`.
+- 7b Hard drift: complete. On a straight the slide hooks to R 58 m after 0.08 s and charges at 15%; in a real
+  bend it follows the bend as before; the wall save can flick the ship off the inside wall. Scripted "tap the
+  drift down every straight" player: 6.5 boosts/km in easy, 0.1 in hard.
+- 7c Hard course: complete. Straights dressed as whole spans; laser gates with 1-3 openings, sweeping lasers
+  (whole sweep treated as solid by layout and proof), laser-fenced lanes on straights and through bends.
+- 7d Prove it: first full run found bot hits (see errors); fixed; final run in progress.
+- 7e Browser check: complete (mode chips, TAB switch, laser gate, sweeper, fenced bend, game over, exploit
+  attempt through real key events). Build passes.
 
 ## Next Step
-7a: move FAIR into Constants, add Modes.js, make derived constants live, confirm the easy fingerprint is unchanged.
+Read the final hard verification, commit, push `hard-mode`, ask Adrian about merging.
 
 ## Decisions Made
 | Decision | Why |
@@ -80,3 +82,7 @@ game as EASY, build HARD with these changes; free to change other things in hard
 | In-app browser screenshots stale or from the wrong page | 2 | One navigation per screenshot, `?stopat=<m>` hook, step frames by hand |
 | Extra seeds (5001-5080) found 1 failure: a lone bollard 22 m after the corridor narrowed, unreachable for a ship being squeezed inward | 1 | Class, not a one-off: the layout maths treated corridor width as constant. Moves are now counted only from where the walls stop closing (`settledStart`), a narrowing between two rows resets the set, and no set-piece stands where the width changes |
 | No-drift bot hit a wreck on seed 351 (1 hit in 1,020 seeds) | 1 | Bot fault, not the course (the search proved a way through): it left an open lane for coins, then dithered. Autopilot now commits to a lane, weighs clearance above coins |
+| Hard drift first cut: early-press player hit the inside wall 20 times in 48 km | 1 | Starting a slide while already steering inward leaves no way to turn back. The hard wall save now turns away at full grip |
+| First hard verifier run flagged every fenced bend (sight, 'stands in a bend') | 1 | Fence segments curve out of sight by nature; only the cap is a decision. Verifier exempts `fence` from the sight rule; cap moved 5 m clear of the bend |
+| zsh aborted a background chain on `rm -f h*.txt` (no matches) | 1 | No globs in rm inside && chains; the verification had simply not run |
+| Hard, 600 seeds: search passed everywhere but both bots hit the same laser on 6 seeds | 1 | (a) Bots judged an obstacle seen by its box centre, which for a wall-anchored beam is inside the wall: now its end nearest the middle. (b) A gate's only opening lay outside a station's exit mouth: hard placement now also waits for a widening to finish. (c) Bot lanes stopped at the current wall: now span the widest the corridor gets within its look-ahead |
