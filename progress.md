@@ -1,8 +1,41 @@
-# Progress — STATION DRIFT
+# Progress: movement + obstacle redesign
 
 ## 2026-11-16
-- Scaffolded Vite + three@0.183.0; wrote core (Constants/EventBus/GameState/Game), level (Track, WorldBuilder, Entities, Materials, Sky+Dust), gameplay (ShipPhysics, ShipModel, Autopilot), systems (CameraRig, Effects, Audio, Input), ui (HUD), index.html.
-- Node fairness test (scratchpad tests/fair.mjs): autopilot finishes 3 km on seeds 3/11/42/77/1234; 0-3 crashes, 2-16 wall hits; no obstacle row ever fully blocked.
-- Browser checks (Claude pane, frames stepped by hand): title, station interior, windows onto planets, station exit to open space, cockpit view, drift sparks/chain, game over, 4 restarts with no console errors and stable geometry count. ~120 fps at 800x600.
-- `npm run build` passes.
-- Not checked: real keyboard feel (needs Adrian), audio by ear, mobile/touch, gamepad.
+- Branch `movement-redesign` created from db2593e. Old planning files replaced (history keeps them).
+- Read all source. Research subagent returned (see findings.md). Design fixed.
+- Constants.js: map blocks kept; SHIP/DRIFT/CLOCK/SCORE/CAMERA rewritten. Track.js trimmed to the centreline
+  and now records `pieces`; all obstacle/coin/pad code and collision helpers removed from it.
+- ShipPhysics, Course, Autopilot, Pace written (no three.js). First bot drive: 6 km x 3 seeds, 0 crashes, 0 wall hits.
+- tools/verify/passability.mjs: sight lines, openings, exhaustive sideways search (information-limited), two bots.
+  Found the sideways-speed gap in the layout maths on its first run; fixed in Course.worstTime.
+- Browser layer rewritten: ShipModel (hover coupe + cockpit), CourseView (replaces level/Entities.js), CameraRig,
+  Skid effect, Audio one-shots, Input, HUD + index.html, Game. EventBus removed (ship reports through a callback).
+- Scripted imperfect players (scratchpad players.mjs / novice.mjs) used as a stand-in for hands-on feel:
+  before fixes, "hold SPACE + inside key" hit a wall 1.4 times/km; after, 0.00. Doing nothing no longer keeps pace.
+- Clock redesigned twice (see task_plan decisions). Run length by scripted player: nothing 4.5-5.7 km, steer only
+  5.5-6 km, sloppy drifter 9-14 km, decent drifter 11-14 km.
+- Deep set-pieces: 3,587 obstacles in 1,087 groups over 360 km, all proved.
+- Checked in the in-app browser with stepped frames: title, chase and cockpit views (straight + mid-drift), each
+  obstacle kind, gate, boost, game over; synthetic keyboard run banks drifts and earns clock. No console errors.
+- Not checked: real hands on a keyboard, audio by ear, gamepad, touch.
+
+### Final scripted-player table (8 seeds x 16 km, committed code)
+| player | crashes/km | hard wall hits/km | grazes/km | speed vs cruise | clock runs out at |
+|---|---|---|---|---|---|
+| touches nothing | 1.16 | 1.56 | 0.94 | 92% | 4.3-5.7 km |
+| steers at the coins, never drifts | 0.00 | 0.68 | 0.13 | 98% | 5.5-6.1 km |
+| holds SPACE late in bends, never steers | 1.01 | 0.17 | 0.24 | 97% | 6.6-11.1 km |
+| SPACE + inside key, late, follows coins | 0.01 | 0.00 | 0.04 | 102% | 9.4-13.6 km |
+| presses early, follows coins | 0.00 | 0.01 | 0.00 | 103% | 10.8-15.3 km |
+
+- Seeds 1-300 x 12 km and 1001-1012 x 40 km passed; seeds 5001-5080 found one failure (seed 5008, s=8759).
+  Root cause: width change ignored by the layout maths. Fixed in Course.tryPlace / settledStart; re-verifying on 1,000+ seeds.
+
+## Final verification (code at d94b626, 2026-11-16)
+- 1,020 seeds, 12,800 km of course (seeds 1-400, 5001-5300, 20001-20300 at 12 km; 1001-1020 at 40 km): PASS.
+  114,843 obstacles in 35,700 groups; shortest time in sight 1.75 s; narrowest opening 6.30 m for a 2.5 m hull;
+  294.6 million start states searched; flat-out bot and no-drift bot: 0 obstacle hits, 0 hard wall hits, 0 grazes.
+- Self-test (obstacles shoved 45 m): 428 problems on 40 of 40 seeds, as it must.
+- `npm run build` passes. In-app browser: no console errors over a 50 s cockpit + chase run and two restarts.
+
+- 2026-11-16: Adrian asked to merge. `movement-redesign` merged into `main` (merge commit, no fast-forward) and pushed.

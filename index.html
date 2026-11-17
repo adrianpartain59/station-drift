@@ -21,34 +21,44 @@
     .label { font: 600 12px 'Orbitron'; letter-spacing: 0.22em; color: var(--dim); }
     #score { font: 900 34px 'Orbitron'; letter-spacing: 0.04em; text-shadow: 0 0 18px rgba(55, 230, 255, 0.55); }
     #dist { font: 600 15px 'Orbitron'; color: var(--dim); margin-top: 2px; }
-    #chain { font: 700 15px 'Orbitron'; color: var(--amber); margin-top: 6px; text-shadow: 0 0 12px rgba(255, 178, 61, 0.7); }
+    #chain { font: 700 15px 'Orbitron'; color: var(--amber); margin-top: 6px; text-shadow: 0 0 12px rgba(255, 178, 61, 0.7); min-height: 18px; }
     #coins { font: 900 30px 'Orbitron'; color: #ffd36b; text-shadow: 0 0 16px rgba(255, 190, 70, 0.7); }
-    #coins::after { content: ' ◎'; font-size: 22px; }
+    #coins::after { content: ' \25CE'; font-size: 22px; }
 
-    .bottom { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(560px, 86vw); display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 18px; }
+    /* the clock: the one thing that ends a run */
+    #clockBox { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+    #clock { font: 900 52px 'Orbitron'; line-height: 1; letter-spacing: 0.02em; color: #eafff7; text-shadow: 0 0 22px rgba(90, 255, 190, 0.6); font-variant-numeric: tabular-nums; }
+    #clock small { font-size: 0.5em; opacity: 0.8; }
+    #clockBox.low #clock { color: #ff6a6a; text-shadow: 0 0 24px rgba(255, 60, 70, 0.9); animation: pulse 0.5s ease-in-out infinite; }
+    #clockBox.out #clock { color: #ff3a4a; animation: blink 0.35s steps(2) infinite; }
+    #clockAdd { font: 900 22px 'Orbitron'; color: #7dffc0; text-shadow: 0 0 14px rgba(90, 255, 190, 0.9); opacity: 0; height: 26px; }
+    #clockAdd.on { animation: addtime 1.8s ease-out forwards; }
+    @keyframes addtime { 0% { opacity: 0; transform: translateY(14px) scale(0.8); } 12% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-16px); } }
+    @keyframes pulse { 50% { transform: scale(1.08); } }
+
+    .bottom { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(600px, 88vw); display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 18px; }
     .meter { display: flex; flex-direction: column; gap: 6px; }
+    .meter .label b { color: var(--ink); font-weight: 700; letter-spacing: 0.08em; margin-left: 6px; }
     .bar { height: 9px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); }
-    .fill { height: 100%; transform-origin: left center; transition: transform 0.12s linear; }
-    #thrustFill { background: linear-gradient(90deg, #2c8f55, #7dff9b); opacity: 0.55; }
-    #thrustFill.ready { opacity: 1; box-shadow: 0 0 14px #7dff9b; }
-    .bar.thrust { position: relative; }
-    .bar.thrust i { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(3, 4, 10, 0.9); }
-    .bar.fail { animation: shake 0.3s; border-color: #ff4a4a; }
-    @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-    #hullFill { background: linear-gradient(90deg, #7dff9b, #c8ffd8); box-shadow: 0 0 12px #7dff9b; }
-    #hullFill.low { background: linear-gradient(90deg, #ff4a4a, #ff9a7a); box-shadow: 0 0 14px #ff4a4a; animation: blink 0.5s steps(2) infinite; }
+    .fill { height: 100%; transform-origin: left center; }
+    #gateFill { background: linear-gradient(90deg, #2c8f6f, #7dffc0); box-shadow: 0 0 12px #7dffc0; }
+    #boostFill { background: var(--tier, #46c8ff); box-shadow: 0 0 14px var(--tier, #46c8ff); transform-origin: right center; }
     .meter.right { text-align: right; }
     .speedo { text-align: center; }
-    #speed { font: 900 46px 'Orbitron'; line-height: 1; text-shadow: 0 0 22px rgba(55, 230, 255, 0.6); }
+    #speed { font: 900 46px 'Orbitron'; line-height: 1; text-shadow: 0 0 22px rgba(55, 230, 255, 0.6); font-variant-numeric: tabular-nums; }
     .speedo .label { margin-top: 2px; }
+    #hint { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); font: 700 clamp(15px, 2.2vw, 21px) 'Rajdhani'; letter-spacing: 0.12em; color: #fff; text-shadow: 0 0 14px rgba(55, 230, 255, 0.9), 0 2px 6px #000; white-space: nowrap; opacity: 0; transition: opacity 0.25s; }
+    #hint.on { opacity: 1; }
+    #hint kbd { font: 900 0.8em 'Orbitron'; padding: 3px 9px; margin: 0 3px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 5px; background: rgba(3, 4, 10, 0.55); }
 
     #drift { position: absolute; left: 50%; top: 21%; transform: translate(-50%, 0) scale(0.9); text-align: center; opacity: 0; transition: opacity 0.15s, transform 0.15s; --tier: #fff; --prog: 0; }
     #drift.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
     #driftTier { font: 900 15px 'Orbitron'; letter-spacing: 0.4em; color: var(--tier); text-shadow: 0 0 14px var(--tier); }
     #driftPts { font: 900 44px 'Orbitron'; color: #fff; text-shadow: 0 0 20px var(--tier); }
     #driftMult { font: 900 20px 'Orbitron'; color: var(--amber); margin-left: 8px; }
-    .driftbar { width: 220px; height: 5px; margin: 6px auto 0; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
-    .driftbar i { display: block; height: 100%; width: calc(var(--prog) * 100%); background: var(--tier); box-shadow: 0 0 10px var(--tier); }
+    .driftbar { position: relative; width: 240px; height: 6px; margin: 6px auto 0; background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+    .driftbar i { display: block; height: 100%; width: calc(var(--prog) * 100%); background: var(--tier); box-shadow: 0 0 10px var(--tier); border-radius: 3px; }
+    .driftbar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255, 255, 255, 0.75); }
 
     #banner { position: absolute; left: 0; right: 0; top: 34%; text-align: center; opacity: 0; --c: #9fe8ff; }
     #banner.on { animation: banner 2.6s ease-out forwards; }
@@ -89,7 +99,8 @@
     .row.big b { font-size: 30px; color: #9fe8ff; text-shadow: 0 0 16px rgba(55, 230, 255, 0.6); }
     .newbest { font: 900 16px 'Orbitron'; letter-spacing: 0.3em; color: #ffd36b; text-shadow: 0 0 14px rgba(255, 211, 107, 0.8); }
     .hint { font: 600 13px 'Orbitron'; letter-spacing: 0.2em; color: var(--dim); }
-    @media (max-width: 640px) { .keys { grid-template-columns: repeat(2, auto); } #score { font-size: 26px; } #speed { font-size: 36px; } }
+    .tip { font: 600 15px 'Rajdhani'; letter-spacing: 0.04em; color: #9fe8ff; margin-top: 6px; line-height: 1.3; }
+    @media (max-width: 640px) { .keys { grid-template-columns: repeat(2, auto); } #score { font-size: 26px; } #speed { font-size: 36px; } #clock { font-size: 38px; } }
   </style>
 </head>
 <body>
@@ -98,14 +109,16 @@
 
   <div id="hud" class="hidden">
     <div class="tl"><div class="label">SCORE</div><div id="score">0</div><div id="dist">0.00 km</div><div id="chain"></div></div>
+    <div id="clockBox"><div class="label">TIME</div><div id="clock">0</div><div id="clockAdd"></div></div>
     <div class="tr"><div class="label">COINS</div><div id="coins">0</div></div>
-    <div id="drift"><div id="driftTier">DRIFT</div><div><span id="driftPts">0</span><span id="driftMult"></span></div><div class="driftbar"><i></i></div></div>
+    <div id="drift"><div id="driftTier">DRIFT</div><div><span id="driftPts">0</span><span id="driftMult"></span></div><div class="driftbar"><i></i><u id="tick1"></u><u id="tick2"></u></div></div>
     <div id="banner"><div id="bannerTop"></div><div id="bannerMain"></div></div>
     <div id="pops"></div>
+    <div id="hint"></div>
     <div class="bottom">
-      <div class="meter"><div class="label">THRUST · HOP</div><div class="bar thrust"><div class="fill" id="thrustFill"></div><i style="left:34%"></i><i style="left:68%"></i></div></div>
+      <div class="meter"><div class="label">NEXT GATE<b id="gateDist"></b></div><div class="bar"><div class="fill" id="gateFill"></div></div></div>
       <div class="speedo"><div id="speed">0</div><div class="label">KM/H</div></div>
-      <div class="meter right"><div class="label">HULL</div><div class="bar"><div class="fill" id="hullFill"></div></div></div>
+      <div class="meter right"><div class="label">BOOST</div><div class="bar"><div class="fill" id="boostFill"></div></div></div>
     </div>
     <div id="camLabel"></div>
   </div>
@@ -116,8 +129,8 @@
     <div class="tag">No races. No trophies. Just the line through the station, and how sideways you can take it.</div>
     <button class="btn" id="playBtn">DRIFT</button>
     <div class="keys">
-      <span><b>A D / ← →</b>steer</span><span><b>SPACE</b>hold to drift</span><span><b>W / ↑</b>hop (hold = higher)</span>
-      <span><b>S / ↓</b>brake</span><span><b>C</b>cockpit / chase</span><span><b>M</b>mute · <b>Q</b> quality</span>
+      <span><b>A D / &larr; &rarr;</b>steer</span><span><b>SPACE</b>hold through a bend to drift</span><span><b>let go</b>boost, and bank time</span>
+      <span><b>S / &darr;</b>brake</span><span><b>C</b>cockpit / chase</span><span><b>M</b>mute &middot; <b>Q</b> quality</span>
     </div>
     <div id="bestTitle"></div>
   </div>
@@ -129,7 +142,7 @@
   </div>
 
   <div id="over" class="screen hidden">
-    <div class="h2">WRECKED</div>
+    <div class="h2">OUT OF TIME</div>
     <div id="overStats"></div>
     <button class="btn" id="againBtn">RUN IT BACK</button>
     <div class="hint">SPACE OR ENTER</div>

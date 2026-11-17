@@ -1,4 +1,4 @@
-// Everything you hear is synthesized: engine, drift hiss, impacts, pickups, and a night-drive
+// Everything you hear is synthesized: engine, the hiss of a slide, impacts, pickups, and a night-drive
 // synthwave track (city-pop chords, punchy drums, arpeggios) that opens up in open space.
 
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
@@ -83,24 +83,26 @@ export class Audio {
     this.whine.connect(this.whG).connect(this.sfx); this.whine.start();
   }
 
+  // rev: 0..1.3 engine speed; slide 0..1; tier 0..3; scrape: rubbing a wall; clockLow: last seconds
   update(state) {
     if (!this.started) return;
     const t = this.ctx.currentTime, k = 0.06;
-    const { speed, boost, slip, drifting, scrape, tier, zone, playing } = state;
+    const { rev, boost, slide, drifting, scrape, tier, zone, playing, brake } = state;
     const live = playing ? 1 : 0.35;
-    const f0 = 38 + speed * 0.55 + (boost ? 25 : 0);
+    const f0 = 46 + rev * 78 + (boost ? 26 : 0) - (drifting ? 6 : 0);
     this.engA.frequency.setTargetAtTime(f0, t, k);
     this.engB.frequency.setTargetAtTime(f0 * 0.5 * 1.004, t, k);
-    this.engFilter.frequency.setTargetAtTime(380 + speed * 9 + (boost ? 1600 : 0), t, k);
-    this.engGain.gain.setTargetAtTime(0.11 * live, t, 0.1);
-    this.jetF.frequency.setTargetAtTime(300 + speed * 7 + (boost ? 1400 : 0), t, k);
-    this.jetG.gain.setTargetAtTime((0.05 + speed * 0.0009 + (boost ? 0.14 : 0)) * live, t, 0.08);
-    const ds = drifting ? Math.min(1, slip * 1.4) : 0;
-    this.drG.gain.setTargetAtTime(ds * 0.22 * live, t, 0.04);
-    this.drF.frequency.setTargetAtTime(900 + ds * 900 + tier * 350 + speed * 3, t, 0.05);
-    this.whG.gain.setTargetAtTime(drifting ? (0.015 + tier * 0.012) * live : 0, t, 0.06);
-    this.whine.frequency.setTargetAtTime(700 + tier * 260 + slip * 300, t, 0.08);
-    this.scrG.gain.setTargetAtTime(scrape ? 0.22 : 0, t, 0.03);
+    this.engFilter.frequency.setTargetAtTime(420 + rev * 1100 + (boost ? 1700 : 0), t, k);
+    this.engGain.gain.setTargetAtTime((brake ? 0.07 : 0.11) * live, t, 0.1);
+    this.jetF.frequency.setTargetAtTime(320 + rev * 900 + (boost ? 1500 : 0), t, k);
+    this.jetG.gain.setTargetAtTime((0.05 + rev * 0.1 + (boost ? 0.15 : 0)) * live, t, 0.08);
+    // the slide: a band of hiss that rises with the angle and with each charge tier, plus a thin whine
+    const ds = drifting ? Math.min(1, 0.35 + slide * 0.8) : 0;
+    this.drG.gain.setTargetAtTime(ds * 0.24 * live, t, 0.04);
+    this.drF.frequency.setTargetAtTime(1000 + ds * 700 + tier * 420 + rev * 300, t, 0.05);
+    this.whG.gain.setTargetAtTime(drifting ? (0.014 + tier * 0.013) * live : 0, t, 0.06);
+    this.whine.frequency.setTargetAtTime(640 + tier * 300 + slide * 260, t, 0.08);
+    this.scrG.gain.setTargetAtTime(scrape ? 0.2 : 0, t, 0.03);
     // music opens up in open space, closes a little inside stations
     this.musicFilter.frequency.setTargetAtTime(zone === 1 ? 9000 : 3600, t, 0.8);
   }
@@ -140,18 +142,19 @@ export class Audio {
     this.tone('sine', 120, 0.45, 0.6, 0, 38);
     this.noiseHit(0.25, 0.35, 'highpass', 3000, 0.7);
   }
-  impact(v) { this.noiseHit(0.18, Math.min(0.5, 0.1 + v * 0.01), 'bandpass', 1600, 1.4); this.tone('square', 90, 0.12, Math.min(0.2, v * 0.005), 0, 50); }
-  boost() { this.noiseHit(0.9, 0.35, 'bandpass', 300, 1.2, 0, 4000); this.tone('sawtooth', 110, 0.7, 0.12, 0, 440); }
-  driftStart() { this.noiseHit(0.12, 0.16, 'highpass', 4000, 1); }
+  impact(v) { this.noiseHit(0.18, Math.min(0.5, 0.1 + v * 0.02), 'bandpass', 1600, 1.4); this.tone('square', 90, 0.12, Math.min(0.2, v * 0.01), 0, 50); }
+  graze() { this.noiseHit(0.1, 0.1, 'highpass', 3200, 1); }
+  boost(tier = 0) { this.noiseHit(0.7 + tier * 0.2, 0.3 + tier * 0.04, 'bandpass', 300, 1.2, 0, 4200); this.tone('sawtooth', 110, 0.6 + tier * 0.15, 0.11, 0, 440 + tier * 110); }
+  driftStart() { this.noiseHit(0.16, 0.2, 'highpass', 3600, 1); this.tone('sawtooth', 520, 0.12, 0.05, 0, 300); }
+  driftSwitch() { this.noiseHit(0.2, 0.2, 'bandpass', 2600, 2, 0, 1200); }
   tierUp(tier) { [0, 4, 7].forEach((n, i) => this.tone('square', NOTE(72 + tier * 3 + n), 0.09, 0.05, i * 0.045)); }
   driftBank(tier) { [0, 7, 12, 16].forEach((n, i) => this.tone('triangle', NOTE(76 + Math.max(0, tier) * 2 + n), 0.16, 0.08, i * 0.05)); }
   driftLost() { this.tone('sawtooth', 300, 0.35, 0.12, 0, 80); }
   nearMiss() { this.noiseHit(0.22, 0.22, 'bandpass', 2400, 2, 0, 600); this.tone('sine', NOTE(88), 0.1, 0.05, 0.05); }
-  hop() { this.noiseHit(0.35, 0.3, 'bandpass', 500, 1.2, 0, 2600); this.tone('sine', 180, 0.3, 0.18, 0, 520); }
-  land(v) { this.tone('sine', 110, 0.18, Math.min(0.35, 0.08 + v * 0.02), 0, 50); this.noiseHit(0.12, Math.min(0.25, v * 0.02), 'lowpass', 900, 0.8); }
-  hopFail() { this.tone('square', 160, 0.12, 0.08, 0, 120); }
-  pad() { this.boost(); this.tone('triangle', NOTE(84), 0.2, 0.08); }
-  repair() { [0, 4, 7, 12].forEach((n, i) => this.tone('sine', NOTE(72 + n), 0.25, 0.1, i * 0.07)); }
+  pad() { this.boost(0); this.tone('triangle', NOTE(84), 0.2, 0.08); }
+  gate() { [0, 5, 9, 12, 17].forEach((n, i) => this.tone('triangle', NOTE(74 + n), 0.22, 0.09, i * 0.06)); this.noiseHit(0.5, 0.16, 'bandpass', 900, 1, 0, 5000); }
+  tick(last) { this.tone('square', NOTE(last ? 93 : 86), 0.07, 0.07); }
+  timeUp() { [0, -3, -7, -12].forEach((n, i) => this.tone('sawtooth', NOTE(64 + n), 0.3, 0.1, i * 0.16)); }
   whoosh() { this.noiseHit(1.4, 0.28, 'bandpass', 200, 0.8, 0, 2500); }
   ui() { this.tone('square', NOTE(84), 0.06, 0.05); }
 

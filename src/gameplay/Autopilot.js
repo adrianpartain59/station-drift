@@ -1,65 +1,121 @@
-import { SHIP, DRIFT, HOP } from '../core/Constants.js';
-import { GameState } from '../core/GameState.js';
-import { relForCurvature } from './ShipPhysics.js';
-
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+import { SHIP, DRIFT } from '../core/Constants.js';
+import { ShipPhysics } from './ShipPhysics.js';
+import { clearance } from './Course.js';
 
 /**
- * A pure-pursuit driver for the title-screen attract mode, ?bot=1, and the node fairness test.
- * It aims at a point on its chosen lane some distance ahead, accounting for the bend in between,
- * and drifts whenever the bend is sharper than grip steering can follow.
+ * A driver that only does what a person at a keyboard can: left / right / nothing, a drift button and
+ * a brake, with a delay between deciding and doing, and no knowledge of obstacles it could not see
+ * yet. It picks a line by imagining the next two seconds on a copy of the real ship physics for a
+ * handful of lanes and taking the one that goes best.
+ *
+ * Used for the title-screen demo and, in tools/verify, to show the course is drivable at full pace.
  */
 export class Autopilot {
-  constructor(track) { this.track = track; this.f = {}; this.g = {}; this.lane = 0; this.retarget = 0; }
+  constructor(track, course, opt = {}) {
+    this.track = track; this.course = course;
+    this.o = { latency: 0.22, tick: 0.1, horizon: 2.0, lanes: 9, dt: 1 / 40, drift: true, brakeForBends: false, coins: true, ...opt };
+    this.sim = new ShipPhysics(track, (name) => { if (name === 'wallHit') this.simHits++; else if (name === 'graze') this.simGrazes++; });
+    this.target = 0; this.pending = null; this.nextTick = 0;
+    this.out = { steer: 0, drift: false, brake: false };
+    this.simHits = 0; this.simGrazes = 0;
+  }
 
-  control(ph, laneCost, t, dt = 1 / 60, hopCheck = null) {
-    const T = this.track;
-    const here = T.sample(ph.s, this.f);
-    const L = clamp(ph.v * 0.42, 16, 48);
-    const ahead = T.sample(ph.s + L, this.g);
-    const dh = ahead.h - here.h; // positive = bend to the left
-
-    // lane choice: cheap lateral search a few times a second
-    this.retarget -= dt;
-    if (laneCost && this.retarget <= 0) {
-      this.retarget = 0.12;
-      let best = this.lane, bestC = Infinity;
-      for (let xc = -ahead.w + 1.8; xc <= ahead.w - 1.8; xc += 0.9) {
-        const c = laneCost(ph, xc, t) + Math.abs(xc - ph.x) * 0.04 + Math.abs(xc - this.lane) * 0.03;
-        if (c < bestC) { bestC = c; best = xc; }
-      }
-      this.lane = best;
-    } else if (!laneCost) {
-      // racing line: cut toward the inside of the bend
-      this.lane = clamp(-Math.sign(dh) * Math.min(1, Math.abs(dh) * 2) * (ahead.w - 2.5), -ahead.w + 2, ahead.w - 2);
+  /** Is there a real bend within `look` metres (or under the ship)? Returns its direction (+1 right) or 0. */
+  bend(s, look) {
+    const K = this.track.K, n = K.length;
+    for (let u = 0; u <= look; u += 2) {
+      const k = K[Math.min(n - 1, Math.max(0, Math.floor(s + u)))];
+      if (Math.abs(k) >= DRIFT.ARM_K) return k > 0 ? -1 : 1;
     }
+    return 0;
+  }
 
-    // The target in the current local frame: the bend moves the centreline sideways by about dh*L/2.
-    const lateral = this.lane - ph.x - dh * L * 0.5;
-    const phiDes = clamp(Math.atan2(lateral, L) + dh * 0.5, -0.95, 0.95);
-    const kAhead = dh / L;
-    const ff = -kAhead * ph.v;                       // yaw rate needed to follow the bend
-    const yawNeed = ff + (phiDes - ph.phi) * 6;
-    const wantDrift = Math.abs(kAhead * ph.v) > SHIP.STEER_RATE * 0.72 || (ph.drift && Math.abs(kAhead * ph.v) > SHIP.STEER_RATE * 0.4);
-
-    let steer;
-    let drift = wantDrift;
-    this.calm = this.calm || 0;
-    if (ph.drift) {
-      // pick the arc whose radius gives the bend we need; let go only once the bend has been
-      // gentler than the widest arc for a moment (no flickering on and off)
-      const kNeed = yawNeed / (ph.driftDir * Math.max(20, ph.v));
-      steer = ph.driftDir * clamp(relForCurvature(kNeed), -1, 1);
-      this.calm = kNeed < (1 / DRIFT.R_WIDE) * 0.8 ? this.calm + dt : 0;
-      drift = ph.driftTime < 0.45 || this.calm < 0.18;
+  /** Keys for holding lane `target` from state `p`: what a player does, bang-bang with a little lead. */
+  keys(p, target, out) {
+    const lead = p.x + p.v * Math.sin(p.theta) * (p.drift ? 0.3 : 0.2);
+    const err = target - lead;
+    const band = p.drift ? 1.1 : 0.7;
+    out.steer = err > band ? 1 : err < -band ? -1 : 0;
+    const v = p.v;
+    if (this.o.drift) {
+      const coming = this.bend(p.s, Math.max(8, v * 0.34));
+      out.drift = coming !== 0;
+      // going into a bend, steer its way so the drift starts when the button goes down
+      if (out.drift && !p.drift && out.steer === 0) out.steer = coming;
+      out.brake = false;
     } else {
-      this.calm = 0;
-      steer = clamp(yawNeed / SHIP.STEER_RATE, -1, 1);
-      if (wantDrift) steer = Math.sign(-kAhead) || 1; // commit to the drift direction on entry
+      out.drift = false;
+      // no drift: slow to what grip can take round the bend ahead
+      const K = this.track.K;
+      let kMax = 0;
+      for (let u = 0; u <= v * 1.1; u += 3) kMax = Math.max(kMax, Math.abs(K[Math.min(K.length - 1, Math.floor(p.s + u))]));
+      out.brake = this.o.brakeForBends && kMax >= SHIP.ASSIST_K && v * v * kMax > SHIP.GRIP * 0.8;
+      const here = this.bend(p.s, Math.max(6, v * 0.18));
+      if (here && out.steer === 0 && Math.abs(target - p.x) < 2.5) out.steer = here * (p.x * here > target * here + 0.5 ? 0 : 1);
     }
-    // hop: hold the key through the climb for a full hop
-    if (!ph.air && hopCheck && GameState.thrust >= HOP.COST && hopCheck(ph, t)) this.hopping = true;
-    if (ph.air && ph.vh < 0) this.hopping = false;
-    return { steer, drift: drift && !this.hopping, hop: !!this.hopping, brake: false };
+    return out;
+  }
+
+  control(ship, t) {
+    if (this.pending && t >= this.pending.at) { this.target = this.pending.target; this.pending = null; }
+    if (t >= this.nextTick) {
+      this.nextTick = t + this.o.tick;
+      const best = this.plan(ship);
+      if (best !== this.target && !this.pending) this.pending = { at: t + this.o.latency, target: best };
+    }
+    return this.keys(ship, this.target, this.out);
+  }
+
+  /** Obstacles the driver can know about: in plain sight from where the ship is. */
+  visible(ship) {
+    const O = this.course.obstacles, list = [];
+    const far = ship.s + ship.v * this.o.horizon + 30;
+    for (let i = this.course.oi; i < O.length; i++) {
+      const o = O[i];
+      if (o.s > far) break;
+      if (o.hit) continue;
+      if (o.seen === undefined) o.seen = this.course.sightStart(o.s, o.x);
+      if (o.seen <= ship.s) list.push(o);
+    }
+    return list;
+  }
+
+  plan(ship) {
+    const o = this.o, sim = this.sim, lim = ship.lim;
+    const obs = this.visible(ship);
+    const coins = this.course.coins;
+    const keys = { steer: 0, drift: false, brake: false };
+    const steps = Math.round(o.horizon / o.dt), lagSteps = Math.round(o.latency / o.dt);
+    let best = this.target, bestCost = Infinity, stayCost = Infinity;
+    for (let li = 0; li < o.lanes; li++) {
+      const cand = li === 0 ? this.target : -lim * 0.92 + (2 * lim * 0.92 * (li - 1)) / (o.lanes - 2);
+      sim.copy(ship);
+      this.simHits = 0; this.simGrazes = 0;
+      // changing lanes costs more once there is something ahead to get wrong
+      let cost = Math.abs(cand - this.target) * (obs.length ? 0.7 : 0.25) + cand * cand * 0.01, ci = this.course.ci, got = 0, minClear = 9;
+      for (let n = 0; n < steps; n++) {
+        this.keys(sim, n < lagSteps ? this.target : cand, keys);
+        sim.step(o.dt, keys);
+        let hit = false;
+        for (const ob of obs) {
+          if (Math.abs(ob.s - sim.s) > 14) continue;
+          const c = clearance(ob, sim.s, sim.x) - SHIP.RADIUS;
+          if (c < 0.15) { hit = true; break; }
+          if (c < minClear) minClear = c;
+        }
+        if (hit) { cost += 4000 * (1.5 - n / steps); break; }
+        if (o.coins) {
+          while (ci < coins.length && coins[ci].s < sim.s - 2.3) ci++;
+          if (ci < coins.length && Math.abs(coins[ci].s - sim.s) < 2.3 && Math.abs(coins[ci].x - sim.x) < 2.2 && !coins[ci].taken) { got++; ci++; }
+        }
+      }
+      // room to spare is worth more than coins: a line that only just clears is a line that sometimes does not
+      cost += Math.max(0, 2.4 - minClear) * 5 + this.simHits * 400 + this.simGrazes * 60 - got * (obs.length ? 0.4 : 1.2);
+      if (li === 0) stayCost = cost;
+      if (cost < bestCost - 1e-9) { bestCost = cost; best = cand; }
+    }
+    // commit: leave the lane you are in only for a clear gain (no dithering between two ways round)
+    if (best !== this.target && bestCost > stayCost - 2.5) best = this.target;
+    return best;
   }
 }
