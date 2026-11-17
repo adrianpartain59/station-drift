@@ -102,10 +102,44 @@ export const DRIFT = {
   MAX_CHAIN: 8,
   PAD_TIME: 0.9,         // boost pads
   PAD_GAIN: 0.14,
+  // Boosts are small in metres per second and big on screen (the camera sells them): the fastest the
+  // ship can ever go is cruise + this, and the whole course is laid out and proved at that speed.
+  MAX_GAIN: 0.2,
+  // Hard-mode levers (off here). R_HOOK: on a straight the slide commits to a turn at least this tight.
+  // CHARGE_STRAIGHT: share of the charge rate a slide earns where the corridor is not bending.
+  R_HOOK: 0,
+  CHARGE_STRAIGHT: 1,
 };
-// Boosts are small in metres per second and big on screen (the camera sells them): the fastest the
-// ship can ever go is cruise + this, and the whole course is laid out and proved at that speed.
-export const MAX_BOOST_GAIN = 0.2;
+// ---------------------------------------------------------------------------------------------
+// Fairness rules for the course layout (gameplay/Course.js). Everything the ship can hit is a
+// static box or post. Rows of them are laid around a safe line, and the gap between two rows is
+// never shorter than the ship needs, at the fastest speed it can have there (cruise + the biggest
+// boost), to see the row, react, and slide from the worst place it could be into the opening,
+// using only part of its steering. tools/verify re-proves all of this from the outside.
+// ---------------------------------------------------------------------------------------------
+export const FAIR = {
+  LANE: [3.3, 2.4],        // half-width (ship centre) of the safe lane, difficulty 0 .. 1
+  COMFORT: [0.5, 0.68],    // share of lateral grip the layout assumes you use
+  REACT_FIRST: [0.62, 0.5],// s to notice the first row of a set
+  REACT_NEXT: [0.3, 0.24], // s between rows inside a set (you already saw it coming)
+  SEE: [1.5, 1.2],         // s any row must be in plain sight before you reach it
+  MIN_GAP: 30,             // m between rows, whatever the maths says
+  PAD: 0.35,               // extra clearance around every obstacle when planning the lane
+  OPEN: 6.3,               // m: no opening is ever narrower than this (the hull is 2.5 m)
+  NO_ROWS_BEFORE: 330,     // m: the first stretch is a warm-up
+  SLIDE: 1,                // share of its top sideways speed the ship may already have when a row appears
+};
+
+// What the course is made of. Easy mode is the plain set; hard mode switches the rest on (core/Modes.js).
+export const COURSE = {
+  SPANS: false,            // lay rows over whole straights (several map pieces) instead of piece by piece
+  LASERS: false,           // laser gates, sweeping lasers, laser-fenced lane closures
+  BEND_CLOSURE: [0, 0],    // chance (difficulty 0 .. 1) that a bend has a lane fenced off through it
+  MAX_ROWS: 4,             // most set-pieces in one zone
+};
+
+// Which rule set is live. Changed only through core/Modes.js applyMode().
+export const MODE = { name: 'easy' };
 
 // The clock. It is the only thing that ends a run. Time comes from two places:
 //  - every gate adds the par time for the stretch to the next gate, at a pace that starts generous

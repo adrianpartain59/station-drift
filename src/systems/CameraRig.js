@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAMERA, TRACK, SHIP, MAX_BOOST_GAIN } from '../core/Constants.js';
+import { CAMERA, TRACK, SHIP, DRIFT } from '../core/Constants.js';
 
 const ease = (r, dt) => 1 - Math.exp(-r * dt);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -29,7 +29,7 @@ export class CameraRig {
     this.trauma = Math.max(0, this.trauma - dt * 1.7);
     this.fovKick = Math.max(0, this.fovKick - dt * 1.8);
     this.boost += ((ship.boosting ? 1 : 0) - this.boost) * ease(ship.boosting ? 7 : 2.2, dt);
-    const speedN = clamp((ship.v - SHIP.CRUISE[0]) / (SHIP.CRUISE[1] * (1 + MAX_BOOST_GAIN) - SHIP.CRUISE[0]), 0, 1);
+    const speedN = clamp((ship.v - SHIP.CRUISE[0]) / (SHIP.CRUISE[1] * (1 + DRIFT.MAX_GAIN) - SHIP.CRUISE[0]), 0, 1);
 
     const target = this.mode === 'cockpit' ? 1 : 0;
     this.blend += (target - this.blend) * ease(10, dt);

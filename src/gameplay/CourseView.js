@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TRACK } from '../core/Constants.js';
+import { beamX } from './Course.js';
 
 const H = TRACK.HEIGHT, HOVER = TRACK.HOVER;
 
@@ -132,6 +133,51 @@ export class CourseView {
         this.mesh(g, G.gem, M.blink, o.x, 5.1, back - 0.6, 0.38, 0.5, 0.38);
         break;
       }
+      case 'laser': {
+        // a wall of light out from the wall: six beams, knee height to well over the ship, and a lit post at its free end
+        const f = this.track.sample(o.s, this.f), wallX = f.w - 0.15;
+        const x0 = Math.max(-wallX, o.x - o.hw), x1 = Math.min(wallX, o.x + o.hw), w = x1 - x0, cx = (x0 + x1) / 2;
+        if (w < 0.3) break;
+        for (const y of [0.8, 1.6, 2.4, 3.2, 4.0, 4.8]) this.mesh(g, G.box, m.laser, cx, y, 0, w, 0.08, 0.08);
+        this.mesh(g, G.plane, m.laserGlow, cx, 2.8, 0, w, 4.9, 1);
+        for (const px of [x0, x1]) {
+          if (Math.abs(px) > wallX - 0.05) continue;   // that end is in the wall
+          this.mesh(g, G.box, M.dark, px, 2.75, 0, 0.36, 5.5, 0.5);
+          this.mesh(g, G.box, M.danger, px, 2.75, 0.27, 0.12, 5.5, 0.05);
+          this.mesh(g, G.gem, M.blink, px, 5.75, 0, 0.24, 0.32, 0.24);
+        }
+        break;
+      }
+      case 'fence': {
+        // the same beams run along the corridor: the edge of a lane that is shut. Local z is along the track.
+        const L = 2 * o.hl;
+        for (const y of [0.8, 1.6, 2.4, 3.2, 4.0, 4.8]) this.mesh(g, G.box, m.laser, o.x, y, 0, 0.08, 0.08, L);
+        this.mesh(g, G.plane, m.laserGlow, o.x, 2.8, 0, L, 4.9, 1).rotation.y = Math.PI / 2;
+        this.mesh(g, G.box, M.dark, o.x, 2.75, o.hl, 0.3, 5.5, 0.3);          // a post where each stretch starts
+        this.mesh(g, G.box, M.danger, o.x, 2.75, o.hl + 0.17, 0.1, 5.5, 0.04);
+        break;
+      }
+      case 'sweep': {
+        // one beam running back and forth along a lit rail. The rail shows exactly how far it reaches.
+        const f = this.track.sample(o.s, this.f), wallX = f.w - 0.15;
+        const x0 = Math.max(-wallX, o.x - o.hw), x1 = Math.min(wallX, o.x + o.hw), w = x1 - x0, cx = (x0 + x1) / 2;
+        const tip = o.x - o.side * o.hw;
+        this.mesh(g, G.box, M.dark, cx, 0.14, 0, w, 0.28, 1.0);
+        this.mesh(g, G.box, M.dark, cx, 5.5, 0, w, 0.3, 0.7);
+        this.mesh(g, G.box, M.danger, cx, 0.3, 0, w, 0.05, 0.6);
+        this.mesh(g, G.box, M.danger, cx, 5.33, 0, w, 0.05, 0.4);
+        this.mesh(g, G.box, m.hazard, cx, 0.03, -2.2, w, 0.04, 0.7);
+        this.mesh(g, G.box, m.hazard, cx, 0.03, 2.2, w, 0.04, 0.7);
+        this.mesh(g, G.box, M.dark, tip, 2.8, 0, 0.34, 5.6, 0.8);
+        this.mesh(g, G.box, M.hazard, tip - o.side * 0.19, 2.8, 0, 0.06, 5.6, 0.82);
+        const beam = new THREE.Group();
+        this.mesh(beam, G.cyl, m.laser, 0, 2.82, 0, 0.17, 5.0, 0.17);
+        this.mesh(beam, G.plane, m.laserGlow, 0, 2.82, 0.06, 1.9, 5.0, 1);
+        this.mesh(beam, G.box, M.dark, 0, 0.42, 0, 0.6, 0.3, 0.6);
+        this.mesh(beam, G.box, M.dark, 0, 5.25, 0, 0.6, 0.3, 0.6);
+        g.add(beam); g.userData.beam = beam;
+        break;
+      }
       case 'pylon': {
         // a bollard: dark post, lit rings, beacon on top
         this.mesh(g, G.cyl, M.cone, o.x, top / 2, 0, o.r * 0.82, top, o.r * 0.82);
@@ -245,6 +291,7 @@ export class CourseView {
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i], o = a.o;
       if (o.s < behind) { this.root.remove(a.g); this.active.splice(i, 1); continue; }
+      if (a.g.userData.beam) a.g.userData.beam.position.x = beamX(o, t);
       const sp = a.g.userData.spin;
       if (sp) { sp.rotation.x += dt * 0.35; sp.rotation.z += dt * 0.22; }
       if (o.hit && a.tilt === undefined && o.kind === 'pylon') { a.tilt = 0; a.g.rotation.order = 'YXZ'; } // knocked bollards go over

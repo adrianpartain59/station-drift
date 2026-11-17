@@ -38,7 +38,8 @@ export class Autopilot {
     out.steer = err > band ? 1 : err < -band ? -1 : 0;
     const v = p.v;
     if (this.o.drift) {
-      const coming = this.bend(p.s, Math.max(8, v * 0.34));
+      // press a little before the bend; in hard mode the slide hooks at once, so later
+      const coming = this.bend(p.s, DRIFT.R_HOOK ? Math.max(5, v * 0.13) : Math.max(8, v * 0.34));
       out.drift = coming !== 0;
       // going into a bend, steer its way so the drift starts when the button goes down
       if (out.drift && !p.drift && out.steer === 0) out.steer = coming;

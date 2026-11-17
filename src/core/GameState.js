@@ -9,7 +9,8 @@ function save(key, value) {
 
 class State {
   constructor() {
-    this.best = load('sd.best2', 0);         // new scoring, new table
+    this.mode = load('sd.mode', 'easy');     // easy | hard (core/Modes.js)
+    this.bests = { easy: load('sd.best2', 0), hard: load('sd.best2.hard', 0) };
     this.bank = load('sd.bank', 0);
     this.muted = load('sd.muted', false);
     this.camMode = load('sd.cam', 'chase');
@@ -40,12 +41,16 @@ class State {
     this.speed = 0;
   }
 
+  /** Best score in the mode being played. */
+  get best() { return this.bests[this.mode] || 0; }
+
   persist() {
-    if (this.score > this.best) this.best = Math.floor(this.score);
-    save('sd.best2', this.best);
+    if (this.score > this.best) this.bests[this.mode] = Math.floor(this.score);
+    save(this.mode === 'hard' ? 'sd.best2.hard' : 'sd.best2', this.best);
     save('sd.bank', this.bank);
     save('sd.learned', this.learned);
   }
+  setMode(v) { this.mode = v; save('sd.mode', v); }
   setMuted(v) { this.muted = v; save('sd.muted', v); }
   setCam(v) { this.camMode = v; save('sd.cam', v); }
   setQuality(v) { this.quality = v; save('sd.quality', v); }

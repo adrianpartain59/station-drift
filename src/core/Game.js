@@ -4,8 +4,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-import { TRACK, SHIP, DRIFT, SCORE, CLOCK, CAMERA, RENDER, MAX_BOOST_GAIN } from './Constants.js';
+import { TRACK, SHIP, DRIFT, SCORE, CLOCK, CAMERA, RENDER } from './Constants.js';
 import { GameState } from './GameState.js';
+import { MODES, applyMode } from './Modes.js';
 import { Track } from '../level/Track.js';
 import { Materials } from '../level/Materials.js';
 import { WorldBuilder } from '../level/WorldBuilder.js';
@@ -84,6 +85,11 @@ export class Game {
     document.getElementById('playBtn').addEventListener('click', () => this.start());
     document.getElementById('againBtn').addEventListener('click', () => this.start());
     document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
+    for (const b of document.querySelectorAll('.mode')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
+
+    // which game: EASY or HARD (?mode= wins over the saved choice)
+    if (MODES[params.get('mode')]) GameState.setMode(params.get('mode'));
+    this.hud.setMode(applyMode(GameState.mode), MODES);
 
     this.newRun(params.has('seed') ? Number(params.get('seed')) : (Math.random() * 1e9) | 0);
     GameState.phase = 'title';
@@ -168,6 +174,16 @@ export class Game {
     }
     if (params.get('cam') === 'cockpit') { this.rig.setMode('cockpit'); this.rig.blend = 1; this.ship.setFirstPerson(true); }
     this.audio.whoosh();
+  }
+
+  /** Switch between EASY and HARD. Only between runs: the course and the handling are built for one or the other. */
+  setMode(name) {
+    const g = GameState;
+    if (!MODES[name] || name === g.mode || g.phase === 'playing' || g.phase === 'paused') return;
+    g.setMode(name);
+    this.hud.setMode(applyMode(name), MODES);
+    this.audio.ui();
+    if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
   }
 
   togglePause() {
@@ -255,7 +271,8 @@ export class Game {
         const p = this.shipWorld();
         this.sparks.burst(p, 90, 0xffa040, 26, 0.9, 0.6);
         this.sparks.burst(p, 40, 0xffffff, 14, 0.5, 0.4);
-        if (live) { g.chain = 0; g.crashes++; hud.flash(); hud.pop('CRASH', '#ff5a6a', true); }
+        const laser = this.hitKind === 'laser' || this.hitKind === 'fence' || this.hitKind === 'sweep';
+        if (live) { g.chain = 0; g.crashes++; hud.flash(); hud.pop(laser ? 'LASER' : 'CRASH', '#ff5a6a', true); }
         break;
       }
     }
@@ -266,7 +283,7 @@ export class Game {
     if (this._hooks) return this._hooks;
     const g = GameState, hud = this.hud, au = this.audio;
     return (this._hooks = {
-      crash: () => this.phys.crash(),
+      crash: (o) => { this.hitKind = o.kind; return this.phys.crash(); },
       nearMiss: () => {
         if (!this.playing) return;
         g.score += SCORE.NEAR_MISS * this.mult;
@@ -327,6 +344,7 @@ export class Game {
       this.rig.setMode(m); g.setCam(m); this.ship.setFirstPerson(m === 'cockpit'); this.hud.camLabel(m); this.audio.ui();
     }
     if (inp.tap('KeyQ')) { g.setQuality(g.quality === 'high' ? 'low' : 'high'); this.applyQuality(); }
+    if ((g.phase === 'title' || g.phase === 'over') && inp.tap('Tab', 'KeyE', 'KeyH')) this.setMode(inp.tap('KeyE') ? 'easy' : inp.tap('KeyH') ? 'hard' : g.mode === 'easy' ? 'hard' : 'easy');
     if (g.phase === 'title' && inp.tap('Enter', 'Space', 'PadStart')) this.start();
     else if (g.phase === 'over' && this.overTimer > 1.0 && inp.tap('Enter', 'Space', 'KeyR', 'PadStart')) this.start();
     else if ((g.phase === 'playing' || g.phase === 'paused') && inp.tap('Escape', 'KeyP')) this.togglePause();
@@ -354,7 +372,7 @@ export class Game {
       const control = human ? this.control : g.phase === 'over' ? IDLE : this.pilot.control(ph, g.time);
       this.lastControl = control;
       ph.step(h, control);
-      this.course.update(ph, hooks);
+      this.course.update(ph, hooks, g.time);
       if (playing) {
         if (!g.clockOut) {
           g.clock -= h;
@@ -406,7 +424,7 @@ export class Game {
     hv.gateFrac = next ? (ph.s - this.lastGateS) / Math.max(1, next.s - this.lastGateS) : 0;
     this.hud.update(raw, hv);
 
-    const rev = clamp(ph.v / (SHIP.CRUISE[1] * (1 + MAX_BOOST_GAIN)), 0, 1.3);
+    const rev = clamp(ph.v / (SHIP.CRUISE[1] * (1 + DRIFT.MAX_GAIN)), 0, 1.3);
     this.audio.setIntensity(playing ? 0.35 + rev * 0.65 : 0.4);
     this.audio.update({ rev, boost: ph.boosting, slide: ph.slide, drifting: ph.drift, scrape: ph.touch > 0 && ph.zone === 0, tier: ph.tier + 1, zone: ph.zone, playing, brake: ph.braking });
 
@@ -416,6 +434,8 @@ export class Game {
   // The first few runs: one line of help at the moment it is useful. Stops once you clearly know how.
   hints(dt) {
     const g = GameState, ph = this.phys, hud = this.hud;
+    // HARD: a slide where there is no bend earns nothing and is about to turn you into the wall
+    if (DRIFT.R_HOOK && !this.bot && ph.drift && ph.straightT > 0.3 && g.learned < 60) { hud.hint('no bend, no charge &middot; <kbd>let go</kbd>'); return; }
     if (g.learned >= 6 || this.bot) { hud.hint(''); return; }
     this.hintT += dt;
     const bend = ph.bendAhead(ph.v * 1.5) !== 0;

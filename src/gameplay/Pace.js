@@ -1,4 +1,4 @@
-import { SHIP, CLOCK, MAX_BOOST_GAIN } from '../core/Constants.js';
+import { SHIP, DRIFT, CLOCK } from '../core/Constants.js';
 
 // How fast the game asks you to go, and how much time it gives you for it.
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -9,7 +9,7 @@ export const difficulty = (s) => Math.min(1, Math.max(0, s) / 7500);
 export const cruiseSpeed = (s) => lerp(SHIP.CRUISE[0], SHIP.CRUISE[1], difficulty(s));
 
 /** The fastest the ship can ever be going at distance s: cruise plus the biggest boost. */
-export const topSpeed = (s) => cruiseSpeed(s) * (1 + MAX_BOOST_GAIN);
+export const topSpeed = (s) => cruiseSpeed(s) * (1 + DRIFT.MAX_GAIN);
 
 /** Share of cruise speed the clock's par assumes at distance s. */
 export function pace(s) {

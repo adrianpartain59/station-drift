@@ -6,7 +6,6 @@ const ease = (rate, dt) => 1 - Math.exp(-rate * dt);
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
-const K_TIGHT = 1 / DRIFT.R_TIGHT, K_WIDE = 1 / DRIFT.R_WIDE, K_COUNTER = 1 / DRIFT.R_COUNTER;
 
 /**
  * How the ship moves. It lives in the corridor's frame:
@@ -163,6 +162,7 @@ export class ShipPhysics {
     let om, betaDes;
     if (this.drift) {
       const D = this.driftDir;
+      const K_TIGHT = 1 / DRIFT.R_TIGHT, K_WIDE = 1 / DRIFT.R_WIDE, K_COUNTER = 1 / DRIFT.R_COUNTER;
       this.driftT += dt;
       const into = steer * D;                       // + = steering to the inside
       const build = smooth(this.driftT / DRIFT.ENTRY);
@@ -170,7 +170,23 @@ export class ShipPhysics {
       // the hook: a slide has to keep curving, but on a straight that only comes in after a moment
       this.straightT = bend < DRIFT.ARM_K * 0.5 ? this.straightT + dt : 0;
       const hook = smooth((this.straightT - DRIFT.HOOK_DELAY) / DRIFT.HOOK_RAMP);
-      const kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build * (bend > 0 ? 1 : hook);
+      let kMin, kSave, kAway;
+      if (DRIFT.R_HOOK) {
+        // HARD: the slide commits. Where the corridor is not already giving it a turn it makes its own,
+        // at least R_HOOK tight, so it cannot be held (or tapped) down a straight. In a real bend it
+        // never turns tighter than the bend unless you steer in, so the bend itself is no harder.
+        const kHook = 1 / DRIFT.R_HOOK;
+        const floor = into < -0.2 ? lerp(kHook, K_COUNTER, (-into - 0.2) / 0.8) : kHook;
+        kMin = (bend >= DRIFT.ARM_K * 0.5 ? Math.min(floor, bend) : floor * hook) * build;
+        // The slide cannot steer away from its own inside, so the wall save does it: about to clip the
+        // inside wall, the ship flicks back at full grip. (You end up pinned along that wall until you
+        // let go, which is the price of sliding where there is no bend.)
+        kSave = -Math.min(SHIP.MAX_YAW, SHIP.GRIP / Math.max(v, 1)) / Math.max(v, 1);
+        kAway = K_COUNTER;
+      } else {
+        kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build * (bend > 0 ? 1 : hook);
+        kSave = kMin; kAway = K_WIDE;
+      }
       const kMax = lerp(Math.min(K_TIGHT, SHIP.GRIP / Math.max(v * v, 1)), K_TIGHT, build);
       // wall guard: only ask for an angle the drift could still pull out of before the wall
       const gapIn = lim - D * this.x, gapOut = lim + D * this.x;
@@ -178,16 +194,17 @@ export class ShipPhysics {
       // guard looks ahead: if the bend is about to end, it stops closing on the inside now
       const n = T.len - 1;
       const bendSoon = Math.min(bend, -T.K[Math.min(n, Math.floor(this.s + v * 0.22))] * D, -T.K[Math.min(n, Math.floor(this.s + v * 0.44))] * D);
-      const away = Math.max(0, bendSoon - K_WIDE), toward = Math.max(0, kMax - bend);
+      const away = Math.max(0, bendSoon - kAway), toward = Math.max(0, kMax - bend);
       const maxIn = Math.sqrt(2 * SHIP.GUARD * away * Math.max(0, gapIn - DRIFT.INSIDE_GAP)) - closing;
       const maxOut = Math.sqrt(2 * SHIP.GUARD * toward * Math.max(0, gapOut - 0.35)) - closing;
       const thDes = D * clamp(into * DRIFT.ANGLE, -maxOut, maxIn);
       om = (thDes - this.theta) / DRIFT.TAU - k * sdot;
       // the save: already heading at a wall faster than a gentle correction can stop -> turn as hard as the slide can
       const out = -D * this.theta, inn = D * this.theta;
+      let lo = kMin;
       if (out > 0 && out * out > 2 * toward * SHIP.SAVE * Math.max(0, gapOut - 0.4)) om = D * v * kMax;
-      else if (inn > 0 && inn * inn > 2 * Math.max(1e-4, bend - kMin) * SHIP.SAVE * Math.max(0, gapIn - 0.4)) om = D * v * kMin;
-      om = D * clamp(D * om, v * kMin, v * kMax);
+      else if (inn > 0 && inn * inn > 2 * Math.max(1e-4, bend - kSave) * SHIP.SAVE * Math.max(0, gapIn - 0.4)) { om = D * v * kSave; lo = kSave; }
+      om = D * clamp(D * om, v * lo, v * kMax);
       betaDes = D * (DRIFT.SLIP + DRIFT.SLIP_IN * Math.max(0, into) - DRIFT.SLIP_OUT * Math.max(0, -into));
       if (this.driftT < 0.24) betaDes += D * DRIFT.FLICK * Math.sin((Math.PI * this.driftT) / 0.24);
 
@@ -195,6 +212,7 @@ export class ShipPhysics {
       this.apex = smooth(1 - gapIn / DRIFT.APEX_ZONE) * (bend > DRIFT.ARM_K * 0.8 ? 1 : 0);
       let rate = 1 + DRIFT.CHARGE_APEX * this.apex;
       if (into < -0.2 && bend < DRIFT.ARM_K) rate = lerp(1, DRIFT.CHARGE_COUNTER, (-into - 0.2) / 0.8);
+      if (DRIFT.CHARGE_STRAIGHT < 1 && bend < DRIFT.ARM_K * 0.5) rate *= DRIFT.CHARGE_STRAIGHT; // HARD: a slide only pays in a bend
       if (this.touch > 0) rate = 0;
       this.charge += rate * dt;
       const t2 = tierFor(this.charge);

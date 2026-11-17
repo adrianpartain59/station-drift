@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Proves that nothing on the course is impossible to get through at the speed the game asks for.
 //
-//   node tools/verify/passability.mjs [--seeds 200] [--from 1] [--km 12] [--no-bots] [--verbose]
+//   node tools/verify/passability.mjs [--mode easy|hard] [--seeds 200] [--from 1] [--km 12] [--no-bots] [--verbose]
 //   node tools/verify/passability.mjs --self-test [--shove 45]     (must FAIL: see below)
 //
 // For every seed it builds the real track and course and runs three independent checks:
@@ -30,8 +30,10 @@ import { ShipPhysics } from '../../src/gameplay/ShipPhysics.js';
 import { Autopilot } from '../../src/gameplay/Autopilot.js';
 import { topSpeed, cruiseSpeed, clockAfterGate } from '../../src/gameplay/Pace.js';
 import { SHIP, CLOCK, DRIFT } from '../../src/core/Constants.js';
+import { applyMode } from '../../src/core/Modes.js';
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i < 0 ? def : Number(process.argv[i + 1]); };
+const strArg = (name, def) => { const i = process.argv.indexOf('--' + name); return i < 0 ? def : process.argv[i + 1]; };
 const flag = (name) => process.argv.includes('--' + name);
 const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERBOSE = flag('verbose');
 // --self-test: slide every obstacle SHOVE metres back toward the bend before it, which makes the course unfair on
@@ -39,14 +41,20 @@ const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERB
 const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), BOTS = !flag('no-bots') && !SELF_TEST;
 const L = KM * 1000;
 
+// The contract each mode is held to. Hard asks more of the player, and says so.
+const MODE_NAME = applyMode(strArg('mode', 'easy'));
 const RULE = {
-  ACC: 0.75,        // share of lateral grip the search may use
-  REACT: 0.45,      // s between a group coming into sight and the ship starting to respond
-  MARGIN: 0.3,      // m of clearance beyond the hull the search insists on
-  MIN_SIGHT: 1.0,   // s any obstacle must be visible before arrival at top speed
-  MIN_OPEN: 6.0,    // m: narrowest physical opening allowed anywhere
-  GROUP: 14,        // m: obstacles closer than this along the track are one group
-};
+  easy: {
+    ACC: 0.75,        // share of lateral grip the search may use
+    REACT: 0.45,      // s between a group coming into sight and the ship starting to respond
+    MARGIN: 0.3,      // m of clearance beyond the hull the search insists on
+    SLIDE: 1,         // share of its top sideways speed the ship may already have, either way, when a group appears
+    MIN_SIGHT: 1.0,   // s any obstacle must be visible before arrival at top speed
+    MIN_OPEN: 6.0,    // m: narrowest physical opening allowed anywhere
+    GROUP: 14,        // m: obstacles closer than this along the track are one group
+  },
+  hard: { ACC: 0.9, REACT: 0.35, MARGIN: 0.2, SLIDE: 0.6, MIN_SIGHT: 0.9, MIN_OPEN: 5.0, GROUP: 14 },
+}[MODE_NAME];
 
 // ---------------------------------------------------------------------------------------------
 // geometry helpers (independent of Course.js)
@@ -171,6 +179,9 @@ function checkSeed(seed) {
     // --- 1. sight, straights, openings ---
     let seen = 0;
     for (const o of g.items) {
+      // A laser fence runs on from a cap that is itself a row in plain sight; it asks for no new decision,
+      // only that the lane already chosen is held, so it is not required to be visible in advance.
+      if (o.kind === 'fence') continue;
       const tip = Math.max(o.x - halfWidth(o), Math.min(o.x + halfWidth(o), 0));
       seen = Math.max(seen, sightStart(T, o.s, tip));
       for (let i = Math.floor(o.s - halfLength(o) - 2); i <= Math.ceil(o.s + halfLength(o) + 2); i++) {
@@ -204,7 +215,9 @@ function checkSeed(seed) {
     const after = winning(T, earlier.concat(g.items), enter, sTo, v);
     out.searchStates += before.set.length;
     let bad = null;
+    const jMax = Math.floor(before.J * RULE.SLIDE + 1e-9);
     for (let q = 0; q < before.set.length; q++) {
+      if (Math.abs((q % before.nJ) - before.J) > jMax) continue; // sliding faster than the contract covers
       if (before.set[q] && !after.set[q]) { bad = q; break; }
     }
     if (bad !== null) {
@@ -234,7 +247,7 @@ function checkSeed(seed) {
       };
       const dt = 1 / 120;
       while (p.s < L && t < 2000) {
-        p.step(dt, bot.control(p, t)); C2.update(p, hooks); t += dt; clock -= dt;
+        p.step(dt, bot.control(p, t)); C2.update(p, hooks, t); t += dt; clock -= dt;
         if (clock < st.minClock) st.minClock = clock;
         if (clock <= 0 && st.outOfTime === null) st.outOfTime = p.s;
       }
@@ -255,11 +268,11 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
   if (VERBOSE) console.log(`seed ${seed}: ${r.groups} groups, min sight ${r.minSight.toFixed(2)} s, min opening ${r.minOpen.toFixed(1)} m` + (r.pace ? `, pace bot ${r.pace.avg.toFixed(1)} m/s clock>=${r.pace.minClock.toFixed(1)} s, grip bot ${r.grip.avg.toFixed(1)} m/s` : '') + (r.fails.length ? `  ** ${r.fails.length} FAIL` : ''));
 }
 const sum = (f) => all.reduce((a, r) => a + f(r), 0), min = (f) => all.reduce((a, r) => Math.min(a, f(r)), Infinity);
-console.log(`\nPassability check: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
+console.log(`\nPassability check, ${MODE_NAME.toUpperCase()} mode: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
 console.log(`  obstacles ${sum((r) => r.obstacles)} in ${sum((r) => r.groups)} groups (${(sum((r) => r.groups) / (SEEDS * KM)).toFixed(1)} per km)`);
 console.log(`  shortest time in sight at top speed: ${min((r) => r.minSight).toFixed(2)} s (rule: >= ${RULE.MIN_SIGHT})`);
 console.log(`  narrowest opening: ${min((r) => r.minOpen).toFixed(2)} m for a ${(2 * SHIP.RADIUS).toFixed(1)} m hull (rule: >= ${RULE.MIN_OPEN})`);
-console.log(`  search: ${sum((r) => r.searchStates).toLocaleString('en-US')} start states tested at cruise + ${(100 * (topSpeed(0) / cruiseSpeed(0) - 1)).toFixed(0)}%, ${RULE.ACC * 100}% of grip, ${RULE.REACT} s reaction, ${RULE.MARGIN} m margin`);
+console.log(`  search: ${sum((r) => r.searchStates).toLocaleString('en-US')} start states tested at cruise + ${(100 * (topSpeed(0) / cruiseSpeed(0) - 1)).toFixed(0)}%, ${RULE.ACC * 100}% of grip, ${RULE.REACT} s reaction, ${RULE.MARGIN} m margin, sideways speed up to ${RULE.SLIDE * 100}% of top`);
 if (BOTS) {
   const P = (k) => sum((r) => r.pace[k]), G = (k) => sum((r) => r.grip[k]);
   const clockOut = (m) => { const d = all.map((r) => r[m].outOfTime).filter((x) => x !== null).sort((a, b) => a - b); return d.length ? `clock ran out on ${d.length} of ${SEEDS} runs, median at ${(d[d.length >> 1] / 1000).toFixed(1)} km` : 'clock never ran out'; };

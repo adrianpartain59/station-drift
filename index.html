@@ -88,6 +88,15 @@
     .tag { font: 600 clamp(15px, 2vw, 19px) 'Rajdhani'; color: var(--dim); letter-spacing: 0.08em; max-width: 560px; }
     .btn { pointer-events: auto; font: 900 18px 'Orbitron'; letter-spacing: 0.3em; padding: 16px 40px 16px 46px; color: #03040a; background: linear-gradient(90deg, #37e6ff, #ff3fb4); border: 0; border-radius: 6px; cursor: pointer; box-shadow: 0 0 24px rgba(55, 230, 255, 0.5), 0 0 60px rgba(255, 63, 180, 0.3); transition: transform 0.1s; }
     .btn:hover { transform: scale(1.04); }
+    .modes { display: flex; gap: 12px; pointer-events: auto; }
+    .mode { font-family: 'Rajdhani', sans-serif; text-align: left; width: min(250px, 42vw); padding: 10px 14px; border-radius: 8px; cursor: pointer; color: var(--dim); background: rgba(3, 4, 12, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); transition: all 0.12s; }
+    .mode b { display: block; font: 900 16px 'Orbitron'; letter-spacing: 0.28em; color: var(--ink); }
+    .mode span { font: 600 13px 'Rajdhani'; letter-spacing: 0.03em; line-height: 1.2; display: block; margin-top: 3px; }
+    .mode.sel { border-color: var(--cyan); border-width: 2px; background: rgba(3, 4, 12, 0.86); box-shadow: 0 0 18px rgba(55, 230, 255, 0.45); color: var(--ink); }
+    .mode.sel b::after { content: '  \25CF'; font-size: 11px; vertical-align: 2px; }
+    .mode[data-mode='hard'].sel { border-color: var(--pink); box-shadow: 0 0 18px rgba(255, 63, 180, 0.5); }
+    .mode[data-mode='hard'] b { color: #ff8fd0; }
+    #modeTag { font: 900 12px 'Orbitron'; letter-spacing: 0.22em; margin-left: 10px; color: #ff8fd0; text-shadow: 0 0 10px rgba(255, 63, 180, 0.8); }
     .keys { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 26px; font: 600 14px 'Rajdhani'; color: var(--dim); letter-spacing: 0.06em; }
     .keys b { color: var(--ink); font: 700 12px 'Orbitron'; letter-spacing: 0.1em; margin-right: 6px; }
     #bestTitle { font: 700 13px 'Orbitron'; letter-spacing: 0.25em; color: #ffd36b; min-height: 16px; }
@@ -108,7 +117,7 @@
   <div class="vignette"></div>
 
   <div id="hud" class="hidden">
-    <div class="tl"><div class="label">SCORE</div><div id="score">0</div><div id="dist">0.00 km</div><div id="chain"></div></div>
+    <div class="tl"><div class="label">SCORE<span id="modeTag"></span></div><div id="score">0</div><div id="dist">0.00 km</div><div id="chain"></div></div>
     <div id="clockBox"><div class="label">TIME</div><div id="clock">0</div><div id="clockAdd"></div></div>
     <div class="tr"><div class="label">COINS</div><div id="coins">0</div></div>
     <div id="drift"><div id="driftTier">DRIFT</div><div><span id="driftPts">0</span><span id="driftMult"></span></div><div class="driftbar"><i></i><u id="tick1"></u><u id="tick2"></u></div></div>
@@ -127,10 +136,14 @@
   <div id="title" class="screen">
     <div class="logo">STATION DRIFT<small>ORBITAL NIGHT RUN</small></div>
     <div class="tag">No races. No trophies. Just the line through the station, and how sideways you can take it.</div>
+    <div class="modes">
+      <button class="mode" data-mode="easy"><b>EASY</b><span></span></button>
+      <button class="mode" data-mode="hard"><b>HARD</b><span></span></button>
+    </div>
     <button class="btn" id="playBtn">DRIFT</button>
     <div class="keys">
       <span><b>A D / &larr; &rarr;</b>steer</span><span><b>SPACE</b>hold through a bend to drift</span><span><b>let go</b>boost, and bank time</span>
-      <span><b>S / &darr;</b>brake</span><span><b>C</b>cockpit / chase</span><span><b>M</b>mute &middot; <b>Q</b> quality</span>
+      <span><b>S / &darr;</b>brake</span><span><b>C</b>cockpit / chase &middot; <b>TAB</b> easy / hard</span><span><b>M</b>mute &middot; <b>Q</b> quality</span>
     </div>
     <div id="bestTitle"></div>
   </div>
@@ -144,6 +157,10 @@
   <div id="over" class="screen hidden">
     <div class="h2">OUT OF TIME</div>
     <div id="overStats"></div>
+    <div class="modes">
+      <button class="mode" data-mode="easy"><b>EASY</b><span></span></button>
+      <button class="mode" data-mode="hard"><b>HARD</b><span></span></button>
+    </div>
     <button class="btn" id="againBtn">RUN IT BACK</button>
     <div class="hint">SPACE OR ENTER</div>
   </div>

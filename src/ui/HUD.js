@@ -4,7 +4,7 @@ import { DRIFT, CLOCK } from '../core/Constants.js';
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toLocaleString('en-US');
 const hex = (c) => '#' + c.toString(16).padStart(6, '0');
-const TOP = DRIFT.TIERS[DRIFT.TIERS.length - 1].at;
+const top = () => DRIFT.TIERS[DRIFT.TIERS.length - 1].at;
 
 export class HUD {
   constructor() {
@@ -16,19 +16,30 @@ export class HUD {
       banner: $('banner'), bannerTop: $('bannerTop'), bannerMain: $('bannerMain'), pops: $('pops'), hint: $('hint'),
       title: $('title'), pause: $('pause'), over: $('over'), overStats: $('overStats'), best: $('bestTitle'), cam: $('camLabel'), flash: $('flash'),
     };
-    $('tick1').style.left = (DRIFT.TIERS[0].at / TOP) * 100 + '%';
-    $('tick2').style.left = (DRIFT.TIERS[1].at / TOP) * 100 + '%';
+    $('tick1').style.left = (DRIFT.TIERS[0].at / top()) * 100 + '%';
+    $('tick2').style.left = (DRIFT.TIERS[1].at / top()) * 100 + '%';
     this.bannerT = 0; this.hintText = ''; this.linger = 0;
   }
 
   show(id, on) { this.el[id].classList.toggle('hidden', !on); }
+
+  /** Mark the chosen mode on every mode chip, fill in the blurbs, tag the HUD. */
+  setMode(name, modes) {
+    for (const b of document.querySelectorAll('.mode')) {
+      b.classList.toggle('sel', b.dataset.mode === name);
+      b.querySelector('span').textContent = modes[b.dataset.mode].blurb;
+    }
+    $('modeTag').textContent = name === 'easy' ? '' : modes[name].label;
+    this.modeLabel = modes[name].label;
+    if (!this.el.title.classList.contains('hidden')) this.phase('title');
+  }
 
   phase(p) {
     this.show('title', p === 'title');
     this.show('pause', p === 'paused');
     this.show('over', p === 'over');
     this.show('hud', p === 'playing' || p === 'paused');
-    if (p === 'title') this.el.best.textContent = GameState.best ? `BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
+    if (p === 'title') this.el.best.textContent = GameState.best ? `${this.modeLabel || ''} BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
   }
 
   /** v: { speed (shown units), drifting, charge, tier, points, mult, boost 0..1, boostTier, gateDist, gateFrac } */
@@ -58,7 +69,7 @@ export class HUD {
       e.driftMult.textContent = v.mult > 1 ? `x${v.mult % 1 ? v.mult.toFixed(1) : v.mult}` : '';
       e.driftTier.textContent = tier >= 0 ? DRIFT.TIERS[tier].name : 'DRIFT';
       e.drift.style.setProperty('--tier', tier >= 0 ? hex(DRIFT.TIERS[tier].color) : '#ffffff');
-      e.drift.style.setProperty('--prog', Math.max(0, Math.min(1, v.charge / TOP)).toFixed(3));
+      e.drift.style.setProperty('--prog', Math.max(0, Math.min(1, v.charge / top())).toFixed(3));
     }
     e.drift.classList.toggle('on', v.drifting || this.linger > 0);
 

@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-All phases complete and merged into `main`. Hands-on playtest by Adrian still to come.
+Phase 7 (hard mode), branch `hard-mode` from main @ e2e6eb5
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -40,8 +40,22 @@ All phases complete and merged into `main`. Hands-on playtest by Adrian still to
 ### Phase 6: Commit, push branch, open in Adrian's Chrome, hand-over note
 - Status: complete (branch pushed; merged into `main` on 2026-11-16 at Adrian's request; game opened in Chrome; note in the shared notes folder)
 
+### Phase 7: Hard mode (Adrian's playtest notes, 2026-11-16)
+His notes: base speed faster; more obstacles, diverse and often, lasers especially; the drift must turn the ship
+enough that it cannot be spammed going straight for boosts, while staying as easy as possible; keep the current
+game as EASY, build HARD with these changes; free to change other things in hard.
+- 7a Mode system: easy = today's numbers and layout, byte-identical (fingerprint 4c21b329... from scratchpad
+  baseline.mjs); hard = overrides. Title selector, HUD badge, best score per mode, `?mode=`, `verify --mode`.
+  Status: pending
+- 7b Hard drift: on a straight the slide commits to a real turn (R about 58 m, almost no delay) and barely
+  charges; in a real bend it still follows the bend. Status: pending
+- 7c Hard course: straights merged into spans (more room for rows), laser gates, laser lane closures through
+  bends, sweeping lasers inside a static envelope, plus the existing kinds. Status: pending
+- 7d Prove it: verifier in hard mode with its own stated contract; bots; scripted players; clock retune. Status: pending
+- 7e Browser check, build, commit, push. Status: pending
+
 ## Next Step
-Adrian plays it at http://127.0.0.1:5190/ and says what feels off; tune from Constants.js, then `npm run verify`.
+7a: move FAIR into Constants, add Modes.js, make derived constants live, confirm the easy fingerprint is unchanged.
 
 ## Decisions Made
 | Decision | Why |
