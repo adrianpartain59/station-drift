@@ -16,41 +16,48 @@ export const MODES = {
   },
   hard: {
     label: 'HARD',
-    blurb: 'Faster. Lasers. A slide only pays in a real bend.',
+    blurb: 'Faster. Lasers. You steer every bend yourself, and the slide runs wide.',
     set: {
       SHIP: {
         CRUISE: [46, 60],        // was 38 -> 50
         START_SPEED: 32,
-        GRIP: 37,                // a little more bite, so steering at the higher speed is not heavier
-        STEER_ANGLE: 0.2,
         CRASH_KEEP: 0.26,
         HIT_KEEP: [0.8, 0.45],
+        // Fully manual handling (ShipPhysics.stepManual). Nothing steers for you.
+        MANUAL: {
+          TURN_RATE: 2.3,        // rad/s the nose turns with a key held in. No angle it stops at.
+          STEER_IN: 7,           // 1/s: how fast a held key builds to that rate (a tap is a nudge)
+          STEER_OUT: 18,         // 1/s: how fast it lets go
+          GRIP_RATE: 11,         // 1/s: how hard the direction of travel is pulled round to the nose, with grip
+          SLIDE_GRIP: 3.5,       // 1/s: the same while the drift button is held. Lower = slides wider
+          LET_GO: 14,            // 1/s: how fast grip goes when the button goes down
+          HOOK_UP: 6,            // 1/s: ...and comes back when it is let go
+          SLIDE_DRAG: 5,         // m/s^2 lost per radian of slip while sliding
+          CHARGE_SLIP: [0.08, 0.28], // slip (rad) at which charge starts, and at which it charges at full rate
+          CHARGE_GAIN: 1.7,      // bends go by faster here and a slide takes a moment to build: charge this much quicker
+          DETENT: 0.03,          // rad: on a straight, keys up, a nose this close to dead ahead settles dead ahead
+          DETENT_RATE: 5,
+          WALL_TURN: 1.6,        // rad/s a wall pushes the nose round while the ship rubs along it
+          MAX_ANGLE: 1.25,       // rad: the ship cannot be turned to face back up the corridor
+          // what the course layout and the proof may assume of this ship (gameplay/Pace.js):
+          FAIR_SHARE: 0.45,      // this share of the turn rate
+          FAIR_ANGLE: 0.22,      // and a nose up to this far (rad, about 13 degrees) off the corridor when a row appears
+        },
       },
       DRIFT: {
-        // The slide commits. On a straight it turns at least this tight, almost at once, and earns next
-        // to no charge, so it cannot be tapped down a straight for boosts. In a real bend nothing changes:
-        // it follows the bend, and steering against it runs it wider.
-        R_HOOK: 58,
-        R_COUNTER: 135,
-        HOOK_DELAY: 0.08,
-        HOOK_RAMP: 0.22,
-        ARM_LOOK: 0.26,          // the button held early starts the slide later: there is less straight to spend
-        CHARGE_STRAIGHT: 0.15,
-        SLIP: 0.5,               // and the nose swings further (about 29 degrees)
-        SLIP_IN: 0.22,
+        CHARGE_STRAIGHT: 0.15,   // a slide only pays in a real bend
       },
       FAIR: {
         LANE: [2.7, 2.1],
-        COMFORT: [0.72, 0.86],
-        REACT_FIRST: [0.5, 0.42],
-        REACT_NEXT: [0.24, 0.2],
+        COMFORT: [0.66, 0.82],
+        REACT_FIRST: [0.56, 0.48],
+        REACT_NEXT: [0.3, 0.24],
         SEE: [1.25, 1.05],
         MIN_GAP: 24,
         OPEN: 5.4,
         NO_ROWS_BEFORE: 260,
-        SLIDE: 0.6,
       },
-      COURSE: { SPANS: true, LASERS: true, BEND_CLOSURE: [0.5, 0.85], MAX_ROWS: 6 },
+      COURSE: { SPANS: true, LASERS: true, BEND_CLOSURE: [0.35, 0.6], CLOSE_INSIDE: true, MAX_ROWS: 7 },
       CLOCK: { CARRY: 7 },
     },
   },

@@ -1,4 +1,4 @@
-import { SHIP, DRIFT } from '../core/Constants.js';
+import { SHIP, DRIFT, COURSE } from '../core/Constants.js';
 import { ShipPhysics } from './ShipPhysics.js';
 import { clearance, halfWidth } from './Course.js';
 
@@ -32,14 +32,14 @@ export class Autopilot {
 
   /** Keys for holding lane `target` from state `p`: what a player does, bang-bang with a little lead. */
   keys(p, target, out) {
+    if (SHIP.MANUAL) return this.keysManual(p, target, out);
     const lead = p.x + p.v * Math.sin(p.theta) * (p.drift ? 0.3 : 0.2);
     const err = target - lead;
     const band = p.drift ? 1.1 : 0.7;
     out.steer = err > band ? 1 : err < -band ? -1 : 0;
     const v = p.v;
     if (this.o.drift) {
-      // press a little before the bend; in hard mode the slide hooks at once, so later
-      const coming = this.bend(p.s, DRIFT.R_HOOK ? Math.max(5, v * 0.13) : Math.max(8, v * 0.34));
+      const coming = this.bend(p.s, Math.max(8, v * 0.34));
       out.drift = coming !== 0;
       // going into a bend, steer its way so the drift starts when the button goes down
       if (out.drift && !p.drift && out.steer === 0) out.steer = coming;
@@ -54,6 +54,31 @@ export class Autopilot {
       const here = this.bend(p.s, Math.max(6, v * 0.18));
       if (here && out.steer === 0 && Math.abs(target - p.x) < 2.5) out.steer = here * (p.x * here > target * here + 0.5 ? 0 : 1);
     }
+    return out;
+  }
+
+  /**
+   * Manual handling: the keys turn the nose, so the driver works on where the nose points. Aim the nose
+   * at a spot on the wanted lane a little way ahead, allow for the corridor turning under the ship and
+   * for the turn already wound on, and press whichever key closes the gap.
+   */
+  keysManual(p, target, out) {
+    const M = SHIP.MANUAL, v = Math.max(p.v, 12), K = this.track.K;
+    const at = (u) => K[Math.min(K.length - 1, Math.max(0, Math.floor(p.s + u)))];
+    const G = p.gripNow || M.GRIP_RATE;
+    // which way the ship should be travelling to come onto its lane a little way ahead
+    const want = Math.max(-0.5, Math.min(0.5, Math.atan2(target - p.x, v * (p.drift ? 0.7 : 0.5))));
+    // To be carried round a bend the nose has to point inside the line by (bend rate / grip): a little with
+    // grip, a lot in a slide. And it has to be there before the bend, so read the corridor that far ahead.
+    const lead = Math.min(0.42, 1 / G + 0.08);
+    const nose = want - (at(v * lead) * v) / G;
+    // where the nose will be in a moment if the keys are left alone (turn already wound on + corridor turning)
+    const soon = p.psi + (p.steer * M.TURN_RATE + at(v * 0.05) * v) * 0.09;
+    const e = nose - soon;
+    out.steer = e > 0.03 ? 1 : e < -0.03 ? -1 : 0;
+    // slide only while there is bend left to slide round: let go a touch early so grip is back for the way out
+    out.drift = this.o.drift && this.bend(p.s, Math.max(4, v * 0.1)) !== 0 && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K;
+    out.brake = false;
     return out;
   }
 
@@ -87,7 +112,7 @@ export class Autopilot {
     // lanes span the widest the corridor gets within the look-ahead, not just where the ship is now:
     // an opening can lie beyond today's wall if the corridor is about to widen
     let lim = ship.lim;
-    if (DRIFT.R_HOOK) for (let u = 20; u <= ship.v * o.horizon; u += 20) lim = Math.max(lim, this.course.lim(ship.s + u));
+    if (COURSE.SPANS) for (let u = 20; u <= ship.v * o.horizon; u += 20) lim = Math.max(lim, this.course.lim(ship.s + u));
     const obs = this.visible(ship);
     const coins = this.course.coins;
     const keys = { steer: 0, drift: false, brake: false };

@@ -65,6 +65,10 @@ export const SHIP = {
   CRASH_MIN: 12,
   GHOST: 1.5,            // s of no-collision after a crash...
   GHOST_DIST: 55,        // ...and at least this many metres, so one set-piece can only ever cost you once
+
+  // null = the assisted handling above (EASY). HARD replaces it with fully manual handling:
+  // see core/Modes.js for the numbers and ShipPhysics.stepManual for what they do.
+  MANUAL: null,
 };
 
 // The drift. Hold the button: the tail steps out, the ship carries itself round the bend, and
@@ -105,9 +109,8 @@ export const DRIFT = {
   // Boosts are small in metres per second and big on screen (the camera sells them): the fastest the
   // ship can ever go is cruise + this, and the whole course is laid out and proved at that speed.
   MAX_GAIN: 0.2,
-  // Hard-mode levers (off here). R_HOOK: on a straight the slide commits to a turn at least this tight.
-  // CHARGE_STRAIGHT: share of the charge rate a slide earns where the corridor is not bending.
-  R_HOOK: 0,
+  // Share of the charge rate a slide earns where the corridor is not bending (hard mode lowers it,
+  // so a slide cannot be worked down a straight for boosts).
   CHARGE_STRAIGHT: 1,
 };
 // ---------------------------------------------------------------------------------------------
@@ -135,6 +138,7 @@ export const COURSE = {
   SPANS: false,            // lay rows over whole straights (several map pieces) instead of piece by piece
   LASERS: false,           // laser gates, sweeping lasers, laser-fenced lane closures
   BEND_CLOSURE: [0, 0],    // chance (difficulty 0 .. 1) that a bend has a lane fenced off through it
+  CLOSE_INSIDE: false,     // only ever fence off the inside lane of a bend
   MAX_ROWS: 4,             // most set-pieces in one zone
 };
 

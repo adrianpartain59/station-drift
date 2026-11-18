@@ -12,15 +12,21 @@ That is `node tools/verify/passability.mjs --seeds 200 --km 12` (about 2.5 minut
 
 Each mode is held to its own stated contract (the `RULE` table at the top of the script):
 
-| | grip the search may use | reaction | margin round the hull | sideways speed the ship may already have | narrowest opening |
+| | steering the search may use | reaction | margin round the hull | state the ship may already be in | narrowest opening |
 |---|---|---|---|---|---|
-| easy | 75% | 0.45 s | 0.3 m | any | 6.0 m |
-| hard | 90% | 0.35 s | 0.2 m | up to 60% of its top | 5.0 m |
+| easy (assisted handling) | 75% of lateral grip | 0.45 s | 0.3 m | any position, any sideways speed | 6.0 m |
+| hard (manual handling) | 41% of the turn rate | 0.45 s | 0.2 m | any position, nose up to 13 degrees off the corridor either way | 5.0 m |
 
-Hard asks more of the player and says so. In hard, a sweeping laser is treated as blocking its whole sweep, so
-the proof never relies on timing. A laser fence that runs on from a cap through a bend is exempt from the
-sight rule (the cap is the decision; the fence only asks that the chosen lane is held), and both bots drive
-every one of them on the real physics.
+Hard asks more of the player and says so. In hard:
+- a sweeping laser is treated as blocking its whole sweep, so the proof never relies on timing;
+- a laser fence that runs on from a cap through a bend is exempt from the sight rule (the cap is the
+  decision; the fence only asks that the open lane is held), and only ever shuts the inside lane, so a
+  slide that runs wide runs away from it;
+- obstacle hits are judged on the bot that drives on grip. The sliding bot's obstacle and wall hits are
+  reported, not judged: hard's slide is meant to run wide, and a simple driver is not a fair judge of it.
+
+`npm run fingerprint` checks that EASY is still exactly the game it was when HARD was split off (course
+layout and autopilot trace hashed over six seeds).
 
 What it checks on every seed, using the real `Track` and `Course`:
 

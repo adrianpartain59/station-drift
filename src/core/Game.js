@@ -435,14 +435,14 @@ export class Game {
   hints(dt) {
     const g = GameState, ph = this.phys, hud = this.hud;
     // HARD: a slide where there is no bend earns nothing and is about to turn you into the wall
-    if (DRIFT.R_HOOK && !this.bot && ph.drift && ph.straightT > 0.3 && g.learned < 60) { hud.hint('no bend, no charge &middot; <kbd>let go</kbd>'); return; }
+    if (SHIP.MANUAL && !this.bot && ph.drift && ph.driftT > 0.5 && ph.bendAhead(ph.v * 0.3) === 0 && g.learned < 60) { hud.hint('no bend, no charge &middot; <kbd>let go</kbd>'); return; }
     if (g.learned >= 6 || this.bot) { hud.hint(''); return; }
     this.hintT += dt;
     const bend = ph.bendAhead(ph.v * 1.5) !== 0;
     if (g.clockOut) hud.hint('');
     else if (ph.drift && ph.tier >= 0 && ph.bendAhead(ph.v * 0.25) === 0) hud.hint('<kbd>let go</kbd> to boost');
-    else if (ph.drift) hud.hint('hold it&hellip; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> slide you across');
-    else if (bend && g.drifts < 4) hud.hint('hold <kbd>SPACE</kbd> through the bend to drift');
+    else if (ph.drift) hud.hint(SHIP.MANUAL ? 'keep the nose turned in&hellip; it slides wide' : 'hold it&hellip; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> slide you across');
+    else if (bend && g.drifts < 4) hud.hint(SHIP.MANUAL ? 'steer in, and hold <kbd>SPACE</kbd> to slide' : 'hold <kbd>SPACE</kbd> through the bend to drift');
     else if (this.hintT < 6 && g.drifts === 0) hud.hint('<kbd>&larr;</kbd> <kbd>&rarr;</kbd> or <kbd>A</kbd> <kbd>D</kbd> to steer');
     else if (g.drifts > 0 && g.drifts < 3 && g.time - g.lastDriftEnd < 3) hud.hint('longer slides charge bigger boosts &middot; reach the gate before the clock runs out');
     else hud.hint('');

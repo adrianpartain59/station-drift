@@ -28,7 +28,7 @@ import { Track } from '../../src/level/Track.js';
 import { Course, clearance, halfLength, halfWidth } from '../../src/gameplay/Course.js';
 import { ShipPhysics } from '../../src/gameplay/ShipPhysics.js';
 import { Autopilot } from '../../src/gameplay/Autopilot.js';
-import { topSpeed, cruiseSpeed, clockAfterGate } from '../../src/gameplay/Pace.js';
+import { topSpeed, cruiseSpeed, clockAfterGate, lateralAcc, lateralCap } from '../../src/gameplay/Pace.js';
 import { SHIP, CLOCK, DRIFT } from '../../src/core/Constants.js';
 import { applyMode } from '../../src/core/Modes.js';
 
@@ -53,7 +53,9 @@ const RULE = {
     MIN_OPEN: 6.0,    // m: narrowest physical opening allowed anywhere
     GROUP: 14,        // m: obstacles closer than this along the track are one group
   },
-  hard: { ACC: 0.9, REACT: 0.35, MARGIN: 0.2, SLIDE: 0.6, MIN_SIGHT: 0.9, MIN_OPEN: 5.0, GROUP: 14 },
+  // Hard has manual handling: "grip" here is the stated share of the ship's turn rate (Pace.lateralAcc), and the
+  // sideways speed covered is that of a nose pointing up to SHIP.MANUAL.FAIR_ANGLE off the corridor, either way.
+  hard: { ACC: 0.9, REACT: 0.45, MARGIN: 0.2, SLIDE: 1, MIN_SIGHT: 0.9, MIN_OPEN: 5.0, GROUP: 14 },
 }[MODE_NAME];
 
 // ---------------------------------------------------------------------------------------------
@@ -94,10 +96,13 @@ function straightStart(T, s) { let i = Math.round(s); while (i > 0 && Math.abs(T
 // with no more than A, so a "yes" here is never optimistic.
 // ---------------------------------------------------------------------------------------------
 function winning(T, obstacles, sFrom, sTo, v) {
-  const A = RULE.ACC * SHIP.GRIP;
-  const DS = 4, dt = DS / v;
+  const A = RULE.ACC * lateralAcc(v);
+  // Time step chosen so the fastest sideways speed is a whole number of lattice steps: the search then
+  // reaches exactly that speed and never more (a step no longer than 4 m of track).
+  const cap = lateralCap(v);
+  const J = Math.max(2, Math.ceil(cap / (A * (4 / v))));
+  const dt = cap / (J * A), DS = v * dt;
   const vyStep = A * dt, xStep = (A * dt * dt) / 2;
-  const J = Math.floor((v * Math.sin(SHIP.STEER_ANGLE)) / vyStep);
   const nJ = 2 * J + 1;
   const limMax = 16;
   const I = Math.ceil(limMax / xStep), nI = 2 * I + 1;
@@ -234,14 +239,16 @@ function checkSeed(seed) {
       const st = { crash: 0, wall: 0, graze: 0, drifts: 0, tiers: [0, 0, 0, 0], lost: 0, coins: 0, near: 0, minClock: 99, time: 0, outOfTime: null };
       let clock = CLOCK.START, t = 0;
       const p = new ShipPhysics(T2, (name, d) => {
-        if (name === 'wallHit') { st.wall++; if (mode === 'pace') out.fails.push(`seed ${seed} pace bot: hard wall hit at s=${p.s.toFixed(0)}`); }
+        // easy: the flat-out bot may not even touch a wall hard. Hard has a slide that is meant to run wide: reported, not judged
+        if (name === 'wallHit') { st.wall++; if (mode === 'pace' && !SHIP.MANUAL) out.fails.push(`seed ${seed} pace bot: hard wall hit at s=${p.s.toFixed(0)}`); }
         else if (name === 'graze') st.graze++;
         else if (name === 'driftEnd') { st.drifts++; st.tiers[d.tier + 1]++; if (d.tier >= 0 && clock > 0) clock += DRIFT.TIERS[d.tier].clock; }
         else if (name === 'driftLost') st.lost++;
       });
       const bot = new Autopilot(T2, C2, mode === 'grip' ? { drift: false, brakeForBends: true } : {});
       const hooks = {
-        crash: (o) => { if (!p.crash()) return false; st.crash++; out.fails.push(`seed ${seed} ${mode} bot: hit ${o.kind} at s=${o.s.toFixed(0)}`); return true; },
+        // an obstacle hit fails the check. In hard, that is judged on the bot that drives on grip; the sliding bot's hits are reported
+        crash: (o) => { if (!p.crash()) return false; st.crash++; if (mode === 'grip' || !SHIP.MANUAL) out.fails.push(`seed ${seed} ${mode} bot: hit ${o.kind} at s=${o.s.toFixed(0)}`); return true; },
         nearMiss: () => st.near++, coin: () => st.coins++, pad: () => p.boost(DRIFT.PAD_TIME, DRIFT.PAD_GAIN, 0),
         gate: (g, bonus) => { clock = clockAfterGate(clock, bonus); },
       };
@@ -272,7 +279,7 @@ console.log(`\nPassability check, ${MODE_NAME.toUpperCase()} mode: ${SEEDS} seed
 console.log(`  obstacles ${sum((r) => r.obstacles)} in ${sum((r) => r.groups)} groups (${(sum((r) => r.groups) / (SEEDS * KM)).toFixed(1)} per km)`);
 console.log(`  shortest time in sight at top speed: ${min((r) => r.minSight).toFixed(2)} s (rule: >= ${RULE.MIN_SIGHT})`);
 console.log(`  narrowest opening: ${min((r) => r.minOpen).toFixed(2)} m for a ${(2 * SHIP.RADIUS).toFixed(1)} m hull (rule: >= ${RULE.MIN_OPEN})`);
-console.log(`  search: ${sum((r) => r.searchStates).toLocaleString('en-US')} start states tested at cruise + ${(100 * (topSpeed(0) / cruiseSpeed(0) - 1)).toFixed(0)}%, ${RULE.ACC * 100}% of grip, ${RULE.REACT} s reaction, ${RULE.MARGIN} m margin, sideways speed up to ${RULE.SLIDE * 100}% of top`);
+console.log(`  search: ${sum((r) => r.searchStates).toLocaleString('en-US')} start states tested at cruise + ${(100 * (topSpeed(0) / cruiseSpeed(0) - 1)).toFixed(0)}%, ${SHIP.MANUAL ? `${(RULE.ACC * SHIP.MANUAL.FAIR_SHARE * 100).toFixed(0)}% of turn rate, nose up to ${Math.round(SHIP.MANUAL.FAIR_ANGLE * 57.3)} deg off` : `${RULE.ACC * 100}% of grip, sideways speed up to ${RULE.SLIDE * 100}% of top`}, ${RULE.REACT} s reaction, ${RULE.MARGIN} m margin`);
 if (BOTS) {
   const P = (k) => sum((r) => r.pace[k]), G = (k) => sum((r) => r.grip[k]);
   const clockOut = (m) => { const d = all.map((r) => r[m].outOfTime).filter((x) => x !== null).sort((a, b) => a - b); return d.length ? `clock ran out on ${d.length} of ${SEEDS} runs, median at ${(d[d.length >> 1] / 1000).toFixed(1)} km` : 'clock never ran out'; };

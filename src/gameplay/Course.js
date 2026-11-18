@@ -1,6 +1,6 @@
 import { SHIP, SCORE, TRACK, FAIR, COURSE } from '../core/Constants.js';
 import { mulberry32 } from '../level/Track.js';
-import { topSpeed, parTime } from './Pace.js';
+import { topSpeed, parTime, lateralAcc, lateralCap } from './Pace.js';
 
 export { FAIR };
 
@@ -43,7 +43,7 @@ export function freeSet(items, lim, pad = FAIR.PAD) {
  * the ship's real limit). That is slower than the best possible manoeuvre, so it errs on the safe side.
  */
 export function worstTime(from, to, acc, v, lim) {
-  const vmax = v * Math.sin(SHIP.STEER_ANGLE);
+  const vmax = lateralCap(v);
   const go = (dist) => {
     if (dist <= 0) return 0;
     const tri = 2 * Math.sqrt(dist / acc);
@@ -334,7 +334,10 @@ export class Course {
     const sCap = a.s0 - 5, end = a.s1 + 5;
     const [wLo, wHi] = this.wRange(sCap - 3, end + 2);
     if (wHi - wLo > 0.02) return null;    // not through a bend that is still changing width
-    const side = this.chance(0.5) ? a.turn : -a.turn;   // inside or outside lane
+    // Which lane is shut. With manual handling only ever the inside one: a slide runs wide, and wide of
+    // an inside fence is the open lane (and beyond it a wall that forgives), never the lasers.
+    const pick = this.chance(0.5);
+    const side = COURSE.CLOSE_INSIDE || pick ? a.turn : -a.turn;
     const frac = this.r(0.27, 0.4);
     let edge = 0, y = 0;
     const design = (s) => {
@@ -345,7 +348,7 @@ export class Course {
       y = (edge - side * (R + FAIR.PAD) - side * lim) / 2;   // middle of the open lane
       return { items: [{ kind: 'laser', shape: 'box', x: (edge + far) / 2, hl: 0.3, hw: Math.abs(far - edge) / 2, side, ds: 0 }], y, front: 0.3, back: 0.3 };
     };
-    const ctx = { b: sCap + 1, d, v: topSpeed(sCap), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * SHIP.GRIP, tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
+    const ctx = { b: sCap + 1, d, v: topSpeed(sCap), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(sCap)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
     const placed = this.placeAt(design, sCap, ctx);
     if (!placed) return null;
     const add = (o) => this.obstacles.push({ ...o, id: this.oid++, hit: false, near: 99, passed: false });
@@ -412,7 +415,7 @@ export class Course {
   zone(a, b, d, kind) {
     if (b < FAIR.NO_ROWS_BEFORE) return;
     a = Math.max(a, FAIR.NO_ROWS_BEFORE);
-    const ctx = { b, d, v: topSpeed(b), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * SHIP.GRIP, tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
+    const ctx = { b, d, v: topSpeed(b), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(b)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
     const line = [];
     let n = 0, at = a;
     const maxRows = COURSE.MAX_ROWS;

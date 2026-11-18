@@ -44,6 +44,7 @@ export class ShipPhysics {
     this.touch = 0; this.wallSide = 0; this.scrape = 0;
     this.engineCut = false; this.braking = false;
     this.straightT = 0; this.scrub = 0;
+    this.psi = 0; this.gripNow = SHIP.MANUAL ? SHIP.MANUAL.GRIP_RATE : 0;   // manual handling: nose angle, live grip
     this.yawRate = 0; this.k = 0; this.w = 10; this.zone = 1; this.lim = 8;
     this.dist = 0;
   }
@@ -60,7 +61,7 @@ export class ShipPhysics {
     this.boostT = o.boostT; this.boostGain = o.boostGain; this.boostTier = o.boostTier; this.ghost = o.ghost; this.ghostDist = o.ghostDist;
     this.touch = o.touch; this.wallSide = o.wallSide; this.scrape = o.scrape;
     this.engineCut = o.engineCut; this.braking = o.braking; this.yawRate = o.yawRate;
-    this.straightT = o.straightT; this.scrub = o.scrub;
+    this.straightT = o.straightT; this.scrub = o.scrub; this.psi = o.psi; this.gripNow = o.gripNow;
     this.k = o.k; this.w = o.w; this.zone = o.zone; this.lim = o.lim; this.dist = o.dist;
     return this;
   }
@@ -112,14 +113,132 @@ export class ShipPhysics {
     this.loseDrift('crash');
     this.v = Math.max(SHIP.CRASH_MIN, this.v * SHIP.CRASH_KEEP);
     this.boostT = 0; this.boostGain = 0;
-    this.theta *= 0.3;
+    this.theta *= 0.3; this.psi = this.theta;
     this.ghost = SHIP.GHOST; this.ghostDist = SHIP.GHOST_DIST;
     this.emit('crash', {});
     return true;
   }
 
   // ---------- one physics step ----------
+  /**
+   * HARD mode: fully manual. Nothing steers for you.
+   *   - A steer key turns the NOSE, at a rate that builds while the key is held (a tap is a nudge, a
+   *     hold is a turn) and for as long as it is held: there is no angle it stops at, and no bend is
+   *     followed for you. Let go and the nose stays where it points.
+   *   - The direction of TRAVEL is pulled round to the nose by grip. With grip that is almost
+   *     immediate. Hold the drift button and grip lets go: the nose turns exactly as fast as before,
+   *     but the ship keeps travelling the old way for a moment and slides wide of the bend.
+   *   - Charge builds from real slip in a real bend, so a slide cannot be worked down a straight.
+   */
+  stepManual(dt, inp) {
+    const T = this.track, M = SHIP.MANUAL;
+    const f = T.sample(this.s, this.f);
+    const zone = f.zone, w = f.w;
+    const lim = w - SHIP.RADIUS - (zone === 0 ? SHIP.WALL_INSET : 0);
+    const k = T.K[Math.min(T.len - 1, Math.max(0, Math.floor(this.s)))];
+    this.k = k; this.w = w; this.zone = zone; this.lim = lim;
+    const v = this.v;
+    const sdot = (v * Math.cos(this.theta)) / Math.max(0.5, 1 + k * this.x);
+
+    // ---- the nose ----
+    const raw = clamp(inp.steer || 0, -1, 1);
+    const building = raw !== 0 && Math.sign(raw) === Math.sign(this.steer || raw) && Math.abs(raw) >= Math.abs(this.steer);
+    this.steer += (raw - this.steer) * ease(building ? M.STEER_IN : M.STEER_OUT, dt);
+    const om = this.steer * M.TURN_RATE;
+    this.yawRate = om;
+
+    // ---- drift button: grip lets go ----
+    const want = !!inp.drift && v > DRIFT.MIN_SPEED && !this.engineCut;
+    if (!inp.drift) this.driftLock = false;
+    if (!this.drift && want && !this.driftLock) {
+      this.drift = true; this.driftT = 0; this.driftDir = 0;
+      this.charge = 0; this.tier = -1; this.driftDist = 0; this.driftPts = 0;
+      this.emit('driftStart', { dir: 0, switched: false });
+    } else if (this.drift && !want) this.endDrift();
+    this.gripNow += ((this.drift ? M.SLIDE_GRIP : M.GRIP_RATE) - this.gripNow) * ease(this.drift ? M.LET_GO : M.HOOK_UP, dt);
+
+    // ---- nose and travel, both measured against the corridor, which turns under the ship at k * sdot ----
+    this.psi += (om + k * sdot) * dt;
+    let slip = this.psi - this.theta;
+    this.theta += (slip * this.gripNow + k * sdot) * dt;
+    // on a straight with the keys up, a nose within a degree or two of dead ahead settles dead ahead
+    if (raw === 0 && k === 0 && !this.drift && Math.abs(this.psi) < M.DETENT) this.psi *= Math.exp(-M.DETENT_RATE * dt);
+    this.psi = clamp(this.psi, -M.MAX_ANGLE, M.MAX_ANGLE);
+    this.theta = clamp(this.theta, -M.MAX_ANGLE, M.MAX_ANGLE);
+    slip = this.psi - this.theta;
+    this.beta = slip;
+
+    // ---- charge: slip, the right way round, in a real bend ----
+    if (this.drift) {
+      this.driftT += dt;
+      const sl = Math.abs(slip), bendDir = k > 0 ? -1 : k < 0 ? 1 : 0;
+      if (sl > 0.08) this.driftDir = Math.sign(slip);
+      const gapIn = lim - bendDir * this.x;
+      this.apex = Math.abs(k) >= DRIFT.ARM_K * 0.8 ? smooth(1 - gapIn / DRIFT.APEX_ZONE) : 0;
+      let rate = M.CHARGE_GAIN * clamp((sl - M.CHARGE_SLIP[0]) / (M.CHARGE_SLIP[1] - M.CHARGE_SLIP[0]), 0, 1) * (1 + DRIFT.CHARGE_APEX * this.apex);
+      if (Math.abs(k) < DRIFT.ARM_K * 0.5 || Math.sign(slip) !== bendDir) rate *= DRIFT.CHARGE_STRAIGHT;
+      if (this.touch > 0) rate = 0;
+      this.charge += rate * dt;
+      const t2 = tierFor(this.charge);
+      if (t2 > this.tier) { this.tier = t2; this.emit('tier', { tier: t2 }); }
+      this.driftDist += v * dt;
+      this.driftPts += v * dt * (1 + 0.5 * (this.tier + 1)) * (0.3 + 2 * Math.min(sl, 0.6)) * (1 + 0.6 * this.apex);
+    }
+
+    // ---- move ----
+    this.x += v * Math.sin(this.theta) * dt;
+    this.s += sdot * dt;
+    this.dist += sdot * dt;
+
+    // ---- walls: a glancing touch slides and pushes the nose round, a square hit bounces ----
+    this.touch = Math.max(0, this.touch - dt);
+    if (Math.abs(this.x) > lim) {
+      const side = Math.sign(this.x);
+      this.x = side * lim;
+      const vn = v * Math.sin(this.theta) * side;
+      const soft = zone === 1 ? SHIP.SPACE_SOFT : 1;
+      if (vn > SHIP.GRAZE_SPEED) {
+        const t = clamp((vn - SHIP.GRAZE_SPEED) / 16, 0, 1);
+        this.v *= 1 - (1 - lerp(SHIP.HIT_KEEP[0], SHIP.HIT_KEEP[1], t)) * soft;
+        this.theta = -side * SHIP.HIT_BOUNCE * (0.5 + t);
+        this.psi = lerp(this.psi, this.theta, 0.75);       // the hit knocks the nose most of the way round too
+        if (t > 0.35) { this.boostT = 0; this.boostGain = 0; }
+        this.loseDrift('wall');
+        this.emit('wallHit', { side, vn, soft: zone === 1 });
+      } else {
+        if (vn > 0) {
+          if (this.touch <= 0) { this.v *= 1 - (1 - SHIP.GRAZE_KEEP) * soft; this.emit('graze', { side, vn, soft: zone === 1 }); }
+          this.theta = 0;
+        }
+        if (this.psi * side > 0) this.psi -= side * Math.min(this.psi * side, M.WALL_TURN * dt);
+        this.v -= SHIP.SCRAPE_DRAG * soft * dt;
+      }
+      this.touch = 0.1; this.wallSide = side; this.scrape += dt;
+    } else if (this.touch <= 0) { this.wallSide = 0; this.scrape = 0; }
+
+    // ---- speed ----
+    const cruise = cruiseSpeed(this.s);
+    this.braking = !!inp.brake && !this.engineCut;
+    let target = cruise;
+    if (this.boostT > 0) { this.boostT -= dt; target = cruise * (1 + this.boostGain); if (this.boostT <= 0) this.boostGain = 0; }
+    else if (this.drift) target = cruise * DRIFT.SPEED;
+    if (this.braking) target *= SHIP.BRAKE_FACTOR;
+    if (this.engineCut) target = 0;
+    const dv = target - this.v;
+    if (dv > 0) this.v += Math.min(dv, (this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL) * dt);
+    else this.v -= Math.min(-dv, (this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST) * dt);
+    if (this.drift) this.v -= M.SLIDE_DRAG * Math.abs(slip) * dt;   // sliding sideways scrubs a little speed
+    if (this.v < 0) this.v = 0;
+    if (this.drift && this.v < DRIFT.MIN_SPEED * 0.8) this.loseDrift('slow');
+
+    if (this.ghost > 0) {
+      this.ghost -= dt; this.ghostDist -= sdot * dt;
+      if (this.ghost <= 0 && this.ghostDist > 0) this.ghost = 1e-3;
+    }
+  }
+
   step(dt, inp) {
+    if (SHIP.MANUAL) return this.stepManual(dt, inp);
     const T = this.track;
     const f = T.sample(this.s, this.f);
     const zone = f.zone, w = f.w;
@@ -170,23 +289,7 @@ export class ShipPhysics {
       // the hook: a slide has to keep curving, but on a straight that only comes in after a moment
       this.straightT = bend < DRIFT.ARM_K * 0.5 ? this.straightT + dt : 0;
       const hook = smooth((this.straightT - DRIFT.HOOK_DELAY) / DRIFT.HOOK_RAMP);
-      let kMin, kSave, kAway;
-      if (DRIFT.R_HOOK) {
-        // HARD: the slide commits. Where the corridor is not already giving it a turn it makes its own,
-        // at least R_HOOK tight, so it cannot be held (or tapped) down a straight. In a real bend it
-        // never turns tighter than the bend unless you steer in, so the bend itself is no harder.
-        const kHook = 1 / DRIFT.R_HOOK;
-        const floor = into < -0.2 ? lerp(kHook, K_COUNTER, (-into - 0.2) / 0.8) : kHook;
-        kMin = (bend >= DRIFT.ARM_K * 0.5 ? Math.min(floor, bend) : floor * hook) * build;
-        // The slide cannot steer away from its own inside, so the wall save does it: about to clip the
-        // inside wall, the ship flicks back at full grip. (You end up pinned along that wall until you
-        // let go, which is the price of sliding where there is no bend.)
-        kSave = -Math.min(SHIP.MAX_YAW, SHIP.GRIP / Math.max(v, 1)) / Math.max(v, 1);
-        kAway = K_COUNTER;
-      } else {
-        kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build * (bend > 0 ? 1 : hook);
-        kSave = kMin; kAway = K_WIDE;
-      }
+      const kMin = (into < -0.2 ? lerp(K_WIDE, K_COUNTER, (-into - 0.2) / 0.8) : K_WIDE) * build * (bend > 0 ? 1 : hook);
       const kMax = lerp(Math.min(K_TIGHT, SHIP.GRIP / Math.max(v * v, 1)), K_TIGHT, build);
       // wall guard: only ask for an angle the drift could still pull out of before the wall
       const gapIn = lim - D * this.x, gapOut = lim + D * this.x;
@@ -194,17 +297,16 @@ export class ShipPhysics {
       // guard looks ahead: if the bend is about to end, it stops closing on the inside now
       const n = T.len - 1;
       const bendSoon = Math.min(bend, -T.K[Math.min(n, Math.floor(this.s + v * 0.22))] * D, -T.K[Math.min(n, Math.floor(this.s + v * 0.44))] * D);
-      const away = Math.max(0, bendSoon - kAway), toward = Math.max(0, kMax - bend);
+      const away = Math.max(0, bendSoon - K_WIDE), toward = Math.max(0, kMax - bend);
       const maxIn = Math.sqrt(2 * SHIP.GUARD * away * Math.max(0, gapIn - DRIFT.INSIDE_GAP)) - closing;
       const maxOut = Math.sqrt(2 * SHIP.GUARD * toward * Math.max(0, gapOut - 0.35)) - closing;
       const thDes = D * clamp(into * DRIFT.ANGLE, -maxOut, maxIn);
       om = (thDes - this.theta) / DRIFT.TAU - k * sdot;
       // the save: already heading at a wall faster than a gentle correction can stop -> turn as hard as the slide can
       const out = -D * this.theta, inn = D * this.theta;
-      let lo = kMin;
       if (out > 0 && out * out > 2 * toward * SHIP.SAVE * Math.max(0, gapOut - 0.4)) om = D * v * kMax;
-      else if (inn > 0 && inn * inn > 2 * Math.max(1e-4, bend - kSave) * SHIP.SAVE * Math.max(0, gapIn - 0.4)) { om = D * v * kSave; lo = kSave; }
-      om = D * clamp(D * om, v * lo, v * kMax);
+      else if (inn > 0 && inn * inn > 2 * Math.max(1e-4, bend - kMin) * SHIP.SAVE * Math.max(0, gapIn - 0.4)) om = D * v * kMin;
+      om = D * clamp(D * om, v * kMin, v * kMax);
       betaDes = D * (DRIFT.SLIP + DRIFT.SLIP_IN * Math.max(0, into) - DRIFT.SLIP_OUT * Math.max(0, -into));
       if (this.driftT < 0.24) betaDes += D * DRIFT.FLICK * Math.sin((Math.PI * this.driftT) / 0.24);
 
@@ -212,7 +314,6 @@ export class ShipPhysics {
       this.apex = smooth(1 - gapIn / DRIFT.APEX_ZONE) * (bend > DRIFT.ARM_K * 0.8 ? 1 : 0);
       let rate = 1 + DRIFT.CHARGE_APEX * this.apex;
       if (into < -0.2 && bend < DRIFT.ARM_K) rate = lerp(1, DRIFT.CHARGE_COUNTER, (-into - 0.2) / 0.8);
-      if (DRIFT.CHARGE_STRAIGHT < 1 && bend < DRIFT.ARM_K * 0.5) rate *= DRIFT.CHARGE_STRAIGHT; // HARD: a slide only pays in a bend
       if (this.touch > 0) rate = 0;
       this.charge += rate * dt;
       const t2 = tierFor(this.charge);

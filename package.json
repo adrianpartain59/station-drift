@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --port 5191",
     "verify": "node tools/verify/passability.mjs --seeds 200 --km 12",
-    "verify:hard": "node tools/verify/passability.mjs --mode hard --seeds 200 --km 12"
+    "verify:hard": "node tools/verify/passability.mjs --mode hard --seeds 200 --km 12",
+    "fingerprint": "node tools/verify/fingerprint.mjs"
   },
   "dependencies": {
     "three": "^0.183.0"

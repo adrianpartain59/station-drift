@@ -56,8 +56,22 @@ game as EASY, build HARD with these changes; free to change other things in hard
 - 7e Browser check: complete (mode chips, TAB switch, laser gate, sweeper, fenced bend, game over, exploit
   attempt through real key events). Build passes.
 
+### Phase 8: Manual handling for hard (Adrian's second playtest, 2026-11-17)
+His notes: turning round bends happens by itself, turn that off completely; make normal steering more
+sensitive; holding a steer key stops turning after about a second, remove that; make the drift more slippery:
+same sensitivity, but it slides outward more round corners.
+- Applied to HARD only (EASY was frozen as "the current version" at his request the day before); one flag,
+  `SHIP.MANUAL`, would give it to easy too.
+- `ShipPhysics.stepManual`: keys turn the nose at 2.3 rad/s for as long as held, no angle cap, no bend follow,
+  no wall guard; travel is pulled to the nose by grip (11 /s), and by a third of that (3.5 /s) while the drift
+  button is held, so the nose turns just as fast and the ship slides wide. Charge needs real slip in a real bend.
+- The first hard drift (hook to R 58 m, wall save) is removed: superseded.
+- Layout and proof re-fitted: sideways ability = a stated share of the turn rate (Pace.lateralAcc / lateralCap).
+  Fenced bends only ever shut the inside lane. Verifier's search step now lands exactly on the top sideways speed.
+- Status: complete, pending the final verification run and Adrian's hands.
+
 ## Next Step
-Read the final hard verification, commit, push `hard-mode`, ask Adrian about merging.
+Final hard verification in the background; Adrian plays hard with the manual handling.
 
 ## Decisions Made
 | Decision | Why |
@@ -86,3 +100,5 @@ Read the final hard verification, commit, push `hard-mode`, ask Adrian about mer
 | First hard verifier run flagged every fenced bend (sight, 'stands in a bend') | 1 | Fence segments curve out of sight by nature; only the cap is a decision. Verifier exempts `fence` from the sight rule; cap moved 5 m clear of the bend |
 | zsh aborted a background chain on `rm -f h*.txt` (no matches) | 1 | No globs in rm inside && chains; the verification had simply not run |
 | Hard, 600 seeds: search passed everywhere but both bots hit the same laser on 6 seeds | 1 | (a) Bots judged an obstacle seen by its box centre, which for a wall-anchored beam is inside the wall: now its end nearest the middle. (b) A gate's only opening lay outside a station's exit mouth: hard placement now also waits for a widening to finish. (c) Bot lanes stopped at the current wall: now span the widest the corridor gets within its look-ahead |
+| Scratchpad wiped overnight: fingerprint and player scripts gone | 1 | Fingerprint rebuilt inside the repo (tools/verify/fingerprint.mjs, `npm run fingerprint`) and validated against the recorded hash |
+| Manual hard, seed 13: search said "no way through" by a small margin | 1 | Search artefact: its sideways speed was floored to a whole number of lattice steps (11.1 of 14.8 m/s). Time step now chosen so the cap is an exact multiple |

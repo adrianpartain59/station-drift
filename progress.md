@@ -51,3 +51,13 @@
 - Hard verify, first full run (600 seeds x 12 km): search PASS on all 34,819 groups; bots hit lasers on 7 seeds
   and walls on 3. Causes fixed (see task_plan errors). Easy 150 seeds: PASS. Hard 20 x 40 km: PASS.
   Hard self-test: 1,018 problems on 40 of 40 seeds.
+
+## Manual handling for hard (2026-11-17)
+- Adrian played hard: wants no automatic turning round bends, more sensitive steering, no stop after holding a
+  key for a second, and a drift with the same sensitivity that slides outward more.
+- Hard is now fully manual (ShipPhysics.stepManual). Through real key events in the browser: holding LEFT turns
+  the nose 13 / 36 / 61 degrees at 0.2 / 0.4 / 0.6 s and keeps going; hands off in an R 62 m bend the nose falls
+  20.4 degrees behind the corridor in 0.5 s, exactly the corridor's own turn (no assist); RIGHT for 0.5 s gives
+  nose 48 degrees with or without the drift button, slip 10 degrees on grip and 25 degrees in a slide.
+- Easy fingerprint unchanged. Hard 24 seeds: search PASS on 1,387 groups (4.8/km); grip bot 0 obstacle hits,
+  0 hard wall hits; sliding bot 0 obstacle hits, 4 hard wall hits, 12 grazes in 288 km. Easy 24 seeds: PASS.

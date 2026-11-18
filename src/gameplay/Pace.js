@@ -29,3 +29,12 @@ export function parTime(s0, s1) {
 
 /** The clock after passing a gate worth `bonus` seconds: slack carried over is capped. */
 export const clockAfterGate = (clock, bonus) => Math.min(Math.max(0, clock), CLOCK.CARRY) + bonus;
+
+// What the course layout and the proof may assume of the ship's sideways ability at speed v.
+// Assisted handling: its lateral grip, and the travel angle full steer holds.
+// Manual handling: a stated share of its turn rate (sideways acceleration = speed x turn rate), and a
+// stated angle off the corridor it may be pointing.
+/** Sideways acceleration (m/s^2) the ship can be relied on for. */
+export const lateralAcc = (v) => (SHIP.MANUAL ? v * SHIP.MANUAL.TURN_RATE * SHIP.MANUAL.FAIR_SHARE : SHIP.GRIP);
+/** Fastest sideways speed (m/s) the layout and the proof reckon with. */
+export const lateralCap = (v) => v * Math.sin(SHIP.MANUAL ? SHIP.MANUAL.FAIR_ANGLE : SHIP.STEER_ANGLE);
