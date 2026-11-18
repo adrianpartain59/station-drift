@@ -104,3 +104,26 @@ Proposed: a steerable slide (kart-style, with momentum). Hard mode only.
   feathering. Harder to like in the first minute.
 - Fairness proof unaffected either way: layout and proof assume plain steering only.
 - Tune before he touches it with scripted players in tools/verify/feel.mjs: hold everything, feather, late press.
+
+### Revision the same evening: no control changes (Adrian, 2026-11-17)
+His words on the proposal above: "Does that mean adding a second control? Because I don't want to do that. I
+don't want to change the controls at all."
+- No key was ever being added. But the proposal above did change what two existing keys do in a slide: the
+  opposite arrow would widen the slide (today it swings the ship back the other way, measured -0.50 rad/s), and
+  with no arrow the slide would keep turning (today it fades out). Both dropped, with the direction lock.
+- Revised proposal ("the slide obeys the keys it already has"):
+  - Arrows turn the nose, both ways, at any time. SPACE lets grip go. Exactly as now.
+  - The cap comes off: the ship follows the nose with low grip, so the further in the nose is turned, the
+    tighter the ship carves, up to sharper than plain steering (target about 2.2 rad/s against 1.85).
+  - While sliding the nose turns faster than in plain steering, and the entry flick is bigger (about 25 degrees
+    against 8). This goes against his first note ("the sensitivity is the same"); it is what makes the drift
+    the sharp turn.
+  - Holding the arrow: the nose goes quickly to a moderate angle, then winds in more slowly the longer it is
+    held (the same idea as plain steering's wind-up), so a normal bend can be held through and only a long hold
+    gets the tightest carve.
+  - Let go of the arrow: the slide eases off as the ship comes round to the nose. Opposite arrow: brings it
+    back. Both as today.
+  - Slide-out stays: the ship lags the nose, most at the start.
+  - Exit and plain steering untouched. No track reading.
+- Known cost: holding the arrow all the way through a long gentle bend will cut inside; the answer is to ease
+  off the arrow, which now does something.

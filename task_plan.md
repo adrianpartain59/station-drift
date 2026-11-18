@@ -119,7 +119,8 @@ small tweaks, review everything asked for so far, suggest a different system.
 - Status: waiting for Adrian's go on the proposal.
 
 ## Next Step
-Adrian decides on the steerable slide (findings.md, last section). If yes: build in ShipPhysics.stepManual,
+Adrian decides on the revised drift (findings.md, "Revision the same evening"). RULE FROM ADRIAN: do not change
+the controls at all: no new keys, and no key may change what it does. If yes: build in ShipPhysics.stepManual,
 tune with scripted players, verify, then he plays.
 
 ## Decisions Made
