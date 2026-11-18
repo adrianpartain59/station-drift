@@ -320,3 +320,10 @@ Not verified
 - Real hands on a keyboard on the new map. Audio by ear. Gamepad and touch.
 - A ship seen from the far side or from below (never on screen in the runs looked at).
 - Frame times at low quality, on battery, or on another machine.
+
+## SKYWAY merged (2026-11-18, Adrian: "Merge to main")
+- `main` fast-forwarded from 4acc798 to the branch. Before the push: both classic fingerprints match, the build
+  passes. SKYWAY is now the default map for a new visitor; a saved pick is kept, and `?map=classic` or the
+  CLASSIC chip gives the old map.
+- He had not played the new map when he said it. The knobs listed under "Next Step" in task_plan.md are
+  still his to turn.

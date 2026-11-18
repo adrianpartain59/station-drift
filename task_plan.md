@@ -154,17 +154,18 @@ one switch away and provably unchanged. Design: findings.md, "Second map: SKYWAY
 - 17g Map switch (`?map=`, title chip). Status: complete
 - 17h `npm run feel` on open-air bends; full verification both maps both modes. Status: complete (numbers in progress.md)
 - 17i Browser check both cameras, build, commit, push branch, open in Chrome, hand-over. Status: complete
-- Status: complete, pending Adrian's hands. Not merged, not on `main`.
+- Status: complete. Merged into `main` on 2026-11-18 on Adrian's word ("Merge to main"), fast-forward, before he had
+  played it: SKYWAY is the default map on the live site from that push. Real hands on the new map still to come.
 
 ## Next Step
-Adrian plays SKYWAY (branch `claude/new-map-414ab7`, dev server on 5191; `?map=classic` or the chip for the old map).
-His calls, none of them made for him: merge to `main` or not; how many movers (SKYWAY.CALM_EVERY); how tight the
+Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
+His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the
 ships' corners are (SKYWAY.SHIP_R / SHIP_A); the clock on this map (PACE_SKYWAY_* in core/Maps.js); which end of a
 ship you fly in by (`flip` in TrackSkyway.buildShip). Measure any change with `npm run mapcheck`, `npm run feel:skyway`
 and both `verify:skyway` runs; `npm run fingerprint` must still pass.
 Still open from before, not touched: the test bot's lane scoring (Phase 12; seeds 5147 and 139, the latter still the
 one bot hit in classic hard); SLIDE_ANGLE 0.45 -> 0.37 if a tap alone still feels sharp. Neither without his word.
-THE REPO IS PUBLIC: every push to `main` goes live. This branch is never pushed to `main` without his say.
+THE REPO IS PUBLIC: every push to `main` goes live. Further changes go on a branch and wait for his word before `main`.
 Keep secrets, private paths and other projects out of commits and out of these notes.
 
 ## Decisions Made
