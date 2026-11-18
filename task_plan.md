@@ -188,6 +188,17 @@ His words: "is it possible for us to add downward spiral sections where you coul
 - Merged into `main` on 2026-11-18 on Adrian's word ("Merge to main"), fast-forward: live from that push.
 - Status: complete.
 
+### Phase 21: A darker look, concepts only (Adrian, 2026-11-18)
+His words: "it looks a little too colorful ... reducing the amount of colors so that we only use a specific color
+scheme ... reducing debry and clutter so it looks a bit cleaner ... make it feel 'darker' not just visually but in
+the vibe of the game, so that it feels like a wavephonk album cover ... generate 10 images with AI ... so I can
+pick a vibe that I like, don't actually change the game yet".
+- Research in findings.md. Ten AI concepts made from one real frame of the game (a Gemini image model), each a
+  strict two or three colour scheme with the clutter gone: 1 Violet Haze, 2 Blood Moon, 3 Cold Chrome, 4 Noir
+  Tape, 5 Toxic Night, 6 Midnight Teal, 7 Duotone, 8 Ash and Ember, 9 Void, 10 Sodium Rain.
+- The game is not changed. The images are not in the repo (kept outside it, with the prompts).
+- Status: waiting for his pick.
+
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
 His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the

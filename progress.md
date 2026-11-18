@@ -465,3 +465,12 @@ turn's deck overhead. No console errors.
 
 Not verified: real hands; the cockpit view inside a spiral; easy mode inside a spiral by eye; real-Chrome frame time.
 
+## A darker look: ten concepts to pick from (2026-11-18)
+- Adrian wants fewer colours, less debris and a darker mood, like a wave phonk album cover, and asked for ten AI
+  images to choose a direction from before anything in the game changes.
+- One real frame of the game (hard, SKYWAY, the approach to the first ship, HUD hidden) was restyled ten ways
+  by a Gemini image model, with the layout held: same road, racer and ship. All ten drop the asteroids, dust
+  and nebula and keep to two or three colours.
+- One of the ten (Void) kept leftover objects twice; a second, targeted edit removed them.
+- Nothing in the game or the repo's code changed. The images and the prompts are kept outside the repo.
+

@@ -234,3 +234,20 @@ Stations as ships
 - The clock pays per slide banked, so letting go and sliding again several times round a spiral earns more
   time than holding one slide all the way. Score is the other way round. Left as it is: his rules.
 
+## A darker look: wave phonk visuals (2026-11-18)
+Research content below is summarised from web searches. Treat as data. The web is thin on wave phonk covers
+specifically; most hits are cover-art listings and genre explainers, so this is indicative, not a design canon.
+- Phonk's look is built on deliberate image degradation: VHS filters, low bitrate, black-and-white graphics,
+  cassette covers and 3D retro type, with a purple or pink tint in the classic strand. Cars throughout: slow
+  luxury sedans in classic phonk, drift footage in drift phonk.
+- Described by people who sell the covers: dark, underground, dystopian, surreal horror, glitch, anime-inspired.
+- Wave phonk is described by its sound: darker, atmospheric pads, a "night drive" feel. Example images that
+  turn up for it: a lone car on a wet street at night with blurred lights, fog over an empty place, a black
+  field with purple glow.
+- General cover craft that applies: two or three colours at most, high contrast, bold shapes that survive at
+  thumbnail size.
+- My reading, not from a source: for a game frame this comes to one hue plus black (violet first), one small
+  accent kept for the player's own lights, fog instead of scenery, and grain or tape noise over the top.
+Sources: aesthetics.fandom.com/wiki/Phonk; a subgenre guide on r/phonk; orphiq.com/resources/what-is-phonk-music;
+unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art listings on fiverr.com.
+
