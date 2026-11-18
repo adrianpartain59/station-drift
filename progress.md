@@ -70,3 +70,13 @@
   still going out, nose turned in 50 degrees.
 - Easy fingerprint unchanged. Hard 24 seeds: search PASS on 1,205 groups (4.2/km); grip bot 0 obstacle hits,
   0 hard wall hits; sliding bot 1 obstacle hit, 1 hard wall hit in 288 km (reported, not judged).
+
+## Full verification of the retuned hard mode (code at 05593ba, 2026-11-17)
+- Hard, 410 seeds (1-200 and 5001-5200 at 12 km, 1001-1010 at 40 km), 5,200 km: the search PASSED on all 21,562
+  obstacle groups (shortest time in sight 1.20 s, narrowest opening 5.41 m, 121.8 million start states).
+- Judged grip bot: 2 obstacle hits in 5,200 km (seed 5124 laser at 4876, seed 5168 rock at 2099), 0 hard wall
+  hits. Both traced: the bot was already in an open lane and switched lanes across the obstacle late (planner
+  dithering; its look-ahead on a 1/40 s step does not match the real 1/120 s run closely enough for a tight
+  cross). Bot fault, not layout. Fix not applied yet: saving Autopilot.js reloads the page Adrian is playing.
+- Sliding bot (reported, not judged): 4 obstacle hits, 4 hard wall hits, 45 grazes.
+- Hard self-test: 349 problems on 30 of 30 seeds. Easy, 100 seeds: PASS, both bots clean.
