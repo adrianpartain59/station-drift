@@ -212,3 +212,25 @@ Stations as ships
 - Frame hitches of 100+ ms seen while stepping frames back to back in a hidden pane (classic has them too) are
   the GPU building pipelines with no idle time between frames. In real Chrome at 120 Hz they do not occur:
   measured with ?perf, worst frame 32 ms on SKYWAY, 39 ms on CLASSIC.
+
+## Spirals, and the track passing under itself (2026-11-18)
+- The heading rule (never more than 85 degrees from world forward) is what kept the map from crossing itself.
+  A spiral is the one piece exempt from it: whole turns, after which the heading is where it was. The generator
+  keeps the unwound heading (`gh`, so nothing that reads `Track.H` ever sees a jump) and the count of whole
+  turns (`wind`); the rule is applied to the difference.
+- "Clear of itself" is now a 3D rule: two stretches may overlap in plan only with 18 m between their decks.
+  Reasoning about which layers clear which was wrong on the first try (a bend just before a spiral, turning
+  the same way, lies under the spiral's last quarter with only a few metres between). So nothing is reasoned:
+  the generator lays the stretch, measures every pair of points, and lays it again without the spiral if any
+  pair fails. About one spiral in six is turned down, all for being too close to other road.
+- 18 m is what the furniture needs: lifter pods hang 5 m under a deck, gates stand 10 m over one. A turn at
+  R 82-104 m is 515-655 m of road, so 18 m is a 3% slope; spirals run at 5-8.5% and drop 26-54 m a turn.
+- A slide holds a spiral because the radius asks for about 1 rad/s at open-air speed, which is what the slide
+  gives at the angle the arrow flicks to. Scripted player who eases the arrow: one slide from the way in to
+  the way out on every spiral, 5.9 s for one turn, 11.2 s for two.
+- The world is built in a window along the track (90 m behind, 720 m ahead). In a spiral the turn you finished
+  is overhead and the turn to come is below, both far outside that window measured along the road, so the
+  whole spiral is kept built while it is near.
+- The clock pays per slide banked, so letting go and sliding again several times round a spiral earns more
+  time than holding one slide all the way. Score is the other way round. Left as it is: his rules.
+

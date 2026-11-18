@@ -412,3 +412,55 @@ What it does to play, measured (hard)
   both classic fingerprints match and the build passes. The live site now has fast open air in SKYWAY hard, and
   the `?speed=` and `?air=` test hooks.
 
+## Downward spirals (2026-11-18, Adrian: "Build spirals first")
+He asked whether a downward spiral could be added where a slide is held for a full 360 degrees, and whether the
+track could curve under or over itself. A probe on the real hard-mode physics before building anything: a
+scripted player who eases the arrow held one slide right round 360 and 720 degrees at R 85 / 100 / 115 m, at
+93 and at 120 m/s, without touching a rail (4.6-7.9 s a turn).
+
+Built (branch `claude/new-map-414ab7`, not on `main`)
+- A spiral piece in the SKYWAY generator: a short run-in, right round once (15% of them: twice), R 82-104 m,
+  a steady 5-8.5% down, a short run-out, then a sweeper the other way. At most one per stretch of open air.
+- The no-overlap rule is 3D now: two stretches may overlap in plan only with 18 m between their decks, and
+  nothing may be over, under or beside a ship. The generator measures every spiral against the road round it
+  and both ships and lays the stretch again without it if it fails (about one in six does).
+- All of a spiral stays built while it is near (the turn above you and the turn below are far outside the
+  usual window measured along the road). Coins on the inside third, chevron boards all the way round,
+  SPIRAL / HOLD THE SLIDE on the HUD.
+- Not built: other crossings (flyovers, figure-8s), upward spirals.
+
+The map with spirals (`npm run mapcheck`, 620 seeds: 1-300 and 5001-5300 at 12 km, 1001-1020 at 40 km): PASS
+- 1,798 spirals, one per 4.5 km of track. 515-1,306 m of road each (median 596 m). Each turn drops 26-55 m.
+- Least height between two decks that overlap in plan, anywhere: 18.1 m (rule: 18). Nearest two stretches come
+  without passing over or under: 12 m between footprints (rule: 12).
+- Every spiral is whole turns at one steady slope; every ship is on its axis with nothing near it.
+- Open air is now 75% of the distance. Slope and curvature caps unchanged and met. Over 40 km the road ends
+  up as much as 447 m below where it started: spirals only go down. Nothing depends on absolute height.
+
+How a slide holds one (`npm run feel:skyway`, hard, 65 spirals in 40 seeds)
+| player | once round (52) | twice round (13) |
+|---|---|---|
+| eases the arrow | clean 100%, one slide held all the way 100%, 5.9 s (90th pct 6.6 s), 612 m, NOVA 85% | clean 100%, held 100%, 11.2 s (12.0 s), 1,225 m |
+| presses SPACE late | clean 94% | clean 100% |
+| no drift, plain steering | clean 100% | clean 100% |
+| holds arrow + SPACE right through | reaches the inside rail after 1.5 s (the known cost of the slide) | the same |
+At easy's speed (38-50 m/s) one turn takes 11.6 s and two take 22.4 s.
+
+Fairness with spirals in, both modes re-run in full on 27d2650 (410 seeds, 5,200 km each): PASS on every seed
+- HARD (fast open air): 3,223 groups, 77 million start states, shortest time in sight 1.24 s, narrowest opening
+  5.46 m. Judged bot 0 obstacle hits, 0 hard wall hits. Sliding bot (reported) 0 obstacle hits, 769 hard wall
+  hits (0.15 per km). Never more than 0.4% over the laid-out speed. Median runs 10.2-10.6 km / 5.3 km.
+- EASY: 3,049 groups, of them 1,494 movers, 108 million start states, shortest time in sight 1.68 s, narrowest
+  opening 6.35 m. Both bots 0 obstacle hits, 0 hard wall hits, 0 grazes. Median runs 10.9-13.0 km / 4.5-4.6 km.
+- Self-test OK in both modes; movers caught on every seed that has any.
+- Classic: both fingerprints match.
+
+Frames: stepped through a double spiral, median 1.8 ms and 99th percentile 5.5 ms a frame (unchanged); draw calls
+median 338, at most 650 where a double spiral and the next ship are on screen together (51 chunks built).
+Real-Chrome frame times through a spiral were not measured: the measuring tab did not report (not in front).
+
+Checked in the browser (stepped frames, chase view): the way in with the banner; the second turn with the first
+turn's deck overhead. No console errors.
+
+Not verified: real hands; the cockpit view inside a spiral; easy mode inside a spiral by eye; real-Chrome frame time.
+

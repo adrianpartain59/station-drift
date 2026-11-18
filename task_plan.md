@@ -176,6 +176,18 @@ speed, and when you're exiting the station it speeds you up".
 - Open: at this speed almost no movers can be placed fairly in open air (one per 16 km). His call.
 - Status: complete.
 
+### Phase 20: Downward spirals (Adrian, 2026-11-18)
+His words: "is it possible for us to add downward spiral sections where you could keep a drift held for a full
+360 degrees, and just in general could we add sections where the track curves under or over itself?" Then:
+"Build spirals first".
+- `air-spiral` piece in level/TrackSkyway.js: once round (15%: twice), R 82-104 m, a steady 5-8.5% down, at
+  most one per stretch of open air. Checked in 3D by the generator (`fits`) and, separately, by `npm run mapcheck`.
+- Course dresses it (coins on the inside third, boards all the way round); the feel tool has rows for it; the
+  HUD says SPIRAL / HOLD THE SLIDE; the whole spiral stays built while it is near.
+- Not built: other crossings (flyovers, figure-8s), upward spirals. They need the heading rule replaced.
+- On the branch only, not on `main`.
+- Status: complete, waiting for how it feels to him.
+
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
 His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the

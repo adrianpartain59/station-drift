@@ -74,8 +74,12 @@ npm run mapcheck
 
 is `node tools/verify/mapcheck.mjs --map skyway --seeds 300 --km 12`. It fails if:
 
-- two different stretches of track come within 12 m of each other's footprint in plan (road and rails, or a
-  station's hull), if anything else runs through a ship's hull, or if a bend's own inside edge has no real radius;
+- two different stretches of track come within 12 m of each other's footprint in plan (road and rails) without
+  at least 18 m of height between their decks (a spiral passing under itself is the only thing that does);
+- anything but a ship's own run-in and run-out is over, under or beside it (within 150 m of its axis, 60 m of its ends);
+- a spiral is not what it says: whole turns, one steady slope;
+- a bend's own inside edge has no real radius, or the heading strays more than 85 degrees from world forward
+  outside a spiral (whole spiral turns aside);
 - a slope is steeper than 13%, a crest is tighter than R 700 m or a dip tighter than R 420 m, the slope has a
   kink, a ramp starts or ends abruptly (the vertical curvature may not jump), or a station is not level.
 
