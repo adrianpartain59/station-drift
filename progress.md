@@ -89,3 +89,10 @@
   key still held through the release, the ship comes back onto the bend smoothly over about 0.4 s, no overshoot.
 - Bot fix: seeds 5124 and 5168 now pass. Hard 24 seeds PASS (grip bot 0 obstacle hits, 0 hard wall hits).
   Easy fingerprint unchanged.
+
+## Drift exit, middle ground (2026-11-17)
+- Adrian: after the exit fix he hit the outer wall instead. Wanted the middle.
+- Share of the nose angle stored in the slide that the ship's travel takes on when let go (R 62 m bend, 0.9 s
+  slide, 43.5 degrees stored): original 96% (42 degrees inward), first fix 12% (5 degrees), now 32% (14 degrees).
+  Pull toward the nose at the moment of letting go: EXIT_PULL 1.0 -> 5.0, so steering also answers at once.
+- Easy fingerprint unchanged; hard 24 seeds PASS.
