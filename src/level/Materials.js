@@ -142,6 +142,44 @@ function barrierTexture() {
   });
 }
 
+// The SKYWAY deck: dark plating, with lane lines and cross seams that glow. One repeat is the full
+// width of the road across and 16 m along, so the lines converge as the road funnels into a ship.
+function deckTextures() {
+  const r = rnd(41);
+  const map = canvas(512, 512, (g, w, h) => {
+    g.fillStyle = '#10141d'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 32) {
+      const v = 15 + Math.floor(r() * 9);
+      g.fillStyle = `rgb(${v},${v + 3},${v + 9})`;
+      g.fillRect(x + 1, y + 1, 30, 62);
+    }
+    g.strokeStyle = '#06080d'; g.lineWidth = 3;
+    for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, h); g.stroke(); }
+    g.beginPath(); g.moveTo(0, 2); g.lineTo(w, 2); g.stroke();
+  });
+  const emi = canvas(512, 512, (g, w, h) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#fff';
+    for (let i = 1; i < 8; i++) { g.globalAlpha = i === 4 ? 0 : 0.5; g.fillRect(i * 64 - 1, 0, 3, h); }   // lane lines, 8 m apart
+    g.globalAlpha = 1; g.fillRect(253, 0, 6, h * 0.45);                                                    // centre dashes
+    g.globalAlpha = 0.28; g.fillRect(0, 0, w, 5);                                                          // a seam every 16 m
+    g.globalAlpha = 0.9; g.fillRect(0, 0, 10, h); g.fillRect(w - 10, 0, 10, h);                            // the edges
+  });
+  return { map, emi };
+}
+
+// The soft rail along the SKYWAY deck: an energy field, brightest at the bottom.
+function railTexture() {
+  return canvas(64, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const grad = g.createLinearGradient(0, h, 0, 0);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)'); grad.addColorStop(0.25, 'rgba(255,255,255,0.4)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let x = 0; x < w; x += 16) g.fillRect(x, 0, 2, h);
+  });
+}
+
 function padTexture() {
   return canvas(128, 256, (g, w, h) => {
     g.fillStyle = 'rgba(0,0,0,0)'; g.clearRect(0, 0, w, h);
@@ -233,6 +271,15 @@ export class Materials {
     this.coin = new THREE.MeshStandardMaterial({ color: 0xffe08a, metalness: 0.9, roughness: 0.18, emissive: 0xffb02e, emissiveIntensity: 0.7 });
     this.repair = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 3, 1.2) });
     this.pad = new THREE.MeshBasicMaterial({ map: padTexture(), color: new THREE.Color(0.4, 2.6, 3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    // SKYWAY: the open-air deck, its rails, and the things that move on it
+    const deck = deckTextures();
+    this.deck = new THREE.MeshStandardMaterial({ map: deck.map, emissiveMap: deck.emi, emissive: new THREE.Color(0x37e6ff), emissiveIntensity: 1.25, metalness: 0.35, roughness: 0.66, color: 0xaab2c6 });
+    this.rail = new THREE.MeshBasicMaterial({ map: railTexture(), color: new THREE.Color(0.2, 0.95, 1.5), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    this.railWarm = new THREE.MeshBasicMaterial({ map: this.rail.map, color: new THREE.Color(1.5, 0.3, 0.95), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    // a ship's hull is seen from a kilometre away and usually against the light, so it takes no fog and
+    // answers the sky's fill light more than the station plating does
+    this.shipHull = new THREE.MeshStandardMaterial({ map: hull.map, emissiveMap: hull.emi, emissive: 0xffffff, emissiveIntensity: 2.4, metalness: 0.2, roughness: 0.72, color: 0xc4cbdb, fog: false });
+    this.shipTrim = new THREE.MeshStandardMaterial({ color: 0x4a5162, metalness: 0.5, roughness: 0.5, fog: false });
     this.floorGlow = floorGlowTexture();
     this.glowTex = glowSprite();
 
@@ -259,6 +306,20 @@ export class Materials {
   neonOut(hex, intensity = 2) {
     const key = 'out:' + hex + ':' + intensity;
     if (!this.neonCache.has(key)) this.neonCache.set(key, new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(intensity) }));
+    return this.neonCache.get(key);
+  }
+
+  // Lights on a ship's hull: like neonOut, but they carry through the fog.
+  far(hex, intensity = 2) {
+    const key = 'far:' + hex + ':' + intensity;
+    if (!this.neonCache.has(key)) this.neonCache.set(key, new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(intensity), fog: false }));
+    return this.neonCache.get(key);
+  }
+
+  // An engine plume: see-through, additive, one per colour.
+  plume(hex) {
+    const key = 'plume:' + hex;
+    if (!this.neonCache.has(key)) this.neonCache.set(key, new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(0.3), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     return this.neonCache.get(key);
   }
 

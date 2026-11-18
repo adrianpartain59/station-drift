@@ -34,9 +34,9 @@ export const SKYWAY = {
   LEVEL: 80,               // m of level road before a station's mouth
 
   // stations: ships lying along world forward. The path inside swings left and right in pairs.
-  SHIP_U: 44,              // m: furthest the corridor's centre strays from the ship's axis
-  SHIP_R: [[44, 60], [30, 42]],   // corner radius at difficulty 0 .. 1
-  SHIP_A: [0.5, 1.0],      // corner angle
+  SHIP_U: 70,              // m: furthest the corridor's centre strays from the ship's axis
+  SHIP_R: [[42, 56], [30, 40]],   // corner radius at difficulty 0 .. 1
+  SHIP_A: [0.75, 1.3],     // corner angle: tight enough that plain steering will not always do
 };
 const S = SKYWAY;
 
@@ -276,10 +276,10 @@ export class SkywayTrack extends Track {
   shipRadius(d) { return lerp(this.r(S.SHIP_R[0][0], S.SHIP_R[0][1]), this.r(S.SHIP_R[1][0], S.SHIP_R[1][1]), d); }
 
   /** One corner with its run-in and run-out: the classic corner piece, with the side and angle given. */
-  shipCorner(w, dir, angle, radius) {
-    const lead = this.straight(this.r(14, 26), w);
+  shipCorner(w, dir, angle, radius, leadLen = this.r(14, 26), outLen = this.r(20, 34)) {
+    const lead = this.straight(leadLen, w);
     const p = this.bend(angle, radius, w, dir);
-    const out = this.straight(this.r(20, 34), w);
+    const out = this.straight(outLen, w);
     const outer = dir > 0 ? WIN_R : WIN_L;
     if (this.rng() < 0.75) this.setFlags(lead.s0, out.s1, outer | (this.rng() < 0.3 ? (WIN_L | WIN_R) : 0));
     this.piece('corner', lead.s0, { w, arcs: [{ s0: p.s0, s1: p.s1, k: p.k, turn: -dir }] });
@@ -291,11 +291,18 @@ export class SkywayTrack extends Track {
     const R = this.shipRadius(d);
     let a = this.r(S.SHIP_A[0], S.SHIP_A[1]);
     let run = mayRun && this.rng() < 0.4 ? this.r(70, 110) : 0;
-    const shift = () => 2 * R * (1 - Math.cos(a)) + (run + 60) * Math.sin(a);
-    while (Math.abs(u + dir * shift()) > S.SHIP_U && (run || a > 0.46)) { if (run) run = 0; else a = Math.max(0.45, a * 0.85); }
-    this.shipCorner(w, dir, a, R);
-    if (run) this.runPieceLen(w, run);
-    this.shipCorner(w, -dir, a, this.shipRadius(d));
+    // the two corners are linked closely (a short straight on the diagonal), unless a run stands between them
+    const link = [this.r(10, 16), this.r(8, 12)];
+    const shift = () => 2 * R * (1 - Math.cos(a)) + (run ? run + 60 : link[0] + link[1]) * Math.sin(a);
+    while (Math.abs(u + dir * shift()) > S.SHIP_U && (run || a > 0.56)) { if (run) run = 0; else a = Math.max(0.55, a * 0.9); }
+    if (run) {
+      this.shipCorner(w, dir, a, R);
+      this.runPieceLen(w, run);
+      this.shipCorner(w, -dir, a, this.shipRadius(d));
+    } else {
+      this.shipCorner(w, dir, a, R, undefined, link[0]);
+      this.shipCorner(w, -dir, a, this.shipRadius(d), link[1]);
+    }
   }
 
   runPieceLen(w, len) {

@@ -89,13 +89,17 @@
     .btn { pointer-events: auto; font: 900 18px 'Orbitron'; letter-spacing: 0.3em; padding: 16px 40px 16px 46px; color: #03040a; background: linear-gradient(90deg, #37e6ff, #ff3fb4); border: 0; border-radius: 6px; cursor: pointer; box-shadow: 0 0 24px rgba(55, 230, 255, 0.5), 0 0 60px rgba(255, 63, 180, 0.3); transition: transform 0.1s; }
     .btn:hover { transform: scale(1.04); }
     .modes { display: flex; gap: 12px; pointer-events: auto; }
-    .mode { font-family: 'Rajdhani', sans-serif; text-align: left; width: min(250px, 42vw); padding: 10px 14px; border-radius: 8px; cursor: pointer; color: var(--dim); background: rgba(3, 4, 12, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); transition: all 0.12s; }
-    .mode b { display: block; font: 900 16px 'Orbitron'; letter-spacing: 0.28em; color: var(--ink); }
-    .mode span { font: 600 13px 'Rajdhani'; letter-spacing: 0.03em; line-height: 1.2; display: block; margin-top: 3px; }
-    .mode.sel { border-color: var(--cyan); border-width: 2px; background: rgba(3, 4, 12, 0.86); box-shadow: 0 0 18px rgba(55, 230, 255, 0.45); color: var(--ink); }
-    .mode.sel b::after { content: '  \25CF'; font-size: 11px; vertical-align: 2px; }
+    .mode, .map { font-family: 'Rajdhani', sans-serif; text-align: left; width: min(250px, 42vw); padding: 10px 14px; border-radius: 8px; cursor: pointer; color: var(--dim); background: rgba(3, 4, 12, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); transition: all 0.12s; }
+    .mode b, .map b { display: block; font: 900 16px 'Orbitron'; letter-spacing: 0.28em; color: var(--ink); }
+    .mode span, .map span { font: 600 13px 'Rajdhani'; letter-spacing: 0.03em; line-height: 1.2; display: block; margin-top: 3px; }
+    .mode.sel, .map.sel { border-color: var(--cyan); border-width: 2px; background: rgba(3, 4, 12, 0.86); box-shadow: 0 0 18px rgba(55, 230, 255, 0.45); color: var(--ink); }
+    .mode.sel b::after, .map.sel b::after { content: '  \25CF'; font-size: 11px; vertical-align: 2px; }
     .mode[data-mode='hard'].sel { border-color: var(--pink); box-shadow: 0 0 18px rgba(255, 63, 180, 0.5); }
     .mode[data-mode='hard'] b { color: #ff8fd0; }
+    .map { padding: 7px 14px; }
+    .map b { font-size: 13px; }
+    .map.sel { border-color: #ffd36b; box-shadow: 0 0 16px rgba(255, 211, 107, 0.4); }
+    .map[data-map] b { color: #ffe6a8; }
     #modeTag { font: 900 12px 'Orbitron'; letter-spacing: 0.22em; margin-left: 10px; color: #ff8fd0; text-shadow: 0 0 10px rgba(255, 63, 180, 0.8); }
     .keys { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 26px; font: 600 14px 'Rajdhani'; color: var(--dim); letter-spacing: 0.06em; }
     .keys b { color: var(--ink); font: 700 12px 'Orbitron'; letter-spacing: 0.1em; margin-right: 6px; }
@@ -137,6 +141,10 @@
     <div class="logo">STATION DRIFT<small>ORBITAL NIGHT RUN</small></div>
     <div class="tag">No races. No trophies. Just the line through the station, and how sideways you can take it.</div>
     <div class="modes">
+      <button class="map" data-map="skyway"><b>SKYWAY</b><span></span></button>
+      <button class="map" data-map="classic"><b>CLASSIC</b><span></span></button>
+    </div>
+    <div class="modes">
       <button class="mode" data-mode="easy"><b>EASY</b><span></span></button>
       <button class="mode" data-mode="hard"><b>HARD</b><span></span></button>
     </div>
@@ -157,6 +165,10 @@
   <div id="over" class="screen hidden">
     <div class="h2">OUT OF TIME</div>
     <div id="overStats"></div>
+    <div class="modes">
+      <button class="map" data-map="skyway"><b>SKYWAY</b><span></span></button>
+      <button class="map" data-map="classic"><b>CLASSIC</b><span></span></button>
+    </div>
     <div class="modes">
       <button class="mode" data-mode="easy"><b>EASY</b><span></span></button>
       <button class="mode" data-mode="hard"><b>HARD</b><span></span></button>

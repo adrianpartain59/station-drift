@@ -448,7 +448,9 @@ export class ShipPhysics {
     const f = this.track.sample(this.s, this.f);
     out.x = f.x - Math.cos(f.h) * this.x;
     out.z = f.z + Math.sin(f.h) * this.x;
-    out.y = TRACK.HOVER;
+    out.floor = f.y;                             // height of the road under the ship
+    out.y = TRACK.HOVER + f.y;
+    out.g = f.g;                                 // its slope along the track (0 on the classic map)
     out.h = f.h;
     out.travelYaw = f.h - this.theta;            // direction of travel
     out.yaw = f.h - this.theta - this.beta;      // where the nose points

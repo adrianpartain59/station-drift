@@ -31,6 +31,8 @@ class Bucket {
 const BOX = new THREE.BoxGeometry(1, 1, 1).toNonIndexed();
 const PLANE = new THREE.PlaneGeometry(1, 1).toNonIndexed();
 
+export { Bucket };
+
 export class WorldBuilder {
   constructor(track, mats) {
     this.track = track;
@@ -54,11 +56,29 @@ export class WorldBuilder {
   // ----- frame helpers -----
   P(i, lx, ly) {
     const T = this.track, h = T.H[i];
-    return [T.X[i] - Math.cos(h) * lx, ly, T.Z[i] + Math.sin(h) * lx];
+    return [T.X[i] - Math.cos(h) * lx, ly + T.Y[i], T.Z[i] + Math.sin(h) * lx];
   }
   N(i, nx, ny) {
-    const h = this.track.H[i];
-    return [-Math.cos(h) * nx, ny, Math.sin(h) * nx];
+    const T = this.track, h = T.H[i], g = T.G[i];
+    if (!g) return [-Math.cos(h) * nx, ny, Math.sin(h) * nx];
+    // on a slope the surface leans with the road
+    const q = 1 / Math.sqrt(1 + g * g);
+    return [-Math.cos(h) * nx - g * Math.sin(h) * ny * q, ny * q, Math.sin(h) * nx - g * Math.cos(h) * ny * q];
+  }
+
+  /** SKYWAY scenery: is the spot (px, pz) with radius r clear of the road and of every ship near sample i? */
+  clear(px, pz, r, i) {
+    const T = this.track;
+    for (let j = Math.max(0, i - 760); j < Math.min(T.len, i + 760); j += 8) {
+      const d = T.W[j] + r + (T.ZONE[j] === 0 ? 14 : 9);
+      const dx = T.X[j] - px, dz = T.Z[j] - pz;
+      if (dx * dx + dz * dz < d * d) return false;
+    }
+    for (let q = Math.max(0, T.SEC[i] - 2); q < Math.min(T.sections.length, T.SEC[i] + 3); q++) {
+      const hu = T.sections[q].hull;
+      if (hu && pz > hu.z0 - 70 - r && pz < hu.z1 + 70 + r && px > hu.x0 + hu.uMin - 75 - r && px < hu.x0 + hu.uMax + 75 + r) return false;
+    }
+    return true;
   }
 
   // Sweep a strip between two profile points (functions of the sample) from i0 to i1.
@@ -155,6 +175,9 @@ export class WorldBuilder {
     const st = (i) => zoneAt(i) === 0;
     const sec = (i) => T.sections[T.SEC[i]];
     const m = this.m;
+    const hilly = T.map === 'skyway';
+    // SKYWAY stations are ships: one rigid hull each (level/ShipHull.js) instead of the strip of hull swept here
+    const hs = (i) => st(i) && !sec(i).ship;
 
     // ---------- station interior ----------
     const pal = (i) => sec(i).palette || [0x37e6ff, 0xff3fb4, 0xffffff];
@@ -210,6 +233,22 @@ export class WorldBuilder {
       if (rng() < 0.5) this.box(n3, i, 0, H - 0.84, 0, w * 1.2, 0.08, 0.3);
     }
 
+    // SKYWAY ships: a heavy bulkhead frame every 48 m, lit in the ship's colours. It stands no further
+    // off the wall than the ribs do, so the room the ship has is unchanged.
+    for (let i = Math.ceil(i0 / 48) * 48 + 24; i < i1; i += 48) {
+      if (!st(i) || !sec(i).ship) continue;
+      const w = W(i);
+      for (const side of [-1, 1]) {
+        this.box(trimB, i, side * (w - 0.4), H / 2, 0, 0.82, H, 3.2);
+        this.box(n2, i, side * (w - 0.83), H / 2, 1.5, 0.05, H - 1.2, 0.16);
+        this.box(n2, i, side * (w - 0.83), H / 2, -1.5, 0.05, H - 1.2, 0.16);
+        this.box(get('hazardM', m.hazard), i, side * (w - 0.82), 1.1, 0, 0.04, 1.4, 3.0);
+      }
+      this.box(trimB, i, 0, H - 0.7, 0, 2 * w, 1.4, 3.2);
+      this.box(n2, i, 0, H - 1.42, 1.5, 2 * w - 1.8, 0.05, 0.16);
+      this.box(n2, i, 0, H - 1.42, -1.5, 2 * w - 1.8, 0.05, 0.16);
+    }
+
     // signage: wall boards and hanging vertical banners facing the ship
     for (let i = i0 + 6; i < i1 - 2; i += 6) {
       if (!st(i)) continue;
@@ -231,22 +270,23 @@ export class WorldBuilder {
 
     // ---------- hull exterior ----------
     const HT = H + PAD + 2, HB = -PAD;
-    this.sweep(hullB, i0, i1, (i) => [-W(i) - PAD, HT], (i) => [W(i) + PAD, HT], { when: st, uScale: 1 / 32, vScale: 1 / 32 });
-    this.sweep(hullB, i0, i1, (i) => [W(i) + PAD, HT], (i) => [W(i) + PAD, HB], { when: st, uScale: 1 / 32, vScale: 1 / 32 });
-    this.sweep(hullB, i0, i1, (i) => [W(i) + PAD, HB], (i) => [-W(i) - PAD, HB], { when: st, uScale: 1 / 32, vScale: 1 / 32 });
-    this.sweep(hullB, i0, i1, (i) => [-W(i) - PAD, HB], (i) => [-W(i) - PAD, HT], { when: st, uScale: 1 / 32, vScale: 1 / 32 });
+    this.sweep(hullB, i0, i1, (i) => [-W(i) - PAD, HT], (i) => [W(i) + PAD, HT], { when: hs, uScale: 1 / 32, vScale: 1 / 32 });
+    this.sweep(hullB, i0, i1, (i) => [W(i) + PAD, HT], (i) => [W(i) + PAD, HB], { when: hs, uScale: 1 / 32, vScale: 1 / 32 });
+    this.sweep(hullB, i0, i1, (i) => [W(i) + PAD, HB], (i) => [-W(i) - PAD, HB], { when: hs, uScale: 1 / 32, vScale: 1 / 32 });
+    this.sweep(hullB, i0, i1, (i) => [-W(i) - PAD, HB], (i) => [-W(i) - PAD, HT], { when: hs, uScale: 1 / 32, vScale: 1 / 32 });
     // window bands seen from outside
     // Exterior-only (front-facing, outward) so they never show through the windows from inside.
     const band = get('band', m.neonOut(0x9fe8ff, 0.9));
     const n1o = get('neon1o', m.neonOut(p0[0], 2.0));
-    this.sweep(band, i0, i1, (i) => [W(i) + PAD + 0.05, 6.5], (i) => [W(i) + PAD + 0.05, 2.5], { when: win(WIN_R) });
-    this.sweep(band, i0, i1, (i) => [-W(i) - PAD - 0.05, 2.5], (i) => [-W(i) - PAD - 0.05, 6.5], { when: win(WIN_L) });
-    this.sweep(n1o, i0, i1, (i) => [W(i) + PAD + 0.06, HT - 0.6], (i) => [W(i) + PAD + 0.06, HT - 0.9], { when: st });
-    this.sweep(n1o, i0, i1, (i) => [-W(i) - PAD - 0.06, HT - 0.9], (i) => [-W(i) - PAD - 0.06, HT - 0.6], { when: st });
+    const winOut = (bit) => (i) => hs(i) && (flag(i) & bit);
+    this.sweep(band, i0, i1, (i) => [W(i) + PAD + 0.05, 6.5], (i) => [W(i) + PAD + 0.05, 2.5], { when: winOut(WIN_R) });
+    this.sweep(band, i0, i1, (i) => [-W(i) - PAD - 0.05, 2.5], (i) => [-W(i) - PAD - 0.05, 6.5], { when: winOut(WIN_L) });
+    this.sweep(n1o, i0, i1, (i) => [W(i) + PAD + 0.06, HT - 0.6], (i) => [W(i) + PAD + 0.06, HT - 0.9], { when: hs });
+    this.sweep(n1o, i0, i1, (i) => [-W(i) - PAD - 0.06, HT - 0.9], (i) => [-W(i) - PAD - 0.06, HT - 0.6], { when: hs });
 
     // roof skyline: towers and antennas (never above a skylight)
     for (let i = i0 + 3; i < i1 - 3; i += 7) {
-      if (!st(i) || (flag(i) & SKY)) continue;
+      if (!hs(i) || (flag(i) & SKY)) continue;
       const w = W(i) + PAD;
       if (rng() < 0.55) {
         const tw = 3 + rng() * 6, th = 4 + rng() * (rng() < 0.2 ? 46 : 16), x = (rng() * 2 - 1) * (w - tw / 2);
@@ -267,10 +307,12 @@ export class WorldBuilder {
         if (s < i0 || s >= i1) continue;
         const w = W(s), along = isEntry ? -0.8 : 0.8;
         const ow = w + PAD;
-        this.box(hullB, s, -(w + ow) / 2, (HB + HT) / 2, along, PAD, HT - HB, 1.6);
-        this.box(hullB, s, (w + ow) / 2, (HB + HT) / 2, along, PAD, HT - HB, 1.6);
-        this.box(hullB, s, 0, (H + HT) / 2, along, 2 * w, HT - H, 1.6);
-        this.box(hullB, s, 0, HB / 2, along, 2 * w, -HB, 1.6);
+        if (!S.ship) {
+          this.box(hullB, s, -(w + ow) / 2, (HB + HT) / 2, along, PAD, HT - HB, 1.6);
+          this.box(hullB, s, (w + ow) / 2, (HB + HT) / 2, along, PAD, HT - HB, 1.6);
+          this.box(hullB, s, 0, (H + HT) / 2, along, 2 * w, HT - H, 1.6);
+          this.box(hullB, s, 0, HB / 2, along, 2 * w, -HB, 1.6);
+        }
         const nA = get('capN', m.neon(S.palette[0], 4)), nB = get('capN2', m.neon(S.palette[1], 4));
         const e = isEntry ? -1.7 : 1.7;
         this.box(nA, s, -w - 0.25, H / 2, e, 0.4, H + 0.5, 0.2);
@@ -290,11 +332,42 @@ export class WorldBuilder {
 
     // ---------- open space lane ----------
     const sp = (i) => zoneAt(i) === 1;
-    const laneB = get('lane', m.lane);
-    this.sweep(laneB, i0, i1, (i) => [-W(i), 0], (i) => [W(i), 0], { when: sp, normalizeU: true, vScale: 1 / 12 });
-    const edgeB = get('edge', m.neon(0x37e6ff, 2.2));
-    this.sweep(edgeB, i0, i1, (i) => [-W(i) - 0.15, 0.02], (i) => [-W(i) + 0.15, 0.02], { when: sp });
-    this.sweep(edgeB, i0, i1, (i) => [W(i) - 0.15, 0.02], (i) => [W(i) + 0.15, 0.02], { when: sp });
+    if (!hilly) {
+      const laneB = get('lane', m.lane);
+      this.sweep(laneB, i0, i1, (i) => [-W(i), 0], (i) => [W(i), 0], { when: sp, normalizeU: true, vScale: 1 / 12 });
+      const edgeB = get('edge', m.neon(0x37e6ff, 2.2));
+      this.sweep(edgeB, i0, i1, (i) => [-W(i) - 0.15, 0.02], (i) => [-W(i) + 0.15, 0.02], { when: sp });
+      this.sweep(edgeB, i0, i1, (i) => [W(i) - 0.15, 0.02], (i) => [W(i) + 0.15, 0.02], { when: sp });
+    } else {
+      // SKYWAY: a real deck, so the hills can be read. Plating on top, a kerb and a skirt down each side, an
+      // underside (the road is often seen from below), and a soft energy rail along each edge:
+      // cyan on the right, magenta on the left, so you always know which way round you are.
+      const TH = 1.9, K = 0.9;
+      const deckB = get('deck', m.deck), skirtB = get('skirt', m.trim);
+      this.sweep(deckB, i0, i1, (i) => [-W(i), 0], (i) => [W(i), 0], { when: sp, normalizeU: true, vScale: 1 / 16 });
+      this.sweep(skirtB, i0, i1, (i) => [W(i), 0], (i) => [W(i) + K, -0.5], { when: sp });
+      this.sweep(skirtB, i0, i1, (i) => [W(i) + K, -0.5], (i) => [W(i) + K, -TH], { when: sp });
+      this.sweep(skirtB, i0, i1, (i) => [W(i) + K, -TH], (i) => [-W(i) - K, -TH], { when: sp, uScale: 1 / 16, vScale: 1 / 16 });
+      this.sweep(skirtB, i0, i1, (i) => [-W(i) - K, -TH], (i) => [-W(i) - K, -0.5], { when: sp });
+      this.sweep(skirtB, i0, i1, (i) => [-W(i) - K, -0.5], (i) => [-W(i), 0], { when: sp });
+      const eR = get('edgeR', m.neon(0x37e6ff, 2.4)), eL = get('edgeL', m.neon(0xff3fb4, 2.4));
+      this.sweep(eR, i0, i1, (i) => [W(i) - 0.3, 0.03], (i) => [W(i) + 0.12, 0.03], { when: sp });
+      this.sweep(eL, i0, i1, (i) => [-W(i) - 0.12, 0.03], (i) => [-W(i) + 0.3, 0.03], { when: sp });
+      this.sweep(eR, i0, i1, (i) => [W(i) + K + 0.02, -0.75], (i) => [W(i) + K + 0.02, -1.0], { when: sp });
+      this.sweep(eL, i0, i1, (i) => [-W(i) - K - 0.02, -1.0], (i) => [-W(i) - K - 0.02, -0.75], { when: sp });
+      this.sweep(get('rail', m.rail), i0, i1, (i) => [W(i) + 0.35, 0.05], (i) => [W(i) + 0.35, 2.1], { when: sp, normalizeU: true, vScale: 1 / 8 });
+      this.sweep(get('railW', m.railWarm), i0, i1, (i) => [-W(i) - 0.35, 0.05], (i) => [-W(i) - 0.35, 2.1], { when: sp, normalizeU: true, vScale: 1 / 8 });
+      // ribs under the deck, and a lifter pod every so often: it floats, and it should look like it means to
+      const podN = get('podN', m.neonOut(0x37e6ff, 2.6));
+      for (let i = Math.ceil(i0 / 16) * 16; i < i1; i += 16) {
+        if (!sp(i)) continue;
+        this.box(skirtB, i, 0, -TH - 0.35, 0, 2 * W(i) + 1.2, 0.7, 1.4);
+        if (i % 64 === 0) {
+          this.box(skirtB, i, 0, -TH - 1.9, 0, Math.min(14, W(i)), 2.6, 16);
+          this.box(podN, i, 0, -TH - 3.25, 0, Math.min(10, W(i) * 0.7), 0.12, 11);
+        }
+      }
+    }
     const bA = get('beaconA', m.neon(0x37e6ff, 5)), bB = get('beaconB', m.neon(0xff3fb4, 5));
     for (let i = Math.ceil(i0 / 16) * 16; i < i1; i += 16) {
       if (!sp(i)) continue;
@@ -320,11 +393,14 @@ export class WorldBuilder {
       const sc = 1.2 + Math.pow(rng(), 2.2) * (dist > 60 ? 26 : 7);
       const y = (rng() * 2 - 1) * (10 + dist * 0.35);
       const p = this.P(i, side * dist, y);
-      this.rock(rockB, p[0], p[1], p[2], sc, rng() * 6.28, Math.floor(rng() * 5));
+      const rot = rng() * 6.28, variant = Math.floor(rng() * 5);
+      // SKYWAY doubles back beside itself: scenery never lands on another stretch of road or on a ship
+      if (hilly && !this.clear(p[0], p[2], sc, i)) continue;
+      this.rock(rockB, p[0], p[1], p[2], sc, rot, variant);
     }
     // a little debris drifting around station exteriors so they don't sit in empty space
     for (let i = i0; i < i1; i += 8) {
-      if (!st(i) || rng() > 0.12) continue;
+      if (!hs(i) || rng() > 0.12) continue;
       const side = rng() < 0.5 ? -1 : 1;
       const p = this.P(i, side * (W(i) + PAD + 8 + rng() * 40), (rng() * 2 - 1) * 20);
       this.rock(rockB, p[0], p[1], p[2], 0.8 + rng() * 2.5, rng() * 6.28, Math.floor(rng() * 5));

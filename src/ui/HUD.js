@@ -34,12 +34,22 @@ export class HUD {
     if (!this.el.title.classList.contains('hidden')) this.phase('title');
   }
 
+  /** Mark the chosen map on every map chip and fill in the blurbs. */
+  setMap(name, maps) {
+    for (const b of document.querySelectorAll('.map')) {
+      b.classList.toggle('sel', b.dataset.map === name);
+      b.querySelector('span').textContent = maps[b.dataset.map].blurb;
+    }
+    this.mapLabel = maps[name].label;
+    if (!this.el.title.classList.contains('hidden')) this.phase('title');
+  }
+
   phase(p) {
     this.show('title', p === 'title');
     this.show('pause', p === 'paused');
     this.show('over', p === 'over');
     this.show('hud', p === 'playing' || p === 'paused');
-    if (p === 'title') this.el.best.textContent = GameState.best ? `${this.modeLabel || ''} BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
+    if (p === 'title') this.el.best.textContent = GameState.best ? `${this.mapLabel || ''} ${this.modeLabel || ''} BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
   }
 
   /** v: { speed (shown units), drifting, charge, tier, points, mult, boost 0..1, boostTier, gateDist, gateFrac } */

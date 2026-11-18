@@ -13,7 +13,8 @@
     "verify:skyway:hard": "node tools/verify/passability.mjs --map skyway --mode hard --seeds 200 --km 12",
     "mapcheck": "node tools/verify/mapcheck.mjs --map skyway --seeds 300 --km 12",
     "fingerprint": "node tools/verify/fingerprint.mjs",
-    "feel": "node tools/verify/feel.mjs"
+    "feel": "node tools/verify/feel.mjs",
+    "feel:skyway": "node tools/verify/feel.mjs --map skyway"
   },
   "dependencies": {
     "three": "^0.183.0"

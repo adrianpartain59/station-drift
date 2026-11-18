@@ -11,7 +11,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export class CameraRig {
   constructor(camera, track) {
     this.cam = camera; this.track = track;
-    this.f = {}; this.f2 = {};
+    this.f = {}; this.f2 = {}; this.f3 = {};
     this.mode = 'chase';
     this.rel = 0; this.roll = 0; this.trauma = 0; this.fovKick = 0; this.boost = 0;
     this.pos = new THREE.Vector3(); this.look = new THREE.Vector3();
@@ -44,17 +44,20 @@ export class CameraRig {
     let xc = ship.x - D * Math.sin(this.rel);
     const f = T.sample(sc, this.f);
     if (f.zone === 0) xc = clamp(xc, -f.w + 2.9, f.w - 2.9); // stay clear of the wall light bars
-    const y = TRACK.HOVER + CAMERA.CHASE_HEIGHT - speedN * 0.35 - this.boost * 0.25;
+    // heights ride on the road: the camera over the road where the camera is, the look point over the road
+    // where it looks, so the view pitches up a climb and tips over a crest by itself
+    const y = f.y + TRACK.HOVER + CAMERA.CHASE_HEIGHT - speedN * 0.35 - this.boost * 0.25;
     this.pos.set(f.x - Math.cos(f.h) * xc, y, f.z + Math.sin(f.h) * xc);
     // look: mostly where the ship is going, partly down the corridor ahead (leans the view into a bend)
     const ty = pose.travelYaw;
     const L = CAMERA.LOOK_AHEAD;
+    const lookY = T.sample(Math.min(T.len - 2, ship.s + L), this.f3).y;
     const g = T.sample(Math.min(T.len - 2, ship.s + 20 + ship.v * 0.28), this.f2);
     const gx = g.x - Math.cos(g.h) * ship.x * 0.6, gz = g.z + Math.sin(g.h) * ship.x * 0.6;
     const ax = pose.x + Math.sin(ty) * L, az = pose.z + Math.cos(ty) * L;
     const dg = Math.hypot(gx - pose.x, gz - pose.z) || 1;
     const wgt = 0.42;
-    this.look.set(ax + (pose.x + ((gx - pose.x) / dg) * L - ax) * wgt, TRACK.HOVER + 0.7, az + (pose.z + ((gz - pose.z) / dg) * L - az) * wgt);
+    this.look.set(ax + (pose.x + ((gx - pose.x) / dg) * L - ax) * wgt, lookY + TRACK.HOVER + 0.7, az + (pose.z + ((gz - pose.z) / dg) * L - az) * wgt);
     const wantRoll = -ship.driftDir * (ship.drift ? ship.slide : 0) * 0.055 - ship.steer * 0.02;
     this.roll += (wantRoll - this.roll) * ease(5, dt);
 
@@ -62,7 +65,8 @@ export class CameraRig {
     const ny = pose.yaw, cy = Math.cos(ny), sy = Math.sin(ny);
     this.cpos.set(pose.x + sy * eye.z, pose.y + eye.y + (pose.bob || 0), pose.z + cy * eye.z);
     const ly = ny + (ty - ny) * 0.6;
-    this.clook.set(this.cpos.x + Math.sin(ly) * 30 + ((gx - pose.x) / dg) * 6, this.cpos.y - 1.2, this.cpos.z + Math.cos(ly) * 30 + ((gz - pose.z) / dg) * 6);
+    const rise = T.sample(Math.min(T.len - 2, ship.s + 30), this.f3).y - (pose.floor || 0);   // how much the road climbs over the next 30 m
+    this.clook.set(this.cpos.x + Math.sin(ly) * 30 + ((gx - pose.x) / dg) * 6, this.cpos.y - 1.2 + rise, this.cpos.z + Math.cos(ly) * 30 + ((gz - pose.z) / dg) * 6);
 
     cam.position.copy(this.pos).lerp(this.cpos, b);
     this.look.lerp(this.clook, b);

@@ -120,7 +120,7 @@ export class Trail {
 export class Skid {
   constructor(scene, n = 110, width = 0.3) {
     this.n = n; this.width = width; this.head = 0; this.count = 0;
-    this.px = new Float32Array(n); this.pz = new Float32Array(n); this.sx = new Float32Array(n); this.sz = new Float32Array(n);
+    this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n); this.sx = new Float32Array(n); this.sz = new Float32Array(n);
     this.a = new Float32Array(n); this.age = new Float32Array(n);
     this.last = new THREE.Vector3(1e9, 0, 0);
     const pos = new Float32Array(n * 2 * 3), alpha = new Float32Array(n * 2);
@@ -143,22 +143,22 @@ export class Skid {
     scene.add(this.mesh);
   }
   reset() { this.count = 0; this.head = 0; this.last.set(1e9, 0, 0); this.geo.setDrawRange(0, 0); }
-  /** p: world point on the floor under a rear pod; side: unit vector across the ship; strength 0..1. */
+  /** p: world point under a rear pod; side: unit vector across the ship; strength 0..1; y: height of the mark (just above the floor there). */
   update(dt, p, side, strength, color, y = 0.05) {
     const n = this.n;
     for (let i = 0; i < this.count; i++) this.age[i] += dt;
     if (this.last.distanceToSquared(p) > 0.7 * 0.7) {
       this.head = (this.head + n - 1) % n;
       const h = this.head;
-      this.px[h] = p.x; this.pz[h] = p.z; this.sx[h] = side.x; this.sz[h] = side.z; this.a[h] = strength; this.age[h] = 0;
+      this.px[h] = p.x; this.py[h] = y; this.pz[h] = p.z; this.sx[h] = side.x; this.sz[h] = side.z; this.a[h] = strength; this.age[h] = 0;
       this.count = Math.min(n, this.count + 1);
       this.last.copy(p);
     }
     const pos = this.geo.attributes.position.array, al = this.geo.attributes.alpha.array, w = this.width;
     for (let i = 0; i < this.count; i++) {
       const k = (this.head + i) % n;
-      pos[i * 6] = this.px[k] + this.sx[k] * w; pos[i * 6 + 1] = y; pos[i * 6 + 2] = this.pz[k] + this.sz[k] * w;
-      pos[i * 6 + 3] = this.px[k] - this.sx[k] * w; pos[i * 6 + 4] = y; pos[i * 6 + 5] = this.pz[k] - this.sz[k] * w;
+      pos[i * 6] = this.px[k] + this.sx[k] * w; pos[i * 6 + 1] = this.py[k]; pos[i * 6 + 2] = this.pz[k] + this.sz[k] * w;
+      pos[i * 6 + 3] = this.px[k] - this.sx[k] * w; pos[i * 6 + 4] = this.py[k]; pos[i * 6 + 5] = this.pz[k] - this.sz[k] * w;
       const fade = Math.max(0, 1 - this.age[k] / 1.5);
       al[i * 2] = al[i * 2 + 1] = this.a[k] * fade * fade;
     }

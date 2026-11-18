@@ -6,8 +6,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { TRACK, SHIP, DRIFT, SCORE, CLOCK, CAMERA, RENDER } from './Constants.js';
 import { GameState } from './GameState.js';
-import { MODES, applyMode } from './Modes.js';
-import { Track } from '../level/Track.js';
+import { MODES } from './Modes.js';
+import { MAPS, makeTrack, applyGame } from './Maps.js';
+import { buildShipHull, disposeShipHull } from '../level/ShipHull.js';
 import { Materials } from '../level/Materials.js';
 import { WorldBuilder } from '../level/WorldBuilder.js';
 import { Sky, Dust } from '../level/Sky.js';
@@ -41,6 +42,7 @@ export class Game {
     this.pose = {};
     this.hitStop = 0; this.overTimer = 0; this.lastTick = 99;
     this.chunks = new Map();
+    this.hulls = new Map();     // SKYWAY: the rigid hull of each ship in range, by section id
     this.bot = params.has('bot');
     this.tmpV = new THREE.Vector3(); this.tmpV2 = new THREE.Vector3(); this.tmpV3 = new THREE.Vector3();
     this.hudView = { speed: 0, drifting: false, charge: 0, tier: -1, points: 0, mult: 1, boost: 0, boostTier: 0, gateDist: null, gateFrac: 0 };
@@ -86,10 +88,13 @@ export class Game {
     document.getElementById('againBtn').addEventListener('click', () => this.start());
     document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
     for (const b of document.querySelectorAll('.mode')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
+    for (const b of document.querySelectorAll('.map')) b.addEventListener('click', () => this.setMap(b.dataset.map));
 
-    // which game: EASY or HARD (?mode= wins over the saved choice)
+    // which game: EASY or HARD, on which map (?mode= and ?map= win over the saved choices)
     if (MODES[params.get('mode')]) GameState.setMode(params.get('mode'));
-    this.hud.setMode(applyMode(GameState.mode), MODES);
+    if (MAPS[params.get('map')]) GameState.setMap(params.get('map'));
+    this.hud.setMode(applyGame(GameState.mode, GameState.map), MODES);
+    this.hud.setMap(GameState.map, MAPS);
 
     this.newRun(params.has('seed') ? Number(params.get('seed')) : (Math.random() * 1e9) | 0);
     GameState.phase = 'title';
@@ -114,6 +119,8 @@ export class Game {
     this.seed = seed;
     for (const g of this.chunks.values()) { this.scene.remove(g); this.builder.disposeChunk(g); }
     this.chunks.clear();
+    for (const g of this.hulls.values()) { this.scene.remove(g); disposeShipHull(g); }
+    this.hulls.clear();
     this.view?.dispose();
     this.builder?.rockGeos.forEach((g) => g.dispose());
     this.scene.environment?.dispose();
@@ -123,7 +130,7 @@ export class Game {
       this.sky.group.traverse((o) => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose?.(); });
     }
 
-    this.track = new Track(seed);
+    this.track = makeTrack(GameState.map, seed);
     this.track.ensure(TRACK.VIEW_AHEAD + 400);
     this.course = new Course(this.track, seed);
     this.builder = new WorldBuilder(this.track, this.mats);
@@ -152,6 +159,41 @@ export class Game {
     for (const k of this.skids) k.reset();
     this.lastGateS = 0; this.zone = -1;
     this.updateChunks(true);
+    this.warmUp();
+  }
+
+  /**
+   * Draw every material the run can show once, now, through the real render path. A material's shader is
+   * compiled the first time it is drawn, and that used to cost a dropped frame or ten each time something
+   * new came round a bend (a laser, a hauler, a ship's hull). Paid here instead, behind the title screen.
+   */
+  warmUp() {
+    const mats = new Set();
+    const add = (x) => { if (Array.isArray(x)) x.forEach(add); else if (x && x.isMaterial) mats.add(x); };
+    const M = this.mats;
+    Object.values(M).forEach(add);
+    Object.values(this.view.mat).forEach(add);
+    add([M.neon(0xffffff, 1), M.neonOut(0xffffff, 1), M.far(0xffffff, 1), M.plume(0xffffff), M.floorFor(0xffffff)]);
+    // the name boards are made per station; these stand in for them (same shader, same blending, same depth rule)
+    const board = (side) => new THREE.MeshBasicMaterial({ map: M.glowTex, transparent: true, depthWrite: false, side });
+    const boards = [board(THREE.DoubleSide), board(THREE.FrontSide)];
+    add(boards);
+    // The GPU builds a pipeline per shader and per kind of mesh it is drawn with, so each material is drawn
+    // both ways the game draws things: loose triangles (the world's swept strips) and an indexed mesh (boxes, planes).
+    const tri = new THREE.BufferGeometry();
+    tri.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1e-3, 0, 0, 0, 1e-3, 0], 3));
+    tri.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+    tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
+    const box = new THREE.BoxGeometry(1e-3, 1e-3, 1e-3);
+    const grp = new THREE.Group();
+    for (const m of mats) for (const geo of [tri, box]) { const k = new THREE.Mesh(geo, m); k.frustumCulled = false; grp.add(k); }
+    this.camera.updateMatrixWorld();
+    grp.position.copy(this.camera.position).add(this.tmpV.set(0, 0, -6).applyQuaternion(this.camera.quaternion));
+    this.scene.add(grp);
+    this.composer.render(); this.composer.render();     // twice: the composer alternates between two targets
+    this.scene.remove(grp);
+    tri.dispose(); box.dispose();
+    for (const m of boards) m.dispose();
   }
 
   start() {
@@ -181,7 +223,18 @@ export class Game {
     const g = GameState;
     if (!MODES[name] || name === g.mode || g.phase === 'playing' || g.phase === 'paused') return;
     g.setMode(name);
-    this.hud.setMode(applyMode(name), MODES);
+    this.hud.setMode(applyGame(name, g.map), MODES);
+    this.audio.ui();
+    if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
+  }
+
+  /** Switch between the maps. Only between runs, like the mode: a run is built for one map. */
+  setMap(name) {
+    const g = GameState;
+    if (!MAPS[name] || name === g.map || g.phase === 'playing' || g.phase === 'paused') return;
+    g.setMap(name);
+    applyGame(g.mode, name);
+    this.hud.setMap(name, MAPS);
     this.audio.ui();
     if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
   }
@@ -321,14 +374,38 @@ export class Game {
   shipWorld() { const p = this.pose; return this.tmpV.set(p.x, p.y, p.z); }
   coinWorld(c) {
     const f = this.track.sample(c.s, {});
-    return this.tmpV2.set(f.x - Math.cos(f.h) * c.x, TRACK.HOVER, f.z + Math.sin(f.h) * c.x);
+    return this.tmpV2.set(f.x - Math.cos(f.h) * c.x, f.y + TRACK.HOVER, f.z + Math.sin(f.h) * c.x);
   }
   wallSparks(side, n, soft) {
     const ph = this.phys, f = this.track.sample(ph.s, {});
     const off = side * (ph.lim + SHIP.RADIUS);
     const wx = f.x - Math.cos(f.h) * off, wz = f.z + Math.sin(f.h) * off;
     const ty = this.pose.travelYaw ?? f.h;
-    for (let i = 0; i < n; i++) this.sparks.emit(wx, TRACK.HOVER - 0.5 + Math.random() * 1.1, wz, Math.sin(ty) * ph.v * 0.6, 3, Math.cos(ty) * ph.v * 0.6, soft ? 0x37e6ff : 0xffb040, 0.4, 0.3, 10, 2);
+    for (let i = 0; i < n; i++) this.sparks.emit(wx, f.y + TRACK.HOVER - 0.5 + Math.random() * 1.1, wz, Math.sin(ty) * ph.v * 0.6, 3, Math.cos(ty) * ph.v * 0.6, soft ? 0x37e6ff : 0xffb040, 0.4, 0.3, 10, 2);
+  }
+
+  /**
+   * Test hook: ?perf=<seconds> measures real frame times over that long (use with ?bot&autostart), then
+   * freezes and reports: on the page title, in window.__perf, and to the dev server's log.
+   */
+  perf(dt) {
+    const P = (this._perf = this._perf || { t: 0, dts: [], done: false, s0: this.phys.s });
+    if (P.done || GameState.phase !== 'playing') return;
+    P.t += dt;
+    if (P.t < 1.5) return;                                   // let the first frames settle
+    P.dts.push(dt * 1000);
+    if (P.t < 1.5 + Number(params.get('perf') || 60)) return;
+    P.done = true;
+    const a = P.dts.slice().sort((x, y) => x - y), q = (p) => a[Math.min(a.length - 1, Math.floor(p * a.length))];
+    const over = (ms) => P.dts.filter((x) => x > ms).length;
+    const r = { map: GameState.map, mode: GameState.mode, cam: this.rig.mode, quality: GameState.quality, frames: a.length, km: ((this.phys.s - P.s0) / 1000).toFixed(2),
+      fps: (1000 / (a.reduce((x, y) => x + y, 0) / a.length)).toFixed(1), ms50: q(0.5).toFixed(1), ms95: q(0.95).toFixed(1), ms99: q(0.99).toFixed(1), max: a[a.length - 1].toFixed(0),
+      over20: over(20), over34: over(34), over60: over(60), size: this.renderer.domElement.width + 'x' + this.renderer.domElement.height };
+    window.__perf = r;
+    const txt = Object.entries(r).map(([k, v]) => k + '=' + v).join(' ');
+    document.title = 'PERF ' + txt;
+    fetch('/__perf?' + encodeURIComponent(txt)).catch(() => {});
+    this.frozen = true;
   }
 
   // ---------- frame ----------
@@ -350,6 +427,7 @@ export class Game {
     else if ((g.phase === 'playing' || g.phase === 'paused') && inp.tap('Escape', 'KeyP')) this.togglePause();
 
     if (g.phase === 'paused' || this.frozen) { inp.endFrame(); this.composer.render(); return; }
+    if (params.has('perf')) this.perf(raw);
     // Test hook: ?stopwhen=drift freezes the game the first time a slide is well under way, for screenshots.
     if (params.get('stopwhen') === 'drift' && g.time > 0.5 && ph.drift && ph.driftT > 0.6) this.frozen = true;
     if (params.has('stopat') && ph.s >= Number(params.get('stopat'))) this.frozen = true; // ?stopat=<metres>
@@ -456,7 +534,10 @@ export class Game {
     p.roll = m.bank;
     p.bob = Math.sin(g.time * 1.7) * 0.05;
     m.group.position.set(p.x, p.y, p.z);
-    m.group.rotation.set(0, p.yaw, 0);
+    // on a slope the ship lies along the road: nose up a climb, and leaning with the hill when it is turned across it
+    const across = ph.theta + ph.beta, slope = Math.atan(p.g || 0);
+    m.group.rotation.order = 'YXZ';
+    m.group.rotation.set(-slope * Math.cos(across), p.yaw, slope * Math.sin(across));
     const pitch = (ph.boosting ? -0.035 : 0) + (ph.braking ? 0.05 : 0) + Math.sin(g.time * 2.1) * 0.01;
     m.pitch = (m.pitch || 0) + (pitch - (m.pitch || 0)) * (1 - Math.exp(-6 * dt));
     m.body.rotation.set(m.pitch, 0, m.bank);
@@ -485,11 +566,13 @@ export class Game {
     const sliding = ph.drift ? ph.slide : 0;
     for (let k = 0; k < 2; k++) {
       const q = this.tmpV3.copy(m.skid[k]).applyMatrix4(m.group.matrixWorld);
-      this.skids[k].update(dt, q, side, sliding * (0.5 + 0.25 * tier), col, 0.06);
+      // the road's height under this pod (the pods sit behind the ship's centre, lower down a climb)
+      const floor = p.floor + (p.g || 0) * ((q.x - p.x) * Math.sin(p.h) + (q.z - p.z) * Math.cos(p.h));
+      this.skids[k].update(dt, q, side, sliding * (0.5 + 0.25 * tier), col, floor + 0.06);
       if (ph.drift && sliding > 0.3) {
         const n = 1 + (tier > 1 ? 1 : 0);
         const vx = Math.sin(p.travelYaw) * ph.v * 0.5, vz = Math.cos(p.travelYaw) * ph.v * 0.5;
-        for (let i = 0; i < n; i++) this.sparks.emit(q.x + (Math.random() - 0.5) * 0.5, 0.25, q.z + (Math.random() - 0.5) * 0.5, vx, 2.2, vz, tier > 0 ? DRIFT.TIERS[tier - 1].color : 0xcfefff, 0.4, 0.2, 7, 3);
+        for (let i = 0; i < n; i++) this.sparks.emit(q.x + (Math.random() - 0.5) * 0.5, floor + 0.25, q.z + (Math.random() - 0.5) * 0.5, vx, 2.2, vz, tier > 0 ? DRIFT.TIERS[tier - 1].color : 0xcfefff, 0.4, 0.2, 7, 3);
       }
     }
     // rubbing a wall
@@ -511,6 +594,24 @@ export class Game {
       this.scene.add(grp);
       this.chunks.set(c, grp);
       if (!all && ++built >= 2) break;
+    }
+    this.updateHulls(s);
+  }
+
+  /** SKYWAY: build each ship's hull as it comes into range, and let it go once it is well behind. */
+  updateHulls(s) {
+    const T = this.track;
+    for (const [id, grp] of this.hulls) {
+      const S = T.sections[id];
+      if (S.s1 < s - 900 || S.s0 > s + TRACK.VIEW_AHEAD + 700) { this.scene.remove(grp); disposeShipHull(grp); this.hulls.delete(id); }
+    }
+    for (let i = T.sections.length - 1; i >= 0; i--) {
+      const S = T.sections[i];
+      if (S.s1 < s - 700) break;
+      if (!S.hull || this.hulls.has(S.id) || S.s0 > s + TRACK.VIEW_AHEAD + 500) continue;
+      const grp = buildShipHull(T, S, this.mats);
+      this.scene.add(grp);
+      this.hulls.set(S.id, grp);
     }
   }
 

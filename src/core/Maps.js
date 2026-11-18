@@ -8,7 +8,7 @@ import { applyMode } from './Modes.js';
 // tools/verify/fingerprint.mjs proves it. SKYWAY turns it inside out: wide, hilly, always-bending open
 // air with short ship stations between.
 const PACE_SKYWAY_EASY = [[0, 0.84], [1000, 0.97], [2500, 1.11], [5000, 1.19], [8000, 1.25], [12000, 1.31], [18000, 1.38], [40000, 1.47]];
-const PACE_SKYWAY_HARD = [[0, 0.84], [1000, 1.0], [2500, 1.18], [5000, 1.3], [8000, 1.38], [12000, 1.45], [18000, 1.52], [40000, 1.62]];
+const PACE_SKYWAY_HARD = [[0, 0.84], [1000, 1.02], [2500, 1.22], [5000, 1.36], [8000, 1.45], [12000, 1.53], [18000, 1.6], [40000, 1.7]];
 
 export const MAPS = {
   skyway: {
