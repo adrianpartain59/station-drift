@@ -105,8 +105,8 @@ for (let seed = 1; seed <= 40 && MAP === 'skyway'; seed++) {
   const T = new Track(seed); T.ensure(9500);
   for (const p of T.pieces) {
     if (!p.arcs || p.s0 < 300 || p.s1 > 9000) continue;
-    const air = p.type === 'air-bend' || p.type === 'air-ess';
-    for (const a of p.arcs) bends.push({ T, s0: a.s0, s1: a.s1, k: a.k, R: 1 / Math.abs(a.k), air, hairpin: !!p.hairpin });
+    const spiral = p.type === 'air-spiral', air = spiral || p.type === 'air-bend' || p.type === 'air-ess';
+    for (const a of p.arcs) bends.push({ T, s0: a.s0, s1: a.s1, k: a.k, R: 1 / Math.abs(a.k), air, hairpin: !!p.hairpin, spiral, turns: p.turns || 0 });
   }
 }
 // in a ship the corners come in close pairs: a corner's test ends where the next corner begins
@@ -145,9 +145,11 @@ function run(b, set, kind) {
   if (!b.air && MAP === 'skyway') { let q = 0; while (q < 40 && b.T.K[b.s0 - 1 - q] === 0) q++; back = Math.max(6, q - 1); }
   p.reset(b.s0 - back); p.v = cruiseSpeed(b.s0, b.T); p.x = -out * START_IN; p.theta = 0; p.psi = 0;
   const queue = []; let wall = null, late = false, maxOut = -99, after = -1, tier = -1, started = false, slid = 0;
-  let minX = 99, maxX = -99, slideT = 0, slideLen = 0;
+  let minX = 99, maxX = -99, slideT = 0, slideLen = 0, held = kind !== 'plain', lost = 0;
+  p.emit = (name) => { if (name === 'driftLost') lost++; };
   const from = kind === 'late' ? b.s0 + p.v * 0.25 : b.s0 - 5, to = b.s1 - 4;
-  for (let n = 0; n < 1500; n++) {
+  const steps = 1500 + Math.ceil(((b.s1 - b.s0) / Math.max(20, p.v)) * 120 * 1.4);     // long enough for the longest spiral at the slowest speed
+  for (let n = 0; n < steps; n++) {
     let steer = 0, drift = false;
     const inBend = p.s >= from && p.s < to;
     if (kind === 'hold' && p.s < to && (!b.air || p.s > b.s0 - 5)) {
@@ -178,7 +180,7 @@ function run(b, set, kind) {
     p.step(dt, { steer: st, drift: dr });
     if (p.s >= b.s0) started = true;
     if (started) {
-      if (p.drift) { slideT += dt; slideLen += p.v * dt; }
+      if (p.drift) { slideT += dt; slideLen += p.v * dt; } else if (p.s > b.s0 + 30 && p.s < to - 10) held = false;   // let go, or lost, part-way round
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
       maxOut = Math.max(maxOut, p.x * out);
       if (!wall && p.wallSide !== 0) { wall = p.wallSide * out > 0 ? 'outer' : 'inner'; late = p.s >= to; }
@@ -187,38 +189,41 @@ function run(b, set, kind) {
     if (after >= 0) { after += dt; if (after > 0.9) break; }
     if (b.next && p.s >= b.next - 3) break;          // the next corner is someone else's test
   }
-  return { wall, late, used: Math.min(1, Math.max(0, (maxOut + START_IN) / (p.lim + START_IN))), tier: tier + 1, slideT, slideLen, road: Math.max(0, maxX - minX) };
+  return { wall, late, used: Math.min(1, Math.max(0, (maxOut + START_IN) / (p.lim + START_IN))), tier: tier + 1, slideT, slideLen, road: Math.max(0, maxX - minX), held: held && !lost };
 }
 
 const pct = (n, d) => `${Math.round((100 * n) / d)}%`.padStart(4);
 const PLAYERS = [['hold', 'holds everything'], ['feather', 'feathers the key'], ['late', 'presses late, feathers'], ['plain', 'no drift, plain steering']];
 const BUCKETS = [[0, 45], [45, 55], [55, 65], [65, 80]];
 function tally(B, set, kind) {
-  let clean = 0, outer = 0, inner = 0, used = 0, tier = 0, after = 0, slideT = 0, road = 0, len = 0, nova = 0;
+  let clean = 0, outer = 0, inner = 0, used = 0, tier = 0, after = 0, slideT = 0, road = 0, len = 0, nova = 0, held = 0;
   const times = [];
   for (const b of B) {
     const r = run(b, set, kind);
     if (!r.wall) clean++; else { if (r.wall === 'outer') outer++; else inner++; if (r.late) after++; }
-    used += r.used; tier += r.tier; slideT += r.slideT; road += r.road; len += r.slideLen; times.push(r.slideT); if (r.tier === 3) nova++;
+    used += r.used; tier += r.tier; slideT += r.slideT; road += r.road; len += r.slideLen; times.push(r.slideT); if (r.tier === 3) nova++; if (r.held) held++;
   }
   times.sort((x, y) => x - y);
-  return { clean, outer, inner, used, tier, after, n: B.length, slideT, road, len, nova, long: times.length ? times[Math.floor(times.length * 0.9)] : 0 };
+  return { clean, outer, inner, used, tier, after, n: B.length, slideT, road, len, nova, held, long: times.length ? times[Math.floor(times.length * 0.9)] : 0 };
 }
 
 // ---------- SKYWAY: open-air bends by radius (hairpins apart), then the ships' corners ----------
 if (MAP === 'skyway') {
-  const air = bends.filter((b) => b.air), ship = bends.filter((b) => !b.air);
+  const air = bends.filter((b) => b.air && !b.spiral), ship = bends.filter((b) => !b.air), spirals = bends.filter((b) => b.spiral);
   const groups = [
     ['open air, R 70-90 m', air.filter((b) => !b.hairpin && b.R < 90)],
     ['open air, R 90-105 m', air.filter((b) => !b.hairpin && b.R >= 90 && b.R < 105)],
     ['open air, R 105-120 m', air.filter((b) => !b.hairpin && b.R >= 105)],
     ['open air, hairpins', air.filter((b) => b.hairpin)],
+    ['spiral, once round', spirals.filter((b) => b.turns === 1)],
+    ['spiral, twice round', spirals.filter((b) => b.turns === 2)],
     ['in a ship, R under 45 m', ship.filter((b) => b.R < 45)],
     ['in a ship, R 45 m and up', ship.filter((b) => b.R >= 45)],
   ];
   const deg = (B) => (B.reduce((a, b) => a + Math.abs(b.k) * (b.s1 - b.s0), 0) / Math.max(1, B.length)) * 57.3;
   const lenOf = (B) => B.reduce((a, b) => a + b.s1 - b.s0, 0) / Math.max(1, B.length);
-  console.log(`\nSKYWAY${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}${SHIP.AIR_SPEED && SHIP.AIR_SPEED !== 1 ? `, open air at ${SHIP.AIR_SPEED}x the ships' speed` : ''}, scripted players at cruise speed in HARD: ${air.length} open-air bends and ${ship.length} ship corners (40 seeds, first 9 km of each)`);
+  console.log(`\nSKYWAY${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}${SHIP.AIR_SPEED && SHIP.AIR_SPEED !== 1 ? `, open air at ${SHIP.AIR_SPEED}x the ships' speed` : ''}, scripted players at cruise speed in HARD: ${air.length} open-air bends, ${spirals.length} spirals and ${ship.length} ship corners (40 seeds, first 9 km of each)`);
+  console.log('  spirals: "held" = one slide kept from the way in to the way out, never let go and never lost.');
   console.log('  slide = seconds the slide is held in the bend (average, and the 90th-percentile bend); road = metres of the road\'s width crossed;');
   console.log('  rails in open air are soft (a touch costs a little speed and the slide); a ship\'s walls are hard.');
   const AIR_PLAYERS = [...PLAYERS, ['line', 'takes the wide line, feathers (open air only)']];
@@ -227,9 +232,9 @@ if (MAP === 'skyway') {
     for (const [kind, label] of AIR_PLAYERS) {
       console.log(`\n${label}`);
       for (const [title, B] of groups) {
-        if (!B.length || (kind === 'line' && !B[0].air)) continue;
+        if (!B.length || (kind === 'line' && (!B[0].air || B[0].spiral))) continue;     // the wide line is a line through one bend, not round a circle
         const r = tally(B, set, kind);
-        const slide = kind === 'plain' ? '' : `  slide ${(r.slideT / r.n).toFixed(1)} s (90th pct ${r.long.toFixed(1)} s, ${(r.len / r.n).toFixed(0)} m)  tier ${(r.tier / r.n).toFixed(1)} (nova ${pct(r.nova, r.n).trim()})`;
+        const slide = kind === 'plain' ? '' : `  slide ${(r.slideT / r.n).toFixed(1)} s (90th pct ${r.long.toFixed(1)} s, ${(r.len / r.n).toFixed(0)} m)  tier ${(r.tier / r.n).toFixed(1)} (nova ${pct(r.nova, r.n).trim()})${B[0].spiral ? `  held ${pct(r.held, r.n).trim()}` : ''}`;
         console.log(`  ${title.padEnd(26)} (${String(r.n).padStart(3)} bends, avg ${lenOf(B).toFixed(0)} m / ${deg(B).toFixed(0)} deg)  clean ${pct(r.clean, r.n)}  outer ${pct(r.outer, r.n)}  inner ${pct(r.inner, r.n)}  road ${(r.road / r.n).toFixed(0).padStart(2)} m${slide}`);
       }
     }

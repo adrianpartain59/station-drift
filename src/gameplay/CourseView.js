@@ -353,9 +353,10 @@ export class CourseView {
   }
 
   // ---------- per frame ----------
-  update(ship, t, dt) {
+  /** `span` = [from, to] in metres: what is kept built round the ship (wider than usual while a spiral is near). */
+  update(ship, t, dt, span) {
     const C = this.course, s = ship.s;
-    const ahead = s + TRACK.VIEW_AHEAD, behind = s - TRACK.KEEP_BEHIND;
+    const ahead = span ? span[1] : s + TRACK.VIEW_AHEAD, behind = span ? span[0] : s - TRACK.KEEP_BEHIND;
 
     while (this.oi < C.obstacles.length && C.obstacles[this.oi].s < ahead) {
       const o = C.obstacles[this.oi++];

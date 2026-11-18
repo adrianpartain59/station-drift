@@ -165,7 +165,7 @@ export class Game {
     this.ship.group.visible = true;
     for (const t of this.trails) t.reset();
     for (const k of this.skids) k.reset();
-    this.lastGateS = 0; this.zone = -1; this.ramp = 0;
+    this.lastGateS = 0; this.zone = -1; this.ramp = 0; this.inSpiral = null;
     this.updateChunks(true);
     this.warmUp();
   }
@@ -498,10 +498,14 @@ export class Game {
     const sunTarget = ph.zone === 0 ? 0.15 : 2.4;
     this.sun.intensity += (sunTarget - this.sun.intensity) * (1 - Math.exp(-3 * dt));
 
-    this.track.ensure(ph.s + TRACK.VIEW_AHEAD + TRACK.CHUNK + 200);
+    this.track.ensure(this.span(ph.s)[1] + TRACK.CHUNK + 200);
     this.course.sync();
     this.updateChunks(false);
-    this.view.update(ph, g.time, dt);
+    this.view.update(ph, g.time, dt, this.span(ph.s));
+    // a spiral: say so on the way in
+    const sp = (this.track.spirals || []).find(([a, b]) => ph.s > a - 90 && ph.s < b);
+    if (sp && sp !== this.inSpiral && playing) { this.hud.banner('SPIRAL', 'HOLD THE SLIDE', 2.4, '#c9a3ff'); this.audio.whoosh(); }
+    this.inSpiral = sp || null;
 
     this.renderShip(dt);
     this.rig.update(raw, g.time, ph, this.pose, this.ship.eye);
@@ -600,10 +604,23 @@ export class Game {
     if (ph.touch > 0 && ph.wallSide) this.wallSparks(ph.wallSide, 3, ph.zone === 1);
   }
 
+  /**
+   * How much of the track is kept built round the ship: [from, to] in metres. Normally a little behind and
+   * the view distance ahead. A spiral is different: the turn you have finished is the roof over your head
+   * and the turn you have not reached is the floor below, so while one is near all of it stays.
+   */
+  span(s) {
+    let from = s - TRACK.KEEP_BEHIND, to = s + TRACK.VIEW_AHEAD;
+    for (const [a, b] of this.track.spirals || []) {
+      if (s > a - TRACK.VIEW_AHEAD && s < b + 420) { from = Math.min(from, a - 160); to = Math.max(to, Math.min(b + 260, s + 2400)); }
+    }
+    return [from, to];
+  }
+
   updateChunks(all) {
-    const s = this.phys.s;
-    const c0 = Math.max(0, Math.floor((s - TRACK.KEEP_BEHIND) / TRACK.CHUNK));
-    const c1 = Math.floor((s + TRACK.VIEW_AHEAD) / TRACK.CHUNK);
+    const s = this.phys.s, [from, to] = this.span(s);
+    const c0 = Math.max(0, Math.floor(from / TRACK.CHUNK));
+    const c1 = Math.floor(to / TRACK.CHUNK);
     for (const [c, grp] of this.chunks) {
       if (c < c0 || c > c1) { this.scene.remove(grp); this.builder.disposeChunk(grp); this.chunks.delete(c); }
     }
@@ -614,7 +631,7 @@ export class Game {
       const grp = this.builder.buildChunk(c);
       this.scene.add(grp);
       this.chunks.set(c, grp);
-      if (!all && ++built >= 2) break;
+      if (!all && ++built >= (to - s > TRACK.VIEW_AHEAD ? 4 : 2)) break;
     }
     this.updateHulls(s);
   }

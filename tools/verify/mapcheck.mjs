@@ -4,8 +4,10 @@
 //   node tools/verify/mapcheck.mjs [--map skyway|classic] [--seeds 200] [--from 1] [--km 12] [--verbose]
 //
 // 1. NO OVERLAP   No two stretches of track come within each other's footprint in plan (road, rails,
-//                 station hull, plus CLEAR metres). The track is endless and built piece by piece, so
-//                 this is checked, not assumed. A bend's own inside edge must have a real radius too.
+//                 station hull, plus CLEAR metres) UNLESS their decks are at least SKYWAY.CLEAR metres
+//                 apart in height: a spiral passing under itself. Nothing at all may be over, under or
+//                 beside a ship. The track is endless and built piece by piece, so this is checked, not
+//                 assumed. A bend's own inside edge must have a real radius too.
 // 2. HEIGHT       Slope within the cap; crest and sag curvature within their caps; slope changes
 //                 smoothly (no kink, and no ramp that starts or ends abruptly: the rate of change of
 //                 slope has no jumps either). Stations and their approaches are level.
@@ -32,7 +34,8 @@ const JERK = (Math.PI / (SKYWAY.SAG_R * SKYWAY.KNOT_MIN)) * 1.02;
 // bend times are worked out at each mode's own cruise speed there (in HARD, SKYWAY's open air runs faster than its ships)
 const speedOf = (mode, T, i) => { applyGame(mode, MAP); return cruiseSpeed(i, T); };
 const fails = [];
-const stat = { air: 0, total: 0, real: 0, any: 0, straight: 0, longest: 0, bends: 0, bendLen: [], bendR: [], bendT: [], bendTe: [], slopeBend: 0, slope: 0,
+const TAU = 2 * Math.PI;
+const stat = { spirals: 0, spiralLen: [], spiralDrop: [], minOver: Infinity, air: 0, total: 0, real: 0, any: 0, straight: 0, longest: 0, bends: 0, bendLen: [], bendR: [], bendT: [], bendTe: [], slopeBend: 0, slope: 0,
   gMax: 0, crest: 0, sag: 0, jerk: 0, yMin: 0, yMax: 0, minGap: Infinity, wMin: Infinity, wSum: 0, wN: 0, stations: 0, stationLen: [], airLen: [], calm: 0 };
 
 function footprint(T, i) {
@@ -54,7 +57,9 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
     let a = grid.get(k); if (!a) grid.set(k, (a = []));
     a.push(i);
   }
-  let worst = Infinity, worstAt = null;
+  // two stretches closer than that in plan must be an over/under pass: decks SKYWAY.CLEAR apart, open air both
+  const needUp = MAP === 'skyway' ? SKYWAY.CLEAR : Infinity;
+  let worst = Infinity, worstAt = null, low = Infinity, lowAt = null;
   for (let i = 0; i < n; i += 2) {
     const cx = Math.floor(T.X[i] / CELL), cz = Math.floor(T.Z[i] / CELL), fi = footprint(T, i);
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
@@ -62,29 +67,46 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
       for (const j of a) {
         if (j <= i + NEAR) continue;
         const gap = Math.hypot(T.X[i] - T.X[j], T.Z[i] - T.Z[j]) - fi - footprint(T, j);
+        const up = Math.abs(T.Y[i] - T.Y[j]);
+        if (gap < CLEAR && up >= needUp && T.ZONE[i] === 1 && T.ZONE[j] === 1) { if (up < low) { low = up; lowAt = [i, j]; } continue; }
         if (gap < worst) { worst = gap; worstAt = [i, j]; }
       }
     }
   }
-  if (worst < CLEAR) fails.push(`seed ${seed}: track comes within ${worst.toFixed(1)} m of itself (s=${worstAt[0]} and s=${worstAt[1]})`);
+  if (worst < CLEAR) fails.push(`seed ${seed}: track comes within ${worst.toFixed(1)} m of itself in plan with only ${Math.abs(T.Y[worstAt[0]] - T.Y[worstAt[1]]).toFixed(1)} m of height between (s=${worstAt[0]} and s=${worstAt[1]})`);
   stat.minGap = Math.min(stat.minGap, worst);
+  stat.minOver = Math.min(stat.minOver, low);
+  void lowAt;
   // a ship's hull is a rectangle along world forward: nothing else may be inside it
   for (const S of T.sections) {
     if (!S.hull || S.s0 > n) continue;
-    const h = S.hull, pad = 20 + CLEAR;
+    // A ship's hull, wings and engines stay within SHIP_REACH of its axis and its ends. Nothing but the
+    // run-in to its mouth and the run-out from its exit may be inside that box, at any height.
+    const h = S.hull, [reach, past] = SKYWAY.SHIP_REACH;
     for (let i = 0; i < n; i += 2) {
-      if (i >= S.s0 - 2 && i < S.s1 + 2) continue;
+      if (i >= S.s0 - 70 && i < S.s1 + 70) continue;
       const f = T.ZONE[i] === 1 ? T.W[i] + RAIL : T.W[i] + HULL;
-      // the road meets the hull only at its two mouths, on the axis
-      const inZ = T.Z[i] > h.z0 + 1 && T.Z[i] < h.z1 - 1;
-      if (inZ && T.X[i] + f > h.x0 + h.uMin - pad && T.X[i] - f < h.x0 + h.uMax + pad) { fails.push(`seed ${seed}: s=${i} runs through the hull of the ship at s=${S.s0}`); break; }
+      if (T.Z[i] > h.z0 - past && T.Z[i] < h.z1 + past && Math.abs(T.X[i] - h.x0) < reach + f) { fails.push(`seed ${seed}: s=${i} is over, under or beside the ship at s=${S.s0}`); break; }
     }
-    if (Math.abs(T.H[S.s0]) > 1e-9 || Math.abs(T.H[S.s1 - 1]) > 1e-9) fails.push(`seed ${seed}: ship at s=${S.s0} is not on its axis at a mouth`);
+    // on its axis at both mouths (world forward, whatever number of whole turns spirals have wound on)
+    for (const q of [S.s0, S.s1 - 1]) if (Math.abs(Math.sin(T.H[q])) > 1e-9 || Math.cos(T.H[q]) < 0.999) fails.push(`seed ${seed}: ship at s=${S.s0} is not on its axis at a mouth`);
   }
   // a bend's own inside edge
+  // heading: never further than the limit from world forward, whole spiral turns aside; a spiral itself is exempt
+  const spin = new Uint8Array(n + 1);
+  for (const [a, b] of T.spirals || []) for (let i = a; i < Math.min(b + 1, n); i++) spin[i] = 1;
   for (let i = 0; i < n; i++) {
     if (T.K[i] !== 0 && 1 / Math.abs(T.K[i]) - T.W[i] < 18) { fails.push(`seed ${seed} s=${i}: inside edge of the bend has radius ${(1 / Math.abs(T.K[i]) - T.W[i]).toFixed(0)} m`); break; }
-    if (Math.abs(T.H[i]) > (MAP === 'skyway' ? SKYWAY.HEADING : TRACK.MAX_HEADING) + 1e-6) { fails.push(`seed ${seed} s=${i}: heading ${T.H[i].toFixed(2)} rad is past the limit`); break; }
+    const hn = T.H[i] - TAU * Math.round(T.H[i] / TAU);
+    if (!spin[i] && Math.abs(hn) > (MAP === 'skyway' ? SKYWAY.HEADING : TRACK.MAX_HEADING) + 1e-6) { fails.push(`seed ${seed} s=${i}: heading ${hn.toFixed(2)} rad is past the limit`); break; }
+  }
+  for (const p of T.pieces) {
+    if (p.type !== 'air-spiral' || p.s1 > n) continue;
+    stat.spirals++; stat.spiralLen.push(p.s1 - p.s0); stat.spiralDrop.push((T.Y[p.s0] - T.Y[p.s1]) / p.turns);
+    // a spiral is exactly what it says: whole turns, one slope
+    const turned = Math.abs(T.H[p.s1] - T.H[p.s0]) / TAU;
+    if (Math.abs(turned - p.turns) > 1e-6) fails.push(`seed ${seed} s=${p.s0}: spiral turns ${turned.toFixed(3)} times, not ${p.turns}`);
+    for (let i = p.s0; i < p.s1; i++) if (Math.abs(T.G[i] - p.grade) > 1e-9) { fails.push(`seed ${seed} s=${i}: spiral's slope is not steady`); break; }
   }
 
   // ---- 2. height ----
@@ -141,10 +163,11 @@ if (MAP === 'skyway') {
   console.log(`  height: steepest slope ${(stat.gMax * 100).toFixed(1)}% (cap ${SKYWAY.GRADE * 100}%); tightest crest R ${(1 / stat.crest).toFixed(0)} m (cap ${SKYWAY.CREST_R}), tightest sag R ${(1 / stat.sag).toFixed(0)} m (cap ${SKYWAY.SAG_R}); range ${stat.yMin.toFixed(0)} .. +${stat.yMax.toFixed(0)} m`);
   console.log(`  on a slope of 3% or more: ${pc(stat.slopeBend, stat.real)} of real-bend distance, ${pc(stat.slope, stat.air)} of all open air`);
 }
-console.log(`  nearest two different stretches come to each other: ${stat.minGap === Infinity ? 'never within range' : stat.minGap.toFixed(0) + ' m between footprints'} (rule: >= ${CLEAR})`);
+if (MAP === 'skyway') console.log(`  spirals: ${stat.spirals} (one per ${((SEEDS * KM) / Math.max(1, stat.spirals)).toFixed(1)} km); ${q(stat.spiralLen, 0).toFixed(0)}-${q(stat.spiralLen, 0.999).toFixed(0)} m of road (median ${q(stat.spiralLen, 0.5).toFixed(0)}); dropping ${q(stat.spiralDrop, 0).toFixed(0)}-${q(stat.spiralDrop, 0.999).toFixed(0)} m a turn; least height between two decks that overlap: ${stat.minOver === Infinity ? 'none overlap' : stat.minOver.toFixed(1) + ' m'} (rule: >= ${SKYWAY.CLEAR})`);
+console.log(`  nearest two different stretches come to each other without passing over or under: ${stat.minGap === Infinity ? 'never within range' : stat.minGap.toFixed(0) + ' m between footprints'} (rule: >= ${CLEAR})`);
 if (fails.length) {
   console.log(`\nFAILED: ${fails.length} problem(s)`);
   for (const f of fails.slice(0, 30)) console.log('  ' + f);
   process.exit(1);
 }
-console.log('\nPASS: the track never runs into itself' + (MAP === 'skyway' ? ', and every slope is within its caps and smooth.' : '.'));
+console.log('\nPASS: the track never runs into itself' + (MAP === 'skyway' ? ' (where it passes under itself the decks are well apart), and every slope is within its caps and smooth.' : '.'));

@@ -33,6 +33,17 @@ export const SKYWAY = {
   HEIGHT_PULL: 80,         // m: how hard the profile is steered back toward the height it started at
   LEVEL: 80,               // m of level road before a station's mouth
 
+  // Downward spirals: the road winds right round, once or twice, dropping far enough each turn to pass under
+  // itself. They are the one place two stretches may overlap in plan, and only with CLEAR metres of height
+  // between the decks. One at most per stretch of open air, and never where it would crowd anything.
+  SPIRAL: 0.5,             // chance, each time a bend is chosen, that it is a spiral (if this stretch has none yet)
+  SPIRAL_R: [82, 104],     // radius: a slide holds it at the angle the arrow flicks to (tools/verify/feel.mjs)
+  SPIRAL_G: [0.05, 0.085], // steady slope down: 26 m a turn at the least
+  SPIRAL_TWO: 0.15,        // chance it goes round twice
+  SPIRAL_AFTER: 380,       // m of open air before the first chance of one
+  CLEAR: 18,               // m of height between two decks that overlap in plan (pods hang 5 m, gates stand 10 m)
+  SHIP_REACH: [150, 60],   // a ship's hull, wings and engines stay within this of its axis, and this far past its ends
+
   // speed zones (see gameplay/Pace.js airFactor): open air runs at SHIP.AIR_SPEED times the ships' speed.
   SLOW: [186, 12],         // the brake field into a ship: this long, done this far before the mouth
   LAUNCH: [10, 170],       // the launch out of one: starts this far past the exit, takes this long
@@ -55,9 +66,13 @@ export class SkywayTrack extends Track {
     this.map = 'skyway';
     this.calmK = S.CALM_K;
     this.F = [];             // per sample: 1 = open air at full speed, 0 = a ship's speed, between = brake field / launch
+    this.wind = 0;           // whole turns already wound on by spirals (rad): the heading rule is about what is left
+    this.spirals = [];       // [s0, s1] of every spiral, for whoever needs to know one is near
   }
 
-  room(dir) { return dir > 0 ? S.HEADING - this.gh : this.gh + S.HEADING; }
+  /** Heading against world forward, with whole spiral turns taken off. */
+  get hn() { return this.gh - this.wind; }
+  room(dir) { return dir > 0 ? S.HEADING - this.hn : this.hn + S.HEADING; }
 
   /** An arc of exactly `angle` radians. dir +1 turns left (heading grows), -1 right. */
   bend(angle, radius, w, dir, flag = 0) {
@@ -76,7 +91,25 @@ export class SkywayTrack extends Track {
   }
 
   // ---------- open air ----------
+  /**
+   * One stretch of open air. A stretch may carry a spiral; if the one it drew would come too close to
+   * anything (see fits), the stretch is laid again, and the third time without one. Still a pure function
+   * of the seed: the draws simply go on from where they were.
+   */
   buildAir(first) {
+    const A = [this.X, this.Z, this.H, this.K, this.W, this.ZONE, this.FLAG, this.SEC, this.Y, this.G, this.F];
+    const at = { len: this.len, pieces: this.pieces.length, sections: this.sections.length, spirals: this.spirals.length,
+      gx: this.gx, gz: this.gz, gh: this.gh, w: this.w, gy: this.gy, wind: this.wind };
+    for (let attempt = 0; ; attempt++) {
+      const sec = this.layAir(first, !first && attempt < 2);
+      if (!sec.spiral || this.fits(sec)) return;
+      for (const a of A) a.length = at.len;
+      this.pieces.length = at.pieces; this.sections.length = at.sections; this.spirals.length = at.spirals;
+      this.gx = at.gx; this.gz = at.gz; this.gh = at.gh; this.w = at.w; this.gy = at.gy; this.wind = at.wind;
+    }
+  }
+
+  layAir(first, maySpiral) {
     const sec = this.beginSection('space');
     sec.air = true;
     const W = S.OPEN_W;
@@ -92,7 +125,7 @@ export class SkywayTrack extends Track {
     }
     const total = first ? this.r(S.FIRST_AIR[0], S.FIRST_AIR[1]) : this.r(S.AIR_LEN[0], S.AIR_LEN[1]);
     const endAt = sec.s0 + total - (S.FUNNEL[0] + S.FUNNEL[1]) - 260;   // room kept for the last bends and the funnel
-    let sinceCalm = first ? 260 : 120, lastDir = 0;
+    let sinceCalm = first ? 260 : 120, lastDir = 0, turnAway = 0;
     const arcOf = (b) => ({ s0: b.s0, s1: b.s1, k: b.k, turn: b.turn });
 
     while (this.len < endAt) {
@@ -102,9 +135,37 @@ export class SkywayTrack extends Track {
         continue;
       }
       const s0 = this.len;
+      if (maySpiral && !sec.spiral && this.len - sec.s0 > S.SPIRAL_AFTER && this.rng() < S.SPIRAL) {
+        // A downward spiral: a short run-in, right round once or twice at a steady slope, a short run-out.
+        // It turns to the side that leaves the most heading for turning away again afterwards, so the road
+        // that follows does not curl back underneath it.
+        const dir = this.room(-1) > this.room(1) ? 1 : -1;
+        const turns = this.rng() < S.SPIRAL_TWO ? 2 : 1;
+        const R = this.r(S.SPIRAL_R[0], S.SPIRAL_R[1]), grade = -this.r(S.SPIRAL_G[0], S.SPIRAL_G[1]);
+        const a = this.straight(this.r(30, 46), W);
+        this.piece('air-straight', a.s0, { w: W });
+        const b = this.bend(2 * Math.PI * turns, R, W, dir);
+        this.wind += dir * 2 * Math.PI * turns;
+        this.piece('air-spiral', b.s0, { w: W, arcs: [arcOf(b)], turns, grade, R });
+        this.spirals.push([b.s0, b.s1]);
+        sec.spiral = [b.s0, b.s1];
+        const c = this.straight(this.r(36, 56), W);
+        this.piece('air-straight', c.s0, { w: W });
+        lastDir = dir; turnAway = -dir;
+        sinceCalm += this.len - s0;
+        continue;
+      }
       const roll = this.rng();
       const big = this.room(1) > this.room(-1) ? 1 : -1;      // the side with more heading left
-      if (roll < 0.26 && this.room(big) > S.HAIRPIN_A[0] + 0.02) {
+      if (turnAway) {
+        // straight after a spiral: a sweeper the other way, out from under it
+        const dir = this.room(turnAway) >= 0.8 ? turnAway : -turnAway;
+        turnAway = 0;
+        const a = Math.min(this.r(S.SWEEP_A[0], S.SWEEP_A[1]), this.room(dir));
+        const b = this.bend(a, this.r(S.SWEEP_R[0], S.SWEEP_R[1]), W, dir);
+        this.piece('air-bend', b.s0, { w: W, arcs: [arcOf(b)] });
+        lastDir = dir;
+      } else if (roll < 0.26 && this.room(big) > S.HAIRPIN_A[0] + 0.02) {
         // a wide hairpin: right round from one side to the other
         const a = this.r(S.HAIRPIN_A[0], Math.min(this.room(big), S.HAIRPIN_A[1]));
         const b = this.bend(a, this.r(S.HAIRPIN_R[0], S.HAIRPIN_R[1]), W, big);
@@ -140,16 +201,16 @@ export class SkywayTrack extends Track {
     }
 
     // line up with the next ship's axis (world forward) on a real bend, never a twitch
-    if (Math.abs(this.gh) < 0.6) {
-      const dir = this.gh === 0 ? (this.rng() < 0.5 ? 1 : -1) : Math.sign(this.gh);
-      const b = this.bend(this.r(0.95, 1.3) - Math.abs(this.gh), this.r(S.SWEEP_R[0], S.SWEEP_R[1]), W, dir);
+    if (Math.abs(this.hn) < 0.6) {
+      const dir = this.hn === 0 ? (this.rng() < 0.5 ? 1 : -1) : Math.sign(this.hn);
+      const b = this.bend(this.r(0.95, 1.3) - Math.abs(this.hn), this.r(S.SWEEP_R[0], S.SWEEP_R[1]), W, dir);
       this.piece('air-bend', b.s0, { w: W, arcs: [arcOf(b)] });
       const g = this.straight(this.r(10, 18), W);
       this.piece('air-straight', g.s0, { w: W });
     }
-    const back = this.bend(Math.abs(this.gh), this.r(S.SWEEP_R[0], S.SWEEP_R[1]), W, -Math.sign(this.gh));
+    const back = this.bend(Math.abs(this.hn), this.r(S.SWEEP_R[0], S.SWEEP_R[1]), W, -Math.sign(this.hn));
     this.piece('air-bend', back.s0, { w: W, arcs: [arcOf(back)], align: true });
-    this.gh = 0;
+    this.gh = this.wind;
 
     // the funnel: full width for a moment, then down to the ship's corridor before its mouth
     const f0 = this.len;
@@ -163,6 +224,39 @@ export class SkywayTrack extends Track {
       const up = first ? 1 : clamp((i - sec.s0 - S.LAUNCH[0]) / S.LAUNCH[1], 0, 1);
       this.F[i] = Math.min(up, clamp((sec.s1 - S.SLOW[1] - i) / S.SLOW[0], 0, 1));
     }
+    return sec;
+  }
+
+  /**
+   * Does the stretch `sec`, which carries a spiral, sit clear of everything? Three things:
+   *  - its slopes are inside the caps (a spiral's slope is fixed, so the road either side has to reach it);
+   *  - wherever any of it overlaps other road in plan (the spiral over itself, or anything else near it),
+   *    the two decks are at least CLEAR metres apart in height;
+   *  - no part of it is over, under or beside a ship: the one behind, or the one that will stand at its end.
+   */
+  fits(sec) {
+    const { X, Z, Y, G, W } = this;
+    for (let i = sec.s0 + 1; i < sec.s1 - 1; i++) {
+      const dg = G[i + 1] - G[i];
+      if (Math.abs(G[i]) > S.GRADE + 1e-9 || -dg > 1 / S.CREST_R + 1e-9 || dg > 1 / S.SAG_R + 1e-9) return false;
+    }
+    const [a, b] = sec.spiral, from = Math.max(0, sec.s0 - 1600);
+    const pad = 2 * 3 + 12;                       // both rails, and room between
+    for (let i = a - 60; i < b + 60; i += 2) {
+      for (let j = from; j < sec.s1; j += 2) {
+        if (Math.abs(i - j) <= 160) continue;
+        const d = W[i] + W[j] + pad, dx = X[i] - X[j], dz = Z[i] - Z[j];
+        if (dx * dx + dz * dz < d * d && Math.abs(Y[i] - Y[j]) < S.CLEAR) return false;
+      }
+    }
+    // ships: the one behind as built, the one ahead wherever it could reach
+    const [reach, past] = S.SHIP_REACH, prev = this.sections[sec.id - 1], ex = this.gx, ez = this.gz;
+    for (let i = sec.s0 + 70; i < sec.s1 - 230; i += 2) {
+      const f = W[i] + 3;
+      if (prev && prev.hull && Z[i] < prev.hull.z1 + past && Math.abs(X[i] - prev.hull.x0) < reach + f) return false;
+      if (Z[i] > ez - past && Math.abs(X[i] - ex) < reach + f) return false;
+    }
+    return true;
   }
 
   /** A calm sweeper: gentle enough for something to stand on it fairly. Straight if the heading has no room. */
@@ -193,6 +287,13 @@ export class SkywayTrack extends Track {
     // knots: [s, slope, fixed, calm (no crest over the stretch that ends here)]
     const knots = [[sec.s0, 0, true, false], [first.s0 + Math.min(30, (first.s1 - first.s0) * 0.5), 0, true, false]];
     for (const p of P.slice(1, -1)) {
+      if (p.type === 'air-spiral') {
+        // a spiral holds one slope from its first metre to its last: that is what makes each turn clear the one above
+        const k = knots[knots.length - 1];
+        if (k[0] === p.s0 && !k[2]) { k[1] = p.grade; k[2] = true; k[3] = false; } else knots.push([p.s0, p.grade, true, false]);
+        knots.push([p.s1, p.grade, true, false]);
+        continue;
+      }
       const len = p.s1 - p.s0, calm = p.type === 'air-calm';
       // long bends get a knot in the middle too, so a hairpin can climb in and drop out (or the reverse)
       if (!calm && len > 190 && this.rng() < 0.75) knots.push([Math.round(p.s0 + len * this.r(0.4, 0.6)), null, false, false]);
@@ -253,7 +354,7 @@ export class SkywayTrack extends Track {
     sec.ship = true;
     const d = this.difficulty(this.len);
     let w = this.nextStationW;
-    this.gh = 0;
+    this.gh = this.wind;
     const x0 = this.gx, z0 = this.gz;
     const total = this.r(S.STATION_LEN[0], S.STATION_LEN[1]) + d * 120;
     const entry = this.straight(64, w);
@@ -266,7 +367,7 @@ export class SkywayTrack extends Track {
       else if (roll < 0.38 && !lastRun) { w = lerp(TRACK.STATION_W[0], TRACK.STATION_W[1], this.rng()); this.runPiece(w, d); lastRun = true; }
       else if (roll < 0.56) { this.shipChicane(w, d, u); lastRun = false; }
       else { this.shipEss(w, d, u, !lastRun); lastRun = false; }
-      this.gh = 0;
+      this.gh = this.wind;
       if (this.rng() < 0.4) { const p = this.straight(this.r(10, 24), w); this.piece('link', p.s0, { w }); }
     }
     const out = this.straight(56, w);

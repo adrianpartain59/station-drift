@@ -856,6 +856,14 @@ export class Course {
       case 'air-straight': this.coinLine(p.s0 + 3, p.s1 - 3, 0, 0); break;
       case 'funnel': this.coinLine(p.s0 + 24, p.s1 - 8, 0, 0); break;
       case 'air-calm': this.airCalm(p, d); break;
+      case 'air-spiral': {
+        // right round: a line of coins a third of the way in from the inside rail, and boards all the way
+        const a = p.arcs[0], in0 = a.turn * 0.5 * lim;
+        this.coinPath([[a.s0 - 8, 0], [a.s0 + 70, in0], [a.s1 - 70, in0], [a.s1 + 10, 0]]);
+        const n = Math.round((a.s1 - a.s0) / 46);
+        for (let i = 0; i < n; i++) this.signs.push({ s: a.s0 + 6 + (i * (a.s1 - a.s0 - 30)) / n, side: -a.turn, turn: a.turn, level: 0, big: true });
+        break;
+      }
       case 'air-bend': case 'air-ess': {
         // the line a long slide wants: in from the middle, down to the inside by two thirds round, out again
         const pts = [[p.arcs[0].s0 - 4, 0]];
