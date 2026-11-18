@@ -35,7 +35,7 @@ export const MODES = {
           // --- the slide (drift button held): same keys, the ship answers differently ---
           SLIDE_ANGLE: 0.45,     // rad: the drift angle a steer key swings the nose to at once (the flick)
           SLIDE_SWING: 3.5,      // rad/s: how fast it swings there (and across, on the other key)
-          SLIDE_WIND: 0.7,       // rad/s: how fast the angle then deepens while the key stays down...
+          SLIDE_WIND: 0.45,      // rad/s: how fast the angle then deepens while the key stays down...
           MAX_SLIP: 0.95,        // rad: ...as far as this, the most the nose can be turned in from the direction of travel
           SLIDE_RETURN: 3,       // 1/s: keys up, how fast the nose eases back toward the way the ship is going
           SLIDE_GRIP: 2.4,       // 1/s: how hard travel is pulled to the nose once the slide has bitten. The ship turns

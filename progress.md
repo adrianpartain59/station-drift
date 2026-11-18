@@ -174,3 +174,33 @@
   drifts banked (was 368), median run 9.1 km (was 6.6): drifting well now pays.
 - Browser, real key events, seed 42: R 50 m bend eased: slid 2.6 m out, came back, banked a boost, no wall.
   Screenshot mid-slide looks right. No console errors. Easy fingerprint unchanged. Build passes.
+- Full hard run on 72ffd61 (410 seeds, 5,200 km): search PASS on every seed. Judged bot: 1 obstacle hit (seed
+  139, laser at s=11336, not traced; same symptom as the open lane-scoring fault), 4 hard wall hits. Drifting
+  bot (reported): 0 obstacle hits, 137 hard wall hits, about 22,000 drifts banked, median run 9.2-9.5 km.
+
+## Adrian's eighth note: almost perfect, a little sharp (2026-11-17)
+- His words: "The drift is much better now, it's almost perfect, it just feels a little sharp for some reason
+  and I can't tell what part of it is causing that or if it's just too sensitive or something. The regular
+  steering may be too sensitive as well." Asked for an opinion first, no changes. Then: "Yes, try it".
+- Measured, turn rate per tenth of a second from the key going down (46 m/s, open ground):
+  | | 0.3 s | 0.4 s | 0.5 s | 0.6 s | 0.8 s | 1.0 s |
+  |---|---|---|---|---|---|---|
+  | plain steering | 0.80 | 1.03 | 1.17 | 1.28 | 1.52 | 1.75 |
+  | slide before | 0.94 | 1.39 | 1.62 | 1.79 | 2.12 | 2.28 |
+  | slide now | 0.89 | 1.26 | 1.43 | 1.53 | 1.75 | 1.97 |
+  A common bend at cruise needs about 0.9-1.1. The slide matched steering for 0.3 s, then hooked: grip finishes
+  biting (0.38 s) while the held arrow is still deepening the angle.
+- Change, one number: SLIDE_WIND 0.7 -> 0.45 rad/s. Steering not touched (the slide does not use the steering
+  rate, and changing both would hide which one mattered).
+- After: 45 degrees round in 0.73 s (was 0.68, plain 0.81); 90 in 1.13 s (was 1.03, plain 1.25); full angle
+  after about 1.2 s of holding (was 0.85 s). Slide-out mid-corner 1.4 m (was 1.3 m). I had told him 2.0 m: that
+  was the tool counting the run-out after the arrow was let go; the tool now reports the first run-out only.
+- Scripted players (clean %, under 45 / 45-55 / 55-65 / 65-80 m): eases the arrow 83 / 100 / 100 / 100 (was 89 /
+  100 / 100 / 100); presses late 58 / 38 / 89 / 100 (was 63 / 49 / 95 / 100); holds everything 58 / 2 / 0 / 0
+  (was 28 / 0 / 0 / 0).
+- Not chosen: smaller flick (kept as the next candidate if a tap alone feels sharp); slower bite (delays the
+  hook 0.1 s and makes it steeper); both softenings together (eases-the-arrow player 63% on tight bends).
+- 30 seeds hard: PASS; judged bot 0 obstacle hits, 0 hard wall hits; drifting bot 0 obstacle hits, 15 hard wall
+  hits (4 before this change), 1,553 drifts banked. Full 410-seed run not repeated: the course, the search and
+  the judged bot do not depend on this number. Easy fingerprint unchanged. Build passes. Browser, real keys,
+  seed 42 R 50 m bend held 0.8 s: nose 20 -> 43 degrees (53 before), slid out and came back, no wall, no errors.

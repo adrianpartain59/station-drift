@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 13 (new drift built; waiting on Adrian's hands), branch `hard-mode` from main @ e2e6eb5
+Phase 14 (drift softened a little; waiting on Adrian's hands), branch `hard-mode` from main @ e2e6eb5
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -126,10 +126,15 @@ small tweaks, review everything asked for so far, suggest a different system.
 - Known cost, stronger than I warned: holding the arrow all the way through any bend cuts inside.
 - Status: complete, pending the full verification run and Adrian's hands.
 
+### Phase 14: A little less sharp (Adrian's eighth note, 2026-11-17)
+His note: much better, almost perfect, a little sharp; regular steering may be too sensitive too.
+- Measured the hook 0.3-0.5 s into a held slide; SLIDE_WIND 0.7 -> 0.45 on its own. Steering left alone.
+- Status: complete, pending Adrian's hands.
+
 ## Next Step
-Adrian plays hard. Likely first notes: how fast the angle deepens while the arrow is held (SLIDE_WIND), how far
-it slides out when SPACE goes down (SLIDE_LOOSE, BITE_TIME), the exit tuck (EXIT_PULL). Measure any change with
-`npm run feel` first. Still open: test bot's lane scoring (Phase 12). Merge `hard-mode` only when he says.
+Adrian plays hard. If a tap of the arrow alone still feels sharp: SLIDE_ANGLE 0.45 -> 0.37 (measured candidate).
+Regular steering (TURN_RATE 1.35 -> 1.2) only as its own round, on his say. Still open: test bot's lane scoring
+(Phase 12; seeds 5147 and 139). Measure any change with `npm run feel` first. Merge `hard-mode` only when he says.
 
 ## Decisions Made
 | Decision | Why |

@@ -72,8 +72,8 @@ function slideOut(set, hold = 0.7) {
   const x0 = p.x; let peak = -9, tPeak = 0, back = null;
   for (let n = 1; n <= 240; n++) {
     const t = n / 120; p.step(dt, { steer: t < hold ? -1 : 0, drift: true });
-    const o = p.x - x0; if (o > peak) { peak = o; tPeak = t; }
-    if (back === null && t > tPeak && peak > 0.3 && o <= 0) back = t;
+    const o = p.x - x0;
+    if (back === null) { if (o > peak) { peak = o; tPeak = t; } if (t > tPeak && peak > 0.3 && o <= 0) back = t; }   // the first run-out only
   }
   return `slides ${Math.max(0, peak).toFixed(1)} m wide (furthest at ${tPeak.toFixed(2)} s)${back ? `, back on its line at ${back.toFixed(2)} s` : ''}`;
 }
