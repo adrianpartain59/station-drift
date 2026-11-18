@@ -131,6 +131,9 @@ His note: much better, almost perfect, a little sharp; regular steering may be t
 - Measured the hook 0.3-0.5 s into a held slide; SLIDE_WIND 0.7 -> 0.45 on its own. Steering left alone.
 - Status: complete, pending Adrian's hands.
 
+### Phase 15: Hard is the default mode (Adrian, 2026-11-17)
+- A new player starts in HARD; a saved pick of EASY is kept. Status: complete.
+
 ## Next Step
 Adrian plays hard. If a tap of the arrow alone still feels sharp: SLIDE_ANGLE 0.45 -> 0.37 (measured candidate).
 Regular steering (TURN_RATE 1.35 -> 1.2) only as its own round, on his say. Still open: test bot's lane scoring

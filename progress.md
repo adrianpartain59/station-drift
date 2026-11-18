@@ -204,3 +204,10 @@
   hits (4 before this change), 1,553 drifts banked. Full 410-seed run not repeated: the course, the search and
   the judged bot do not depend on this number. Easy fingerprint unchanged. Build passes. Browser, real keys,
   seed 42 R 50 m bend held 0.8 s: nose 20 -> 43 degrees (53 before), slid out and came back, no wall, no errors.
+
+## Hard is the default mode (2026-11-17, Adrian: "make hard mode the default")
+- `DEFAULT_MODE = 'hard'` in core/Modes.js; GameState starts there when nothing is saved, and when the saved
+  value is not a mode. A player who picked EASY keeps EASY (their pick is saved); `?mode=` still wins.
+- Checked in the browser: nothing saved -> HARD; chose easy earlier -> EASY; saved nonsense -> HARD. No console
+  errors. Easy fingerprint unchanged; easy 20 seeds PASS, hard 20 seeds PASS; build passes.
+- The verify tools keep their own defaults (`npm run verify` = easy, `npm run verify:hard` = hard).

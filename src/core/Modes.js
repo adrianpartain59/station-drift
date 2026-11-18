@@ -81,9 +81,12 @@ export const MODES = {
   },
 };
 
-/** Make `name` the live rule set. Unknown names fall back to easy. */
+/** The game a new player starts in, until they pick the other one (their pick is remembered). */
+export const DEFAULT_MODE = 'hard';
+
+/** Make `name` the live rule set. Unknown names fall back to the default. */
 export function applyMode(name) {
-  const mode = MODES[name] ? name : 'easy';
+  const mode = MODES[name] ? name : DEFAULT_MODE;
   for (const [g, target] of Object.entries(GROUPS)) {
     for (const k of Object.keys(target)) if (!(k in BASE[g])) delete target[k];
     Object.assign(target, clone(BASE[g]), clone(MODES[mode].set[g] || {}));

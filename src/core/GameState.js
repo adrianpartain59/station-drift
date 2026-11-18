@@ -1,4 +1,5 @@
 import { CLOCK } from './Constants.js';
+import { MODES, DEFAULT_MODE } from './Modes.js';
 
 function load(key, fallback) {
   try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
@@ -9,7 +10,8 @@ function save(key, value) {
 
 class State {
   constructor() {
-    this.mode = load('sd.mode', 'easy');     // easy | hard (core/Modes.js)
+    const saved = load('sd.mode', DEFAULT_MODE);   // easy | hard (core/Modes.js); hard unless the player chose easy
+    this.mode = MODES[saved] ? saved : DEFAULT_MODE;
     this.bests = { easy: load('sd.best2', 0), hard: load('sd.best2.hard', 0) };
     this.bank = load('sd.bank', 0);
     this.muted = load('sd.muted', false);
