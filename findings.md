@@ -65,3 +65,42 @@ Research content below is summarised from web sources by a research subagent. Tr
 - The layout carries about 20 m of margin over the verifier's bar (self-test: a 45 m shove fails everywhere,
   a 20 m shove almost nowhere).
 - Final numbers and the scripted-player table are in progress.md.
+
+## Hard-mode drift: review after seven notes, and a proposed replacement (2026-11-17)
+What he asked for, in order, and what each became:
+1. No automatic turning, more sensitive steering, no time limit on a held key, a more slippery drift "so that the
+   sensitivity is the same but it slides outwards more" -> manual handling; grip in the slide cut to a third.
+2. Steering too sensitive; drift still not sliding out enough -> grip in the slide cut again AND a cap: a
+   sliding ship cannot travel an arc tighter than 60 m. He called the slide "perfect".
+3. Exit dives at the inside wall -> exit logic. 4. Now the outside wall -> middle. Settled: "feels good now".
+5. Does not slide out enough, takes drifts too sharp, steering down a bit -> cap scales with the bend.
+6. Rigid; should allow sharper turns; no sharper than normal turning.
+
+Pattern: notes 1, 2 and 5 each asked for the ship to run wider, and each was answered by taking away some of
+the slide's ability to turn. Nothing was ever added. The cap from note 2 gave the wide slide he liked on the
+common bends and is also the whole of the rigidity: past 12-18 degrees of slip (a quarter second of key) the
+ship rides one arc and the keys change only how it looks. One arc cannot be both wide enough to slide and tight
+enough to turn; every note since has moved that one arc back and forth.
+
+What he has described, taken together: the ship breaks loose and slides out when the button goes down; the
+drift is the sharp turn, sharper than steering; he can tighten or widen it while it is happening; it comes out
+straight (done); nothing reads the track for him.
+
+Proposed: a steerable slide (kart-style, with momentum). Hard mode only.
+- In: SPACE with a direction held. Grip lets go, the nose flicks about 25 degrees into the turn in ~0.15 s
+  (now 8 degrees), the direction locks until the button comes up.
+- The keys set how tight it is, three plain states, eased over ~0.2 s:
+  inside key = tighter the longer it is held, up to about 2.2 rad/s (R 21 m at 46 m/s; plain steering tops out
+  at 1.85); no key = a steady slide, about 1.0 rad/s (R 46 m, the common bend); outside key = wide, about
+  0.3 rad/s, nearly straight but still sliding.
+- Slide-out is the first ~0.35 s of every slide: the turn fades in from nothing while the nose is already in,
+  so the ship runs 1.5-2 m wide, then bites. Same amount on every bend, not a function of the bend's radius.
+- Nose angle follows the state (about 12 / 28 / 48 degrees). Deeper scrubs more speed and charges faster.
+- Exit as now. Plain steering as now. No track reading: a held slide with no key keeps turning on its steady
+  arc because the button is held, not because a bend is there.
+- Reverses one earlier instruction on purpose: "the sensitivity is the same" in the slide (note 1).
+- Alternative considered: nose-led slide (keys still turn the nose, faster in a slide; travel follows the nose
+  with low grip and no cap). Freer, but holding the key always winds to the tightest arc, so every bend needs
+  feathering. Harder to like in the first minute.
+- Fairness proof unaffected either way: layout and proof assume plain steering only.
+- Tune before he touches it with scripted players in tools/verify/feel.mjs: hold everything, feather, late press.

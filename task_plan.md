@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 11 (hard mode feel, round six), branch `hard-mode` from main @ e2e6eb5
+Phase 12 (drift review; proposal waiting on Adrian), branch `hard-mode` from main @ e2e6eb5
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -108,8 +108,19 @@ round a corner, it does not, he takes the drift too sharp and has an accident. T
 - Exit untouched.
 - Status: complete, pending Adrian's hands.
 
+### Phase 12: Drift review and a different system (Adrian's seventh note, 2026-11-17)
+His note: the drift feels rigid, should allow sharper turns, feels no sharper than normal turning; stop the
+small tweaks, review everything asked for so far, suggest a different system.
+- Measured: in the drift the ship turns at 0.50 rad/s whatever the keys do; plain steering reaches 1.85.
+- Review and proposal (steerable slide) written to findings.md, last section. Nothing built: his call first.
+- Open, separate: test bot leaves an opening for a blocked lane when the gate is in sight but past its
+  look-ahead (seed 5147). Root fix: score every lane against every obstacle in sight, not just those the
+  look-ahead reaches. Autopilot.js will be open anyway if the drift is rebuilt.
+- Status: waiting for Adrian's go on the proposal.
+
 ## Next Step
-Adrian plays hard again. Then: merge `hard-mode` into `main` when he is happy with it.
+Adrian decides on the steerable slide (findings.md, last section). If yes: build in ShipPhysics.stepManual,
+tune with scripted players, verify, then he plays.
 
 ## Decisions Made
 | Decision | Why |

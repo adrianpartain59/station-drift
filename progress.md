@@ -122,3 +122,24 @@
   4.1 -> 3.8, shortest sight time 1.20 -> 1.32 s.
 - Hard, 30 seeds: PASS. Grip bot 0 obstacle hits, 0 hard wall hits; sliding bot 0 obstacle hits, 2 hard wall hits.
   Easy fingerprint unchanged. Build passes. No console errors.
+- Full hard run on 5a270f5 (410 seeds, 5,200 km): search PASS on every seed, 3.9-4.0 obstacles per km, shortest
+  sight 1.24 s, narrowest opening 5.40 m. Judged grip bot: 1 obstacle hit (seed 5147, laser at s=6178), 2 hard
+  wall hits. Sliding bot (reported): 1 obstacle hit, 38 hard wall hits, 6 lost.
+- Seed 5147 traced, bot fault: lined up with a laser gate's only opening 109 m out, the planner left for a
+  lane the gate blocks, because the gate was in sight but beyond its 1.3 s look-ahead, so no lane was scored
+  against it. It came back late, overshot, and hit the beam. Not fixed (see task_plan Phase 12).
+
+## Adrian's seventh note: the drift feels rigid (2026-11-17)
+- His words: "The drift still feels very rigid. I think that it needs to allow you to take sharper turns. Right
+  now, it doesn't really feel any sharper than when you're normally turning, and this doesn't have to do with
+  the exit angle." Asked for a review of everything he has asked for and a different system, not more tweaks.
+- Measured, open plain, 46 m/s, key held throughout:
+  | | travel turned 45 degrees after | turn rate it settles at |
+  |---|---|---|
+  | plain steering | 0.80 s | 1.85 rad/s |
+  | drift (key + SPACE) | 1.62 s | 0.50 rad/s |
+  In the drift the rate is 0.50 rad/s from 0.25 s on whether the key is held or tapped. Letting go lets it fade;
+  the opposite key swings it the other way. Nothing makes it tighter. So he is right on both counts: the drift
+  turns the ship about a quarter as sharply as not drifting, and the keys do nothing to tighten it.
+- Cause: the cap on the slide's arc (60 m since phase 9, 60-90 m since phase 11), reached at 12-18 degrees of
+  slip. Review and proposal: findings.md, last section.
