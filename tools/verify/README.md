@@ -53,3 +53,14 @@ seed. If that ever passes, the check has stopped checking.
 
 When you change anything in `SHIP`, `DRIFT`, `FAIR` or `COURSE` (Constants.js), a mode's overrides
 (core/Modes.js) or the designers (Course.js), run it again for both modes.
+
+## How a slide feels (hard mode)
+
+`npm run feel` is not a pass/fail check. It runs a hands-only drift (key + SPACE through the bend, then
+hands off) through every station bend of 40 seeds and prints, by bend radius, how many end clean, on the
+outside wall, or on the inside wall, and how much of the corridor's width the slide used. Run it before and
+after changing the slide or steering numbers in `SHIP.MANUAL`; add `NAME=value` to see a change side by side:
+
+```bash
+node tools/verify/feel.mjs SLIDE_WIDE=1.25
+```
