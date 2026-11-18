@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 12 (drift review; proposal waiting on Adrian), branch `hard-mode` from main @ e2e6eb5
+Phase 13 (new drift built; waiting on Adrian's hands), branch `hard-mode` from main @ e2e6eb5
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -118,10 +118,18 @@ small tweaks, review everything asked for so far, suggest a different system.
   look-ahead reaches. Autopilot.js will be open anyway if the drift is rebuilt.
 - Status: waiting for Adrian's go on the proposal.
 
+### Phase 13: The slide obeys the keys (Adrian: "Build it", 2026-11-17)
+- Built as revised: same keys, same meanings. SPACE: grip lets go, the ship breaks loose about 1.3 m, then bites.
+  Arrows set the drift angle (flick to 26 degrees, deeper while held, eases back when let go, other arrow
+  swings across). The ship turns at grip x angle with no cap: sharper than steering when deep.
+- One departure from what I told him: EXIT_PULL 5.0 -> 3.0 (see progress.md for why).
+- Known cost, stronger than I warned: holding the arrow all the way through any bend cuts inside.
+- Status: complete, pending the full verification run and Adrian's hands.
+
 ## Next Step
-Adrian decides on the revised drift (findings.md, "Revision the same evening"). RULE FROM ADRIAN: do not change
-the controls at all: no new keys, and no key may change what it does. If yes: build in ShipPhysics.stepManual,
-tune with scripted players, verify, then he plays.
+Adrian plays hard. Likely first notes: how fast the angle deepens while the arrow is held (SLIDE_WIND), how far
+it slides out when SPACE goes down (SLIDE_LOOSE, BITE_TIME), the exit tuck (EXIT_PULL). Measure any change with
+`npm run feel` first. Still open: test bot's lane scoring (Phase 12). Merge `hard-mode` only when he says.
 
 ## Decisions Made
 | Decision | Why |

@@ -143,3 +143,34 @@
   turns the ship about a quarter as sharply as not drifting, and the keys do nothing to tighten it.
 - Cause: the cap on the slide's arc (60 m since phase 9, 60-90 m since phase 11), reached at 12-18 degrees of
   slip. Review and proposal: findings.md, last section.
+
+## New drift built: the slide obeys the keys (2026-11-17, Adrian: "Build it")
+- Controls untouched (his rule). Plain steering untouched. Only the ship's response while SPACE is held changed.
+- What it does now (ShipPhysics.stepManual, numbers in SHIP.MANUAL):
+  - SPACE down: grip lets go at once (LET_GO 60) to SLIDE_LOOSE 0.5, then bites to SLIDE_GRIP 2.4 over 0.38 s.
+  - An arrow flicks the nose to 26 degrees (SLIDE_ANGLE 0.45 rad at 3.5 rad/s), then winds it deeper at
+    0.7 rad/s while held, to 54 degrees. Arrows up: the angle eases back (3 /s). Other arrow: swings across.
+  - The ship turns at grip x angle, no cap: 1.1 rad/s at the flick angle, 2.28 at full angle (plain: 1.85).
+  - Exit mechanism unchanged; EXIT_PULL 5.0 -> 3.0 (tuck 32% -> 21% of the drift angle). Reason: the old slide
+    left the ship running wide at release and the tuck cancelled it; the new slide leaves it on its line, so
+    the same tuck threw it at the inside wall.
+- Measured (npm run feel), 46 m/s, one key held: 45 degrees round in 0.68 s with SPACE, 0.81 s without; 90 in
+  1.03 s against 1.25 s. SPACE in the middle of a corner: slides 1.3 m wide, back on its line at 0.69 s.
+- Scripted players, 779 station bends, clean % by radius (under 45 / 45-55 / 55-65 / 65-80 m):
+  | player | clean | outer wall / inner wall, all bends |
+  |---|---|---|
+  | eases the arrow on and off (hands 0.18 s late) | 89 / 100 / 100 / 100 | 3% / 0% |
+  | no drift, plain steering, same judgement | 90 / 76 / 100 / 100 | 14% / 0% |
+  | presses SPACE 0.25 s late | 63 / 49 / 95 / 100 | 36% / 0% |
+  | holds arrow + SPACE all the way | 28 / 0 / 0 / 0 | 0% / 90% |
+  The last row is the known cost: a held arrow keeps tightening, so holding it right through cuts inside.
+- Tried and dropped, all measured with the same tool: keys turning the nose at a plain rate x 1.25 (inward jerk
+  at the flick, no slide-out); a pause at the flick angle before it deepens (did not save the hold-everything
+  player, hurt the others); a harder break-loose (2.4-3.3 m slide-out, but a late press hits the outside wall
+  in half the common bends); wash-out past a peak angle (hold-everything 50-69% clean on common bends, but the
+  drift is then no sharper than steering: 45 degrees in 0.84-0.93 s).
+- Test bot: slide rule rewritten for the new slide; stopped it dithering on the drift button. 30 seeds hard:
+  PASS; judged bot 0 obstacle hits, 0 hard wall hits; drifting bot 0 obstacle hits, 4 hard wall hits, 1,560
+  drifts banked (was 368), median run 9.1 km (was 6.6): drifting well now pays.
+- Browser, real key events, seed 42: R 50 m bend eased: slid 2.6 m out, came back, banked a boost, no wall.
+  Screenshot mid-slide looks right. No console errors. Easy fingerprint unchanged. Build passes.

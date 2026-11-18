@@ -45,7 +45,7 @@ export class ShipPhysics {
     this.engineCut = false; this.braking = false;
     this.straightT = 0; this.scrub = 0;
     this.psi = 0; this.gripNow = SHIP.MANUAL ? SHIP.MANUAL.GRIP_RATE : 0;   // manual handling: nose angle, live grip
-    this.holdT = 0; this.holdDir = 0; this.kick = 0; this.kickT = 0;
+    this.holdT = 0; this.holdDir = 0;
     this.yawRate = 0; this.k = 0; this.w = 10; this.zone = 1; this.lim = 8;
     this.dist = 0;
   }
@@ -63,7 +63,7 @@ export class ShipPhysics {
     this.touch = o.touch; this.wallSide = o.wallSide; this.scrape = o.scrape;
     this.engineCut = o.engineCut; this.braking = o.braking; this.yawRate = o.yawRate;
     this.straightT = o.straightT; this.scrub = o.scrub; this.psi = o.psi; this.gripNow = o.gripNow;
-    this.holdT = o.holdT; this.holdDir = o.holdDir; this.kick = o.kick; this.kickT = o.kickT;
+    this.holdT = o.holdT; this.holdDir = o.holdDir;
     this.k = o.k; this.w = o.w; this.zone = o.zone; this.lim = o.lim; this.dist = o.dist;
     return this;
   }
@@ -123,13 +123,16 @@ export class ShipPhysics {
 
   // ---------- one physics step ----------
   /**
-   * HARD mode: fully manual. Nothing steers for you.
+   * HARD mode: fully manual. Nothing steers for you, and the keys mean the same thing everywhere.
    *   - A steer key turns the NOSE, at a rate that builds while the key is held (a tap is a nudge, a
    *     hold is a turn) and for as long as it is held: there is no angle it stops at, and no bend is
    *     followed for you. Let go and the nose stays where it points.
-   *   - The direction of TRAVEL is pulled round to the nose by grip. With grip that is almost
-   *     immediate. Hold the drift button and grip lets go: the nose turns exactly as fast as before,
-   *     but the ship keeps travelling the old way for a moment and slides wide of the bend.
+   *   - The direction of TRAVEL is pulled round to the nose by grip. With grip that is almost immediate.
+   *   - Hold the drift button and grip lets go. The ship breaks loose and runs wide for a moment, then
+   *     bites. While it slides the steer keys set the drift angle: a key flicks the nose in at once and
+   *     winds it deeper while held, keys up eases it back, the other key swings it across. The ship
+   *     turns as hard as grip x angle, with no cap, so a deep slide is a sharper turn than steering.
+   *   - Let the button go and the nose swings back to the line of travel (a small tuck toward it).
    *   - Charge builds from real slip in a real bend, so a slide cannot be worked down a straight.
    */
   stepManual(dt, inp) {
@@ -147,11 +150,10 @@ export class ShipPhysics {
     const building = raw !== 0 && Math.sign(raw) === Math.sign(this.steer || raw) && Math.abs(raw) >= Math.abs(this.steer);
     this.steer += (raw - this.steer) * ease(building ? M.STEER_IN : M.STEER_OUT, dt);
     // held on, the turn winds up a little further (for a bend tighter than a quick turn can make)
-    this.holdT = raw !== 0 && Math.sign(raw) === this.holdDir ? this.holdT + dt : 0;
+    const same = raw !== 0 && Math.sign(raw) === this.holdDir;
+    this.holdT = same ? this.holdT + dt : 0;
     this.holdDir = Math.sign(raw);
     const rate = M.TURN_RATE + (M.TURN_MAX - M.TURN_RATE) * smooth((this.holdT - M.WIND[0]) / (M.WIND[1] - M.WIND[0]));
-    const om = this.steer * rate;
-    this.yawRate = om;
 
     // ---- drift button: grip lets go ----
     const want = !!inp.drift && v > DRIFT.MIN_SPEED && !this.engineCut;
@@ -159,11 +161,12 @@ export class ShipPhysics {
     if (!this.drift && want && !this.driftLock) {
       this.drift = true; this.driftT = 0; this.driftDir = 0;
       this.charge = 0; this.tier = -1; this.driftDist = 0; this.driftPts = 0;
-      // the tail steps out the way the ship is being steered
-      this.kick = Math.abs(raw) > 0.3 ? Math.sign(raw) * M.KICK : 0; this.kickT = this.kick ? M.KICK_TIME : 0;
       this.emit('driftStart', { dir: 0, switched: false });
     } else if (this.drift && !want) { this.endDrift(); this.exitT = M.EXIT_TIME; }
-    this.gripNow += ((this.drift ? M.SLIDE_GRIP : M.GRIP_RATE) - this.gripNow) * ease(this.drift ? M.LET_GO : M.HOOK_UP, dt);
+    // Grip while sliding: very little at the moment the button goes down (the ship breaks loose and runs
+    // wide with its nose already turned in), then it bites over BITE_TIME and the ship carves.
+    const hold = this.drift ? lerp(M.SLIDE_LOOSE, M.SLIDE_GRIP, smooth(this.driftT / M.BITE_TIME)) : M.GRIP_RATE;
+    this.gripNow += (hold - this.gripNow) * ease(this.drift ? M.LET_GO : M.HOOK_UP, dt);
     // Coming out of a slide the nose is turned well inside the way the ship is actually going. If grip
     // simply came back, the ship would be yanked round to the nose and dive at the inside wall. So for a
     // moment the nose swings back out to the line of travel instead, and grip returns as it gets there:
@@ -172,21 +175,31 @@ export class ShipPhysics {
     const out = exiting ? 1 - this.exitT / M.EXIT_TIME : 1;   // 0 at the moment of letting go .. 1 when it is over
 
     // ---- nose and travel, both measured against the corridor, which turns under the ship at k * sdot ----
-    this.psi += (om + k * sdot) * dt;
-    if (this.kickT > 0) { const h = Math.min(dt, this.kickT); this.psi += (this.kick / M.KICK_TIME) * h; this.kickT -= h; }
-    if (exiting) { this.psi += (this.theta - this.psi) * ease(M.EXIT_RATE, dt); this.exitT -= dt; }
+    // How fast the direction of travel comes round to the nose: grip times how far the nose is turned in.
+    // Sliding, grip is low, so the ship lags its nose and runs wide; but nothing caps it, so the further in
+    // the nose is turned, the tighter the ship carves. The keys decide the line the whole way through.
     let slip = this.psi - this.theta;
-    // How fast the direction of travel comes round to the nose. Sliding, that is slower, and it tops out:
-    // however far in the nose is turned, the ship cannot travel an arc tighter than a set radius. That radius
-    // is the bend's own and a bit more (SLIDE_WIDE), so a held slide runs wide of the bend it is in instead
-    // of cutting inside it, kept between SLIDE_RADIUS (tight bends, which it runs wide of all the more) and
-    // SLIDE_RADIUS_MAX (straights and sweepers).
-    let pull = slip * (exiting ? lerp(M.EXIT_PULL, this.gripNow, out * out) : this.gripNow);
-    if (this.drift) {
-      const arc = clamp(M.SLIDE_WIDE / Math.max(Math.abs(k), 1e-6), M.SLIDE_RADIUS, M.SLIDE_RADIUS_MAX);
-      const top = v / arc; pull = clamp(pull, -top, top);
-    }
+    const pull = slip * (exiting ? lerp(M.EXIT_PULL, this.gripNow, out * out) : this.gripNow);
     this.theta += (pull + k * sdot) * dt;
+    if (this.drift) {
+      // Sliding, the same keys still turn the nose, but against the way the ship is going. A key swings it
+      // to a drift angle on that side at once (the flick, SLIDE_ANGLE), then winds it deeper for as long as
+      // the key stays down, as far as MAX_SLIP. Keys up, it eases back and the slide lets up. The other key
+      // swings it across. So the angle, and with it how tight the ship carves, is always the player's.
+      if (raw !== 0) {
+        const dir = Math.sign(raw), into = slip * dir;                 // how far in the nose already is on the key's side
+        const wind = M.SLIDE_WIND * dt;
+        const step = into < M.SLIDE_ANGLE ? Math.min(M.SLIDE_SWING * dt, M.SLIDE_ANGLE - into + wind) : wind;
+        slip = clamp(slip + dir * step * Math.abs(raw), -M.MAX_SLIP, M.MAX_SLIP);
+      } else slip *= Math.exp(-M.SLIDE_RETURN * dt);
+      this.yawRate = (this.theta + slip - this.psi) / dt - k * sdot;
+      this.psi = this.theta + slip;
+    } else {
+      const om = this.steer * rate;
+      this.yawRate = om;
+      this.psi += (om + k * sdot) * dt;
+      if (exiting) { this.psi += (this.theta - this.psi) * ease(M.EXIT_RATE, dt); this.exitT -= dt; }
+    }
     // on a straight with the keys up, a nose within a degree or two of dead ahead settles dead ahead
     if (raw === 0 && k === 0 && !this.drift && Math.abs(this.psi) < M.DETENT) this.psi *= Math.exp(-M.DETENT_RATE * dt);
     this.psi = clamp(this.psi, -M.MAX_ANGLE, M.MAX_ANGLE);

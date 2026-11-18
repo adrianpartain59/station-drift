@@ -32,22 +32,22 @@ export const MODES = {
           STEER_IN: 6,           // 1/s: how fast a held key builds to its rate (a tap is a nudge)
           STEER_OUT: 18,         // 1/s: how fast it lets go
           GRIP_RATE: 11,         // 1/s: how hard the direction of travel is pulled round to the nose, with grip
-          // --- the slide (drift button held): the nose turns exactly as before, the ship does not follow it ---
-          SLIDE_GRIP: 2.4,       // 1/s: how hard travel is pulled to the nose while sliding. Lower = slower to come round
-          // However far in the nose is turned, a sliding ship cannot travel an arc tighter than this:
-          SLIDE_WIDE: 1.15,      //   the radius of the bend it is in, times this (so a held slide always runs wide of the
-                                 //   bend rather than cutting inside it). Higher = every slide runs wider.
-          SLIDE_RADIUS: 60,      //   m, at the least: bends tighter than about 50 m are run wide of all the more
-          SLIDE_RADIUS_MAX: 90,  //   m, at the most: what it gets on straights and long sweepers
-          MAX_SLIP: 0.95,        // rad: the most the nose can be turned in from the direction of travel (no spin-outs)
-          KICK: 0.14,            // rad the tail steps out when the button goes down with a steer key held
-          KICK_TIME: 0.12,
+          // --- the slide (drift button held): same keys, the ship answers differently ---
+          SLIDE_ANGLE: 0.45,     // rad: the drift angle a steer key swings the nose to at once (the flick)
+          SLIDE_SWING: 3.5,      // rad/s: how fast it swings there (and across, on the other key)
+          SLIDE_WIND: 0.7,       // rad/s: how fast the angle then deepens while the key stays down...
+          MAX_SLIP: 0.95,        // rad: ...as far as this, the most the nose can be turned in from the direction of travel
+          SLIDE_RETURN: 3,       // 1/s: keys up, how fast the nose eases back toward the way the ship is going
+          SLIDE_GRIP: 2.4,       // 1/s: how hard travel is pulled to the nose once the slide has bitten. The ship turns
+                                 //      at SLIDE_GRIP x angle: about 0.95 rad/s at SLIDE_ANGLE, 2.2 at MAX_SLIP
+          SLIDE_LOOSE: 0.5,      // 1/s: ...and at the moment the button goes down: the ship breaks loose and runs wide
+          BITE_TIME: 0.38,       // s from breaking loose to full bite
           // --- coming out of the slide: the nose swings back to the line of travel, the ship keeps its line ---
           EXIT_TIME: 0.32,       // s that takes
           EXIT_RATE: 11,         // 1/s: how fast the nose swings back
-          EXIT_PULL: 5.0,        // 1/s: how much the ship is still pulled toward the nose at the moment of letting go
+          EXIT_PULL: 3.0,        // 1/s: how much the ship is still pulled toward the nose at the moment of letting go
                                  //      (the rest of its grip comes back over EXIT_TIME). Higher = more of a tuck-in.
-          LET_GO: 14,            // 1/s: how fast grip goes when the button goes down
+          LET_GO: 60,            // 1/s: how fast grip goes when the button goes down
           HOOK_UP: 6,            // 1/s: ...and comes back when it is let go
           SLIDE_DRAG: 5,         // m/s^2 lost per radian of slip while sliding
           CHARGE_SLIP: [0.08, 0.28], // slip (rad) at which charge starts, and at which it charges at full rate

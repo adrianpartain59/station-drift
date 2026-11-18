@@ -56,11 +56,19 @@ When you change anything in `SHIP`, `DRIFT`, `FAIR` or `COURSE` (Constants.js), 
 
 ## How a slide feels (hard mode)
 
-`npm run feel` is not a pass/fail check. It runs a hands-only drift (key + SPACE through the bend, then
-hands off) through every station bend of 40 seeds and prints, by bend radius, how many end clean, on the
-outside wall, or on the inside wall, and how much of the corridor's width the slide used. Run it before and
-after changing the slide or steering numbers in `SHIP.MANUAL`; add `NAME=value` to see a change side by side:
+`npm run feel` is not a pass/fail check. It prints, for the slide as it stands:
+
+- how sharp it is: how long one held key takes to turn the ship 45 and 90 degrees, with and without SPACE,
+  and how far the ship slides out when SPACE goes down in the middle of a corner;
+- what four scripted players do on every station bend of 40 seeds, by bend radius: one who holds everything,
+  one who eases the arrow on and off like a person (hands 0.18 s behind eyes), one who presses SPACE late,
+  and one who does not drift at all. For each: how many bends end clean, on the outside wall, or on the
+  inside wall, how much of the corridor's width was used, and the boost banked.
+
+Run it before and after changing the slide or steering numbers in `SHIP.MANUAL`. `NAME=value` shows a change
+side by side; `--brief` with sets separated by `/` gives one line per set:
 
 ```bash
-node tools/verify/feel.mjs SLIDE_WIDE=1.25
+node tools/verify/feel.mjs SLIDE_WIND=0.9
+node tools/verify/feel.mjs --brief SLIDE_WIND=0.9 / SLIDE_WIND=0.9 BITE_TIME=0.5
 ```

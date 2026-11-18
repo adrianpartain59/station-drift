@@ -76,15 +76,26 @@ export class Autopilot {
     const soon = p.psi + (p.steer * M.TURN_RATE + at(v * 0.05) * v) * 0.09;
     const e = nose - soon;
     out.steer = e > 0.03 ? 1 : e < -0.03 ? -1 : 0;
+    if (p.drift) {
+      // Sliding, the keys set the drift angle and the ship turns at grip x angle. Work out how fast travel
+      // has to come round (the bend, plus getting onto the lane), the angle that gives, and wind the nose
+      // in toward it or let it ease back.
+      const turn = -at(v * 0.12) * v + (want - p.theta) * 3.2;
+      const need = Math.max(-M.MAX_SLIP, Math.min(M.MAX_SLIP, turn / Math.max(0.3, G)));
+      const slip = p.psi - p.theta, d = need >= 0 ? 1 : -1;
+      out.steer = Math.abs(need) > 0.05 && slip * d < need * d - 0.04 ? d : slip * d > need * d + 0.3 ? -d : 0;
+    }
     // the tightest bend in the next second: if the nose cannot be turned that fast at this speed, brake for it
     let kMax = 0, kSign = 0;
     for (let u = 0; u <= v * 0.9; u += 4) { const kk = at(u); if (Math.abs(kk) > kMax) { kMax = Math.abs(kk); kSign = kk > 0 ? -1 : 1; } }
     out.brake = v * kMax > M.TURN_RATE * 0.92;
-    // Slide only where a slide can live: bend left to slide round, the ship able to travel that arc while
-    // sliding, and room on the outside for it to run wide. Let go a touch early so grip is back for the way out.
+    // Slide only where a slide can live: bend left to slide round, a bend the slide can carve at this
+    // speed with something in hand, and room on the outside for it to break loose into. Once sliding, stay
+    // sliding until the bend is nearly done (no dithering), and do not brake for a bend the slide can carve.
     const here = at(0), dir = here > 0 ? -1 : 1, gapOut = p.lim + dir * p.x;
-    out.drift = this.o.drift && !out.brake && Math.abs(here) >= DRIFT.ARM_K && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K
-      && Math.abs(here) < 1.08 / M.SLIDE_RADIUS && gapOut > 3.4;
+    out.drift = this.o.drift && Math.abs(here) >= DRIFT.ARM_K && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K
+      && v * Math.abs(here) < M.SLIDE_GRIP * M.MAX_SLIP * 0.62 && (p.drift || (!out.brake && gapOut > 4));
+    if (out.drift) out.brake = false;
     void kSign;
     return out;
   }
