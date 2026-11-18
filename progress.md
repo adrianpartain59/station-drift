@@ -408,5 +408,7 @@ What it does to play, measured (hard)
 - Station rows are a little fewer because sight is no longer counted from out in the brake field.
 - Stepped frame cost is unchanged (median 1.9 ms, 99th percentile 4.9 ms). Real-Chrome frame times were not
   re-measured at the new speed: the measuring tab was not in front.
-- Not on `main`: the live site still has one speed everywhere.
+- Merged into `main` the same day on Adrian's word ("Merge to main"), fast-forward from 8083c32. Before the push:
+  both classic fingerprints match and the build passes. The live site now has fast open air in SKYWAY hard, and
+  the `?speed=` and `?air=` test hooks.
 

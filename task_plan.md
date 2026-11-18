@@ -160,8 +160,8 @@ one switch away and provably unchanged. Design: findings.md, "Second map: SKYWAY
 ### Phase 18: Twice the speed, as a test (Adrian, 2026-11-18)
 His words: "make the base movement speed a lot faster like twice as fast, I just want to see how that feels".
 - `?speed=2` test hook (game) and `--speed 2` (tools). The game's own numbers are unchanged. Measured: progress.md.
-- On the branch only, not on `main`.
-- Status: complete, waiting for how it feels to him.
+- Went to `main` with Phase 19 (the hook works on the live site too).
+- Status: complete.
 
 ### Phase 19: Fast open air, normal ships (Adrian, 2026-11-18, after playing `?speed=2`)
 His words: "the map is already nicely scaled for that speed specifically for the open air parts, but the station
@@ -172,9 +172,9 @@ speed, and when you're exiting the station it speeds you up".
   `SKYWAY.SLOW` / `LAUNCH`). Amber bars on the deck for the brake field, running chevrons for the launch.
 - EASY and the classic map: unchanged, proved (fingerprints; verify output identical).
 - Course and proof use the speed of the stretch a thing stands on; the bots are held to the laid-out speed.
-- On the branch only, not on `main`.
-- Open: at this speed almost no movers can be placed fairly in open air (one per 20 km). His call.
-- Status: complete, waiting for how it feels to him.
+- Merged into `main` on 2026-11-18 on Adrian's word ("Merge to main"), fast-forward: live from that push.
+- Open: at this speed almost no movers can be placed fairly in open air (one per 16 km). His call.
+- Status: complete.
 
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
