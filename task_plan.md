@@ -147,18 +147,23 @@ bending, hills), stations are short ship-like interludes, open-air obstacles are
 one switch away and provably unchanged. Design: findings.md, "Second map: SKYWAY".
 - 17a Guard: `npm run fingerprint` now covers HARD on the classic map too. Status: complete
 - 17b Design written to findings.md. Status: complete
-- 17c Generator (level/TrackSkyway.js), height, `npm run mapcheck`. Status: in_progress
-- 17d Course: open-air dressing, movers, 3D sight; verifier extended. Status: pending
-- 17e World follows height: builder, ship, camera, course view, effects. Open-air deck. Status: pending
-- 17f Ship hulls for stations. Frame budget measured. Status: pending
-- 17g Map switch (`?map=`, title chip). Status: pending
-- 17h `npm run feel` on open-air bends; full verification both maps both modes. Status: pending
-- 17i Browser check both cameras, build, commit, push branch, open in Chrome, hand-over. Status: pending
+- 17c Generator (level/TrackSkyway.js), height, `npm run mapcheck`. Status: complete
+- 17d Course: open-air dressing, movers, 3D sight; verifier extended. Status: complete
+- 17e World follows height: builder, ship, camera, course view, effects. Open-air deck. Status: complete
+- 17f Ship hulls for stations. Frame budget measured. Status: complete
+- 17g Map switch (`?map=`, title chip). Status: complete
+- 17h `npm run feel` on open-air bends; full verification both maps both modes. Status: complete (numbers in progress.md)
+- 17i Browser check both cameras, build, commit, push branch, open in Chrome, hand-over. Status: complete
+- Status: complete, pending Adrian's hands. Not merged, not on `main`.
 
 ## Next Step
-Phase 17c: write level/TrackSkyway.js and tools/verify/mapcheck.mjs, get the map statistics right in node.
-Still open from before, not part of this phase: the test bot's lane scoring (Phase 12; seeds 5147 and 139);
-SLIDE_ANGLE 0.45 -> 0.37 if a tap alone still feels sharp. Neither may be done without Adrian's word.
+Adrian plays SKYWAY (branch `claude/new-map-414ab7`, dev server on 5191; `?map=classic` or the chip for the old map).
+His calls, none of them made for him: merge to `main` or not; how many movers (SKYWAY.CALM_EVERY); how tight the
+ships' corners are (SKYWAY.SHIP_R / SHIP_A); the clock on this map (PACE_SKYWAY_* in core/Maps.js); which end of a
+ship you fly in by (`flip` in TrackSkyway.buildShip). Measure any change with `npm run mapcheck`, `npm run feel:skyway`
+and both `verify:skyway` runs; `npm run fingerprint` must still pass.
+Still open from before, not touched: the test bot's lane scoring (Phase 12; seeds 5147 and 139, the latter still the
+one bot hit in classic hard); SLIDE_ANGLE 0.45 -> 0.37 if a tap alone still feels sharp. Neither without his word.
 THE REPO IS PUBLIC: every push to `main` goes live. This branch is never pushed to `main` without his say.
 Keep secrets, private paths and other projects out of commits and out of these notes.
 
@@ -174,6 +179,13 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Set-pieces get depth only inside their own shadow, as one obstacle | Rows 30 m apart fail the strict check (cut-in behind the first), so density comes from depth, not from more rows |
 | All obstacles are static footprints (boxes and posts) placed around a designed safe line | Passability is geometric, so it can be proved; no timing obstacles (doors, sweeping lasers, spinners) |
 | Gameplay placement moved out of Track.js into src/gameplay/Course.js with its own RNG | Centreline stays a pure function of the seed; map generator untouched |
+| Second map beside the first, chosen by `?map=` and a chip; the classic generator is not edited in behaviour | He asked to keep the old map; both fingerprints prove it |
+| SKYWAY never turns more than 85 degrees from world forward; ships lie along world forward | One rule that keeps an always-turning endless track from crossing itself; checked over 620 seeds |
+| Slope does not change speed | Keeps the handling, the pace and par maths and the proof exactly as settled; hills are for the eye and the line |
+| Movers are proved as solid over their whole envelope, and the envelope is painted on the deck | Nothing depends on timing, and the player can see exactly what is out of bounds |
+| Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
+| Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
+| Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -191,3 +203,8 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Hard, 600 seeds: search passed everywhere but both bots hit the same laser on 6 seeds | 1 | (a) Bots judged an obstacle seen by its box centre, which for a wall-anchored beam is inside the wall: now its end nearest the middle. (b) A gate's only opening lay outside a station's exit mouth: hard placement now also waits for a widening to finish. (c) Bot lanes stopped at the current wall: now span the widest the corridor gets within its look-ahead |
 | Scratchpad wiped overnight: fingerprint and player scripts gone | 1 | Fingerprint rebuilt inside the repo (tools/verify/fingerprint.mjs, `npm run fingerprint`) and validated against the recorded hash |
 | Manual hard, seed 13: search said "no way through" by a small margin | 1 | Search artefact: its sideways speed was floored to a whole number of lattice steps (11.1 of 14.8 m/s). Time step now chosen so the cap is an exact multiple |
+| SKYWAY: classic HARD verification broke after the verifier learned sweepers (45 false failures) | 1 | Hard's fenced bends run the search through a real bend; the sweeper correction now counts calm road only, and classic output is identical again |
+| SKYWAY: the drifting bot's clock never ran out | 1 | Long bends bank twice the time per km. Par pace set per map and tuned against classic run lengths |
+| SKYWAY: self-test passed movers through (3 of 152 caught at a 45 m shove) | 1 | Not a hole in the check: movers have more room in hand than rows. Movers are shoved 130 m and must be caught on every seed |
+| SKYWAY: 110-170 ms frames while stepping in the hidden pane, unchanged by a shader warm-up | 3 | Not real: GPU pipeline builds with no idle time between stepped frames. Real Chrome: worst frame 32 ms. Measured with the new `?perf` hook |
+| SKYWAY: ships' corners collapsed to 35 degrees and plain steering cleared 98% | 1 | The lateral budget was spent on the straight between the two corners of a pair. Pairs are linked closely now and the budget is wider |

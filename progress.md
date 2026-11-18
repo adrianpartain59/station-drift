@@ -236,3 +236,87 @@
   (HTTP 200, same script file as the local build). Opened in a browser: title screen renders, HARD is selected
   for a first-time visitor, a run starts and plays, no console errors.
 - Repo homepage set to the live address.
+
+## Second map: SKYWAY (2026-11-18, branch `claude/new-map-414ab7`, from main @ 4acc798)
+Adrian's brief: a new map where open air is the focus (much wider, nearly always bending, up and down on smooth
+curves, sparse moving obstacles), stations are shorter and read as ships, the background stays, the old map
+stays switchable.
+
+What was built
+- Two maps (`src/core/Maps.js`): SKYWAY (new, default on this branch) and CLASSIC (the old one). `?map=`, a
+  chip on the title and game-over screens, saved pick, a best score per map and mode. No new key.
+- `src/level/TrackSkyway.js`: open air 64 m rail to rail (was 30), sweepers / hairpins / linked esses with calm
+  sweepers between, real heights; stations are ships along world forward with tight corners in close pairs.
+- Height everywhere: `Track.Y` / `G`, `sample()` returns `y` and `g`. The world builder, ship (it pitches and
+  leans with the road), both cameras, obstacles, gates, pads, signs, coins, skid marks and sparks follow it.
+  Before this there was no height at all (`Track.H` is heading).
+- Open air is a real deck now (plating, lane lines, kerb, skirt, underside, lifter pods, soft rails: cyan on the
+  right, magenta on the left). Each station is one rigid hull (`src/level/ShipHull.js`): three forms, lit
+  outline, bridge, wings, engines either side of the mouth you fly in by, prow prongs at the other end, name
+  on both flanks; bulkhead frames inside.
+- Movers in open air: orbit, patrol, beacon, shuttle. Each moves inside an envelope painted on the deck; layout,
+  bots and proof treat the whole envelope as solid.
+- Clock pace is set per map (the only rule that differs). Handling numbers are untouched.
+
+Classic is unchanged
+- `npm run fingerprint`: EASY 4c21b329... and HARD 7df664ce... (recorded from main before any shared code was
+  touched) both match after every step.
+- `passability` output on 16 seeds per mode is identical to main's, line for line, apart from the map's name.
+- Full classic runs on this branch: EASY 200 seeds x 12 km PASS, 10 x 40 km PASS. HARD 200 x 12 km: the search
+  passes on every seed; the judged bot hits one laser (seed 139, s=11336), which is the known open item from
+  main at the same seed and place; HARD 10 x 40 km PASS.
+
+The map, measured (`npm run mapcheck`, 620 seeds: 1-300 and 5001-5300 at 12 km, 1001-1020 at 40 km): PASS
+- Open air is 74% of the distance (stretches 1.07-2.38 km, median 1.62; ships 404-759 m, median 587).
+- 64 m rail to rail wherever the width has settled.
+- 69% of open air is a real bend (R 70-120 m), 83% is bending at all, 13% is calm sweeper, 17% dead straight
+  (the longest straight is the 158 m run-in to a ship's mouth).
+- Real bends: 3.9 per km, 92 / 128 / 174 m long (10th / median / 90th percentile); at cruise that is 1.6 / 2.3 /
+  3.2 s in hard and 2.0 / 2.8 / 3.9 s in easy.
+- Height: steepest slope 13.0% (cap 13%), tightest crest R 700 m (cap 700), tightest dip R 420 m (cap 420),
+  no kink and no jump in vertical curvature anywhere; 82% of real-bend distance is on a slope of 3% or more.
+- Nearest any two different stretches come: 58 m between footprints (rule: 12 m).
+
+How it slides (`npm run feel:skyway`, hard, cruise speed, 1,282 open-air bends and 826 ship corners)
+| player | open air, clean | slide held, average (90th pct) | road crossed | nova | ship corners clean, R < 45 / R >= 45 |
+|---|---|---|---|---|---|
+| takes the wide line, eases the arrow | 100% | 2.8-3.4 s (3.4-4.3 s); hairpins 4.6 s (5.1 s), 248 m | 37-39 m | 59-68%; hairpins 100% | (open air only) |
+| holds the middle, eases the arrow | 100% | 2.3-2.9 s (2.7-3.9 s); hairpins 4.0 s | 8 m | 58-66%; hairpins 86% | 79% / 100% |
+| presses SPACE 0.25 s late | 100% | 1.9-2.5 s; hairpins 3.7 s | 8-10 m | 29-52%; hairpins 94% | 37% / 81% |
+| no drift, plain steering | 100% | - | 3-5 m | - | 58% / 95% |
+| holds arrow + SPACE right through | 0%: reaches the inside rail after 1.3 s | 1.3 s | 30 m | 0% | 58% / 29% |
+The last row is the known cost of the slide as Adrian settled it (a held arrow keeps tightening). On this map
+it meets a soft rail 30 m away instead of a wall. Ship corners: plain steering no longer clears the tight ones
+(42% end on the outer wall), a slide that is eased clears 79%, which is what the classic map's tight bends give (83%).
+
+Fairness (`npm run verify:skyway`, `verify:skyway:hard`), run on e54a10f (since then only the ships' entry end,
+which is looks only, and the self-test's shove have changed; the generated map is identical, checked by hash)
+Each mode: 410 seeds, 5,200 km of course (seeds 1-200 and 5001-5200 at 12 km, 1001-1010 at 40 km).
+- EASY: PASS on every seed. 3,380 groups, of them 1,722 movers (0.33 per km), 121 million start states, shortest
+  time in sight 1.82 s, narrowest opening 6.34 m. Both bots: 0 obstacle hits, 0 hard wall hits, 0 grazes in
+  10,400 km of driving.
+- HARD: PASS on every seed. 6,642 groups, of them 1,913 movers (0.37 per km), 100 million start states, shortest
+  time in sight 1.24 s, narrowest opening 5.42 m. Judged (no-drift) bot: 0 obstacle hits, 3 hard wall hits.
+  Sliding bot (reported, not judged): 0 obstacle hits, 713 hard wall hits (0.14 per km, inside ships; classic
+  hard on this branch: 0.075 per km).
+- Every mover's motion sampled for 45 s: none leaves the envelope the proof treats as solid.
+- Self-test (station rows shoved 45 m, movers 130 m): fails on 40 of 40 seeds in both modes, and the movers
+  alone are caught on every seed that has any (152 of 152 groups easy, 173 of 174 hard).
+- Run lengths on the clock, drifting bot / no-drift bot (median): EASY 10.6-11.5 km / 4.6 km (classic 11.3 / 4.6);
+  HARD 10.1-10.5 km / 4.2 km (classic 9.2 / 6.2).
+
+Frames (seed 42, hard, default quality)
+- Draw calls, sampled once a second over the first 3 km: SKYWAY 160 / 348 / 387 (min / median / max), CLASSIC
+  156 / 408 / 485. Triangles: 42-95 thousand against 52-93 thousand. A ship's hull is 11 draw calls.
+- Real Chrome, his Mac, 2382 x 1145 drawing buffer, `?perf`: SKYWAY chase 119.9 fps, median frame 8.3 ms,
+  99th percentile 10.1 ms, worst 32 ms, no frame over 34 ms in 50 s. SKYWAY cockpit 120.0 fps, worst 15 ms.
+  CLASSIC chase 119.6 fps, worst 39 ms. (The display runs at 120 Hz.)
+
+Checked in the browser (stepped frames): title with map chips; open air on a 12% climb, mid-slide, in a hairpin;
+approach to three ships from 250 m, 140 m and 80 m and from the quarter; inside a ship; each mover; chase and
+cockpit; classic open space. Real key events start a slide and charge it on the new map. No console errors.
+
+Not verified
+- Real hands on a keyboard on the new map. Audio by ear. Gamepad and touch.
+- A ship seen from the far side or from below (never on screen in the runs looked at).
+- Frame times at low quality, on battery, or on another machine.

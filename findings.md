@@ -193,3 +193,22 @@ Stations as ships
   bow, mid-body, bridge tower, fins, engine nacelles with glowing bells at the stern exit, name on the flanks.
   Interior: bulkhead frames, the existing ribs / windows / skylights.
 - One or two draw calls per ship instead of per-chunk hull strips.
+
+## SKYWAY: what building it confirmed (2026-11-18)
+- A map that is nearly always turning stays clear of itself with one rule: heading within +-85 degrees of world
+  forward. 620 seeds: the nearest two different stretches ever come is 58 m between footprints.
+- Bend length is capped by two things at once: the heading rule caps the angle, and DRIFT.ARM_K (R <= 125 m)
+  caps the radius if the bend is to charge. That puts the median open-air bend at 128 m: 2.3 s at hard cruise,
+  2.8 s at easy cruise; hairpins about 205 m.
+- Long bends bank far more clock time than the classic map's (twice as much per km for the drifting bot), so
+  the clock never ran out. The par pace is therefore set per map (core/Maps.js), nothing else is.
+- Movers placed by the layout's own bar sit with far more room in hand than the proof asks for (the layout
+  assumes half to two thirds of the ship's ability, the proof three quarters to nine tenths, and on a sweeper
+  the turning it takes comes off both). A 45 m shove therefore does not make them unfair; the self-test uses 130 m.
+- A ship approached bow-first, against the light, reads as a gate. Approached from astern, between lit engines,
+  it reads as a ship at once. Every ship is now entered at the engine end (one flag in TrackSkyway.buildShip).
+- Tight corners inside ships only bite if they are linked closely; with the classic 34-60 m of straight between
+  two corners the lateral budget forced them down to 35 degrees and plain steering cleared 98% of them.
+- Frame hitches of 100+ ms seen while stepping frames back to back in a hidden pane (classic has them too) are
+  the GPU building pipelines with no idle time between frames. In real Chrome at 120 Hz they do not occur:
+  measured with ?perf, worst frame 32 ms on SKYWAY, 39 ms on CLASSIC.
