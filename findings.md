@@ -251,3 +251,26 @@ specifically; most hits are cover-art listings and genre explainers, so this is 
 Sources: aesthetics.fandom.com/wiki/Phonk; a subgenre guide on r/phonk; orphiq.com/resources/what-is-phonk-music;
 unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art listings on fiverr.com.
 
+## The dark look: what building it confirmed (2026-11-18)
+- What he meant by "duotone" is one colour with every shade of it, not two flat inks. His two favourites keep the
+  lane lines, the kerb and the barrier panels readable; the flat two-ink concept lost all of them. So the look is
+  a brightness-to-ramp map (black, a deep shade, the colour, bright, nearly white), applied to the finished
+  frame. It needs no change to any material, which is why `?look=classic` can still be the old game exactly.
+- Brightness is taken mostly from the strongest colour channel, not from luminance alone: by luminance a pure
+  blue or red light is dark, and the road's edge lights would have sunk.
+- The colours come from one hue angle each at fixed lightness steps (OKLCH), pulled in until a screen can show
+  them, so no colour comes out muddier or brighter than another.
+- The haze is not sprites and not the engine's fog. It is one full-screen pass that reads the depth buffer: each
+  bank is a soft ball, and the amount of haze a ray crosses in it has an exact formula, so there is no stepping
+  and no banding. It starts no nearer than 26 m from the camera and a ship's banks thin from 230 m before its
+  mouth, so the way in and the corridor are clear. The engine's fog could not be used for a visible haze:
+  see-through additive things (the rails, glows) would each add the fog's colour over their whole rectangle.
+- Known limit of doing it after the frame is drawn: see-through things that write no depth (rails, sparks,
+  speed streaks) take the haze of whatever is behind them, so a rail in front of a far bank dims with it.
+- Inside a ship every surface carries neon, and in one colour it all went to a single bright wash. Indoors the
+  exposure drops to 58% and the bloom to 70%; the soft fill light is halved everywhere.
+- The backdrop is turned down by numbers, not deleted: stars 22%, nebula 16%, asteroids 45%, dust 6%, planets to
+  dark discs with a thin rim, the sun to a tenth. The reflections still use the full sky, so the lighting on the
+  metal is what it was.
+- Real Chrome, 20 s, same seed, 2419x1323 at 120 Hz: old look 119.2 fps (99th percentile 10.3 ms, worst 13 ms);
+  new look 118.2 fps (99th percentile 12.1 ms, worst 17 ms). No frame over 20 ms in either.

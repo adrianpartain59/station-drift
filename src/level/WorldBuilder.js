@@ -34,9 +34,11 @@ const PLANE = new THREE.PlaneGeometry(1, 1).toNonIndexed();
 export { Bucket };
 
 export class WorldBuilder {
-  constructor(track, mats) {
+  /** `rocks` (0..1): how much of the asteroid scenery is kept. 1 is the original; the dark look keeps under half. */
+  constructor(track, mats, rocks = 1) {
     this.track = track;
     this.m = mats;
+    this.rocks = rocks;
     this.rockGeos = [];
     const rr = mulberry32(99);
     for (let v = 0; v < 5; v++) {
@@ -414,6 +416,7 @@ export class WorldBuilder {
       const rot = rng() * 6.28, variant = Math.floor(rng() * 5);
       // SKYWAY doubles back beside itself: scenery never lands on another stretch of road or on a ship
       if (hilly && !this.clear(p[0], p[2], sc, i)) continue;
+      if (this.rocks < 1 && ((i * 2654435761) >>> 0) / 4294967296 >= this.rocks) continue;   // thinned by position, not by the dice: the rest stay where they were
       this.rock(rockB, p[0], p[1], p[2], sc, rot, variant);
     }
     // a little debris drifting around station exteriors so they don't sit in empty space
@@ -421,6 +424,7 @@ export class WorldBuilder {
       if (!hs(i) || rng() > 0.12) continue;
       const side = rng() < 0.5 ? -1 : 1;
       const p = this.P(i, side * (W(i) + PAD + 8 + rng() * 40), (rng() * 2 - 1) * 20);
+      if (this.rocks < 1 && ((i * 2654435761) >>> 0) / 4294967296 >= this.rocks) { rng(); rng(); rng(); continue; }
       this.rock(rockB, p[0], p[1], p[2], 0.8 + rng() * 2.5, rng() * 6.28, Math.floor(rng() * 5));
     }
 

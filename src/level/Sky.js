@@ -14,22 +14,23 @@ float noise(vec3 x){
 float fbm(vec3 p){ float a=0.5, s=0.0; for(int i=0;i<6;i++){ s+=a*noise(p); p*=2.03; a*=0.5; } return s; }
 `;
 
-function skyMaterial(c1, c2, c3) {
+function skyMaterial(c1, c2, c3, gain = 1) {
   return new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { c1: { value: new THREE.Color(c1) }, c2: { value: new THREE.Color(c2) }, c3: { value: new THREE.Color(c3) } },
+    uniforms: { c1: { value: new THREE.Color(c1) }, c2: { value: new THREE.Color(c2) }, c3: { value: new THREE.Color(c3) }, gain: { value: gain } },
     vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position.z = gl_Position.w; }`,
     fragmentShader: NOISE + `
-      uniform vec3 c1, c2, c3; varying vec3 vDir;
+      uniform vec3 c1, c2, c3; uniform float gain; varying vec3 vDir;
       void main(){
         vec3 d = normalize(vDir);
         float n = fbm(d*2.2 + vec3(3.1,1.7,0.4));
         float n2 = fbm(d*4.5 - vec3(1.3,4.2,2.2));
         float band = exp(-pow(d.y*2.4 + n*1.3 - 0.4, 2.0));
         vec3 col = vec3(0.004,0.006,0.016);
-        col += c1 * pow(n, 3.0) * 1.1 * band;
-        col += c2 * pow(n2, 4.0) * 1.3 * (0.4+band);
-        col += c3 * pow(max(0.0, n*n2*1.8-0.35), 2.0) * 2.5;
+        vec3 neb = c1 * pow(n, 3.0) * 1.1 * band;
+        neb += c2 * pow(n2, 4.0) * 1.3 * (0.4+band);
+        neb += c3 * pow(max(0.0, n*n2*1.8-0.35), 2.0) * 2.5;
+        col += neb * gain;
         float dust = smoothstep(0.55, 0.75, fbm(d*9.0));
         col *= 1.0 - dust*0.6*band;
         gl_FragColor = vec4(col, 1.0);
@@ -44,12 +45,13 @@ function planetMaterial(opts) {
       sunDir: { value: opts.sunDir.clone() },
       a: { value: new THREE.Color(opts.a) }, b: { value: new THREE.Color(opts.b) }, cc: { value: new THREE.Color(opts.c) },
       bands: { value: opts.bands }, seed: { value: opts.seed }, atmo: { value: new THREE.Color(opts.atmo) }, lights: { value: opts.cityLights ? 1 : 0 },
+      dim: { value: new THREE.Vector2(opts.dim?.[0] ?? 1, opts.dim?.[1] ?? 1) },
     },
     vertexShader: `varying vec3 vN; varying vec3 vP; varying vec3 vW;
       void main(){ vN = normalize(mat3(modelMatrix)*normal); vP = position; vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz;
         gl_Position = projectionMatrix*viewMatrix*w; }`,
     fragmentShader: NOISE + `
-      uniform vec3 sunDir, a, b, cc, atmo; uniform float bands, seed, lights; varying vec3 vN; varying vec3 vP; varying vec3 vW;
+      uniform vec3 sunDir, a, b, cc, atmo; uniform float bands, seed, lights; uniform vec2 dim; varying vec3 vN; varying vec3 vP; varying vec3 vW;
       void main(){
         vec3 p = normalize(vP);
         vec3 col;
@@ -68,20 +70,20 @@ function planetMaterial(opts) {
         float lit = smoothstep(-0.15, 0.6, diff);
         vec3 V = normalize(cameraPosition - vW);
         float rim = pow(1.0 - max(0.0, dot(normalize(vN), V)), 3.0);
-        vec3 outc = col * (0.02 + lit*1.15) + atmo * rim * (0.15 + 1.2*smoothstep(-0.3,0.4,diff));
+        vec3 outc = col * (0.02 + lit*1.15) * dim.x + atmo * rim * (0.15 + 1.2*smoothstep(-0.3,0.4,diff)) * dim.y;
         if (lights > 0.5) {
           float city = smoothstep(0.72,0.8,fbm(p*28.0+seed)) * (1.0-smoothstep(-0.2,0.05,diff));
-          outc += vec3(1.0,0.75,0.35) * city * 1.4;
+          outc += vec3(1.0,0.75,0.35) * city * 1.4 * dim.y;
         }
         gl_FragColor = vec4(outc, 1.0);
       }`,
   });
 }
 
-function atmoMaterial(color, sunDir) {
+function atmoMaterial(color, sunDir, gain = 1) {
   return new THREE.ShaderMaterial({
     fog: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide,
-    uniforms: { color: { value: new THREE.Color(color) }, sunDir: { value: sunDir.clone() } },
+    uniforms: { color: { value: new THREE.Color(color).multiplyScalar(gain) }, sunDir: { value: sunDir.clone() } },
     vertexShader: `varying vec3 vN; varying vec3 vW; void main(){ vN = normalize(mat3(modelMatrix)*normal); vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
     fragmentShader: `uniform vec3 color, sunDir; varying vec3 vN; varying vec3 vW;
       void main(){ vec3 V = normalize(cameraPosition - vW); float f = pow(max(0.0, 1.0 - abs(dot(normalize(vN), V))*1.0), 1.4);
@@ -91,10 +93,10 @@ function atmoMaterial(color, sunDir) {
   });
 }
 
-function ringMaterial(c1, c2, sunDir) {
+function ringMaterial(c1, c2, sunDir, gain = 1) {
   return new THREE.ShaderMaterial({
     fog: false, transparent: true, side: THREE.DoubleSide, depthWrite: false,
-    uniforms: { c1: { value: new THREE.Color(c1) }, c2: { value: new THREE.Color(c2) }, sunDir: { value: sunDir.clone() } },
+    uniforms: { c1: { value: new THREE.Color(c1).multiplyScalar(gain) }, c2: { value: new THREE.Color(c2).multiplyScalar(gain) }, sunDir: { value: sunDir.clone() } },
     vertexShader: `varying vec2 vUv; varying vec3 vL; void main(){ vUv = uv; vL = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: NOISE + `uniform vec3 c1, c2, sunDir; varying vec3 vL;
       void main(){ float r = length(vL.xy); float t = (r - 1.0) / 1.0;
@@ -107,8 +109,13 @@ function ringMaterial(c1, c2, sunDir) {
 }
 
 export class Sky {
-  constructor(scene, seed) {
+  /**
+   * `quiet` (systems/Look.js LOOK) turns the backdrop down for the dark look: { STARS, NEBULA, PLANET: [face, rim], SUN }.
+   * Left out, the sky is exactly the original one. The same random numbers are drawn either way.
+   */
+  constructor(scene, seed, quiet = null) {
     const r = mulberry32(seed * 7 + 3);
+    this.quiet = quiet;
     this.group = new THREE.Group();
     scene.add(this.group);
 
@@ -119,7 +126,7 @@ export class Sky {
       [0xff3b5c, 0x3b62ff, 0xb3ffea],
     ];
     const pal = palettes[Math.floor(r() * palettes.length)];
-    this.sky = new THREE.Mesh(new THREE.SphereGeometry(9000, 48, 32), skyMaterial(...pal));
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(9000, 48, 32), skyMaterial(...pal, quiet ? quiet.NEBULA : 1));
     this.sky.renderOrder = -10;
     this.group.add(this.sky);
 
@@ -135,6 +142,7 @@ export class Sky {
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     sg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    if (quiet) sg.setDrawRange(0, Math.round(N * quiet.STARS));
     this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false, depthWrite: false }));
     this.group.add(this.stars);
 
@@ -142,12 +150,12 @@ export class Sky {
     const sunYaw = (r() < 0.5 ? -1 : 1) * (0.5 + r() * 0.5), sunPitch = 0.08 + r() * 0.18;
     this.sunDir = new THREE.Vector3(Math.sin(sunYaw) * Math.cos(sunPitch), Math.sin(sunPitch), Math.cos(sunYaw) * Math.cos(sunPitch)).normalize();
     const sunColor = new THREE.Color().setHSL(0.06 + r() * 0.08, 0.9, 0.62);
-    const sunCore = new THREE.Mesh(new THREE.SphereGeometry(260, 32, 16), new THREE.MeshBasicMaterial({ color: sunColor.clone().multiplyScalar(6), fog: false }));
+    const sunCore = new THREE.Mesh(new THREE.SphereGeometry(260, 32, 16), new THREE.MeshBasicMaterial({ color: sunColor.clone().multiplyScalar(6 * (quiet ? quiet.SUN : 1)), fog: false }));
     sunCore.position.copy(this.sunDir).multiplyScalar(7600);
     this.group.add(sunCore);
     const glowTex = makeGlow();
     for (const [size, op] of [[2600, 0.9], [6400, 0.35]]) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: sunColor.clone().multiplyScalar(op * 2.2), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true }));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: sunColor.clone().multiplyScalar(op * 2.2 * (quiet ? quiet.SUN : 1)), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true }));
       sp.scale.setScalar(size); sp.position.copy(sunCore.position);
       this.group.add(sp);
     }
@@ -177,13 +185,13 @@ export class Sky {
     const g = new THREE.Group();
     g.position.copy(pos);
     const toSun = this.sunDir.clone().multiplyScalar(7600).sub(pos).normalize();
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(o.radius, 96, 64), planetMaterial({ ...o, sunDir: toSun }));
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(o.radius, 96, 64), planetMaterial({ ...o, sunDir: toSun, dim: this.quiet?.PLANET }));
     mesh.rotation.z = o.tilt ? o.tilt * 0.4 : 0;
     g.add(mesh);
-    const at = new THREE.Mesh(new THREE.SphereGeometry(o.radius * 1.045, 64, 48), atmoMaterial(o.atmo, toSun));
+    const at = new THREE.Mesh(new THREE.SphereGeometry(o.radius * 1.045, 64, 48), atmoMaterial(o.atmo, toSun, this.quiet ? this.quiet.PLANET[1] : 1));
     g.add(at);
     if (o.ring) {
-      const ring = new THREE.Mesh(new THREE.RingGeometry(o.radius * 1.35, o.radius * 2.6, 160, 1), ringMaterial(o.a, o.c, toSun));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(o.radius * 1.35, o.radius * 2.6, 160, 1), ringMaterial(o.a, o.c, toSun, this.quiet ? this.quiet.PLANET[1] * 0.4 : 1));
       // RingGeometry spans radius r..R; the shader expects 1..2 in units of the inner radius.
       ring.geometry.scale(1 / (o.radius * 1.35), 1 / (o.radius * 1.35), 1);
       ring.scale.setScalar(o.radius * 1.35);
@@ -214,7 +222,8 @@ function makeGlow() {
 
 // Space dust: points that wrap around the camera, so there is always dust drifting past.
 export class Dust {
-  constructor(scene) {
+  /** `keep` (0..1): how much of the dust is drawn. The dark look keeps a quarter of it. */
+  constructor(scene, keep = 1) {
     const N = 2400, pos = new Float32Array(N * 3), seed = new Float32Array(N);
     const r = mulberry32(5);
     for (let i = 0; i < N; i++) {
@@ -224,6 +233,7 @@ export class Dust {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+    if (keep < 1) g.setDrawRange(0, Math.round(N * keep));
     this.mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
       uniforms: { cam: { value: new THREE.Vector3() }, box: { value: new THREE.Vector3(140, 70, 220) }, time: { value: 0 }, speed: { value: 0 }, tint: { value: new THREE.Color(0.75, 0.85, 1.0) } },

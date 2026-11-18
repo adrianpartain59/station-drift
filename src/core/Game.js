@@ -23,6 +23,7 @@ import { Sparks, Trail, Skid, SpeedLines } from '../systems/Effects.js';
 import { Audio } from '../systems/Audio.js';
 import { Input } from '../systems/Input.js';
 import { HUD } from '../ui/HUD.js';
+import { Look, LOOK } from '../systems/Look.js';
 
 const params = new URLSearchParams(location.search);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -62,14 +63,21 @@ export class Game {
     this.scene.fog = new THREE.Fog(RENDER.FOG_COLOR, RENDER.FOG_NEAR, RENDER.FOG_FAR);
     this.camera = new THREE.PerspectiveCamera(CAMERA.FOV, window.innerWidth / window.innerHeight, CAMERA.NEAR, CAMERA.FAR);
 
-    this.composer = new EffectComposer(r);
+    // The look (systems/Look.js): black and one colour, new each run, with haze in the air. ?look=classic is the old look.
+    this.look = new Look(this.camera, params.get('look'));
+    this.hud.tone = (c) => this.look.tone(c);
+    // the haze is worked out from how far away each pixel is, so the composer's targets carry a depth texture
+    const target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(window.innerWidth, window.innerHeight) });
+    this.composer = new EffectComposer(r, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.composer.addPass(this.look.haze);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), RENDER.BLOOM_STRENGTH, RENDER.BLOOM_RADIUS, RENDER.BLOOM_THRESHOLD);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.composer.addPass(this.look.grade);
     this.applyQuality();
 
-    this.hemi = new THREE.HemisphereLight(0x9ab8ff, 0x20141c, 1.1);
+    this.hemi = new THREE.HemisphereLight(0x9ab8ff, 0x20141c, 1.1 * (this.look.on ? LOOK.AMBIENT : 1));
     this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffffff, 2.4);
     this.scene.add(this.sun); this.scene.add(this.sun.target);
@@ -79,7 +87,7 @@ export class Game {
     this.trails = [new Trail(this.scene, 12, 0.05), new Trail(this.scene, 12, 0.05)];
     this.skids = [new Skid(this.scene), new Skid(this.scene)];
     this.speedLines = new SpeedLines(this.scene);
-    this.dust = new Dust(this.scene);
+    this.dust = new Dust(this.scene, this.look.on ? LOOK.DUST : 1);
     this.ship = new ShipModel();
     this.scene.add(this.ship.group);
 
@@ -141,9 +149,9 @@ export class Game {
     this.track = makeTrack(GameState.map, seed);
     this.track.ensure(TRACK.VIEW_AHEAD + 400);
     this.course = new Course(this.track, seed);
-    this.builder = new WorldBuilder(this.track, this.mats);
+    this.builder = new WorldBuilder(this.track, this.mats, this.look.on ? LOOK.ROCKS : 1);
     this.view = new CourseView(this.scene, this.track, this.course, this.mats, this.builder.rockGeos);
-    this.sky = new Sky(this.scene, seed);
+    this.sky = new Sky(this.scene, seed, this.look.on ? LOOK : null);
     this.sun.position.copy(this.sky.sunDir).multiplyScalar(100);
     this.sun.color.copy(this.sky.sunColor).lerp(new THREE.Color(1, 1, 1), 0.5);
 
@@ -152,7 +160,7 @@ export class Game {
     const envSky = new Sky(envScene, seed);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(envScene, 0.02).texture;
-    this.scene.environmentIntensity = 0.55;
+    this.scene.environmentIntensity = 0.55 * (this.look.on ? LOOK.AMBIENT : 1);
     pmrem.dispose();
     envSky.group.traverse((o) => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose?.(); });
 
@@ -209,10 +217,13 @@ export class Game {
     this.audio.setMuted(GameState.muted || params.has('mute'));
     this.audio.ui();
     GameState.reset();
+    if (this.ran) this.look.pick();    // a new colour for every run; the first run keeps the one the title screen showed
+    this.ran = true;
     this.newRun(params.has('seed') ? Number(params.get('seed')) : (Math.random() * 1e9) | 0);
     GameState.phase = 'playing';
     this.hud.phase('playing');
     this.hud.hint('');
+    if (this.look.on) this.hud.note(this.look.current.name);
     this.overTimer = 0; this.hintT = 0; this.lastTick = 99;
     // Test hooks: ?jump=<metres> starts further down the track, ?cam=cockpit picks the view.
     if (params.has('jump')) {
@@ -436,7 +447,7 @@ export class Game {
     else if (g.phase === 'over' && this.overTimer > 1.0 && inp.tap('Enter', 'Space', 'KeyR', 'PadStart')) this.start();
     else if ((g.phase === 'playing' || g.phase === 'paused') && inp.tap('Escape', 'KeyP')) this.togglePause();
 
-    if (g.phase === 'paused' || this.frozen) { inp.endFrame(); this.composer.render(); return; }
+    if (g.phase === 'paused' || this.frozen) { inp.endFrame(); this.look.update(g.time, this.camera, this.track, ph.s); this.composer.render(); return; }
     if (params.has('perf')) this.perf(raw);
     // Test hook: ?stopwhen=drift freezes the game the first time a slide is well under way, for screenshots.
     if (params.get('stopwhen') === 'drift' && g.time > 0.5 && ph.drift && ph.driftT > 0.6) this.frozen = true;
@@ -497,6 +508,13 @@ export class Game {
     // indoors; otherwise the glossy floor throws a blinding specular hot spot at the camera.
     const sunTarget = ph.zone === 0 ? 0.15 : 2.4;
     this.sun.intensity += (sunTarget - this.sun.intensity) * (1 - Math.exp(-3 * dt));
+    // The dark look: inside a ship the neon is everywhere and it would all go to one bright wash,
+    // so the exposure and the bloom come down indoors and back up in the open.
+    if (this.look.on) {
+      const k = 1 - Math.exp(-2.5 * dt), [expo, glow] = ph.zone === 0 ? LOOK.INDOORS : [1, 1];
+      this.renderer.toneMappingExposure += (RENDER.EXPOSURE * expo - this.renderer.toneMappingExposure) * k;
+      this.bloom.strength += (RENDER.BLOOM_STRENGTH * glow - this.bloom.strength) * k;
+    }
 
     this.track.ensure(this.span(ph.s)[1] + TRACK.CHUNK + 200);
     this.course.sync();
@@ -513,7 +531,7 @@ export class Game {
     this.dust.update(this.camera, g.time, ph.v * 1.8);
     const fwd = this.tmpV2.set(Math.sin(this.pose.travelYaw), 0, Math.cos(this.pose.travelYaw));
     const cruiseTop = SHIP.CRUISE[1];
-    this.speedLines.update(this.camera.position, fwd, g.time, ph.boosting ? 0.5 : clamp((ph.v - cruiseTop * 0.92) / 20, 0, 0.3));
+    this.speedLines.update(this.camera.position, fwd, g.time, (ph.boosting ? 0.5 : clamp((ph.v - cruiseTop * 0.92) / 20, 0, 0.3)) * (this.look.on ? LOOK.STREAKS : 1));
     this.sparks.update(dt);
 
     // HUD
@@ -531,6 +549,7 @@ export class Game {
     this.audio.setIntensity(playing ? 0.35 + rev * 0.65 : 0.4);
     this.audio.update({ rev, boost: ph.boosting, slide: ph.slide, drifting: ph.drift, scrape: ph.touch > 0 && ph.zone === 0, tier: ph.tier + 1, zone: ph.zone, playing, brake: ph.braking });
 
+    this.look.update(g.time, this.camera, this.track, ph.s);
     this.composer.render();
   }
 

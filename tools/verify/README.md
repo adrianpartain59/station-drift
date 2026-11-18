@@ -143,6 +143,14 @@ Open the game from the dev server with `?perf=<seconds>` (and `?bot&autostart&mu
 frame times for that long, then freezes and reports them: in the page title, in `window.__perf`, and in the dev
 server's log (`[perf] ...`). The tab has to be in front: a hidden tab is throttled by the browser.
 
+## The look
+
+The game draws in black and one colour, picked afresh for each run (`src/systems/Look.js`: every number is in the
+`LOOK` table at the top, the colours in `LOOKS`). `?look=<name>` holds one colour (`toxic`, `noir`, `blood`,
+`violet`, `ice`, `teal`, `ember`, `rose`, `amber`, `acid`); `?look=classic` turns the whole thing off and draws
+the game in full colour as before. It is drawing only: no tool here reads it, and the fingerprints do not move.
+From the browser console, `__game.look.cfg` is the live `LOOK` table and `__game.look.pick('ice')` switches colour.
+
 ## Trying another speed
 
 `?speed=2` in the game and `--speed 2` on `passability.mjs` and `feel.mjs` multiply everything measured in

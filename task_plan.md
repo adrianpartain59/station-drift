@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 17 (second map, SKYWAY), branch `claude/new-map-414ab7` from main @ 4acc798
+Phase 22 (the dark look, built; waiting on Adrian's eyes), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -197,10 +197,26 @@ pick a vibe that I like, don't actually change the game yet".
   strict two or three colour scheme with the clutter gone: 1 Violet Haze, 2 Blood Moon, 3 Cold Chrome, 4 Noir
   Tape, 5 Toxic Night, 6 Midnight Teal, 7 Duotone, 8 Ash and Ember, 9 Void, 10 Sodium Rain.
 - The game is not changed. The images are not in the repo (kept outside it, with the prompts).
-- Status: waiting for his pick.
+- Status: complete. He picked (Phase 22).
+
+### Phase 22: The dark look, built (Adrian, 2026-11-18)
+His notes on the ten: favourites Toxic Night and Noir Tape, because "they keep the dark duotone feel but you can
+still make out details of the track easily"; Duotone (7) lost every detail "because it was strictly black and
+pink"; "randomize the color for the duotone when you start the game"; "some sort of haze going through the air
+... but it shoudn't make it hard to see the track"; the "ton of haze at the space station" in Violet Haze,
+"but also show up in other places or just throughout like a subtle fog"; keep "the planets and asteroids like in
+violet haze, but they shouldnt' be too distracting"; make a reference image first and build toward it.
+- Reference image made first (the real frame plus the three concepts he named, in green, crimson and noir).
+- Built in `src/systems/Look.js`: a haze pass (depth-aware banks round ships, thin banks along the road, a faint
+  fog) and a grade pass (brightness onto a ramp of one colour; scanlines, grain, vignette). Ten colours; a new one
+  each run. Backdrop turned down, not removed. HUD and menus take the colour through CSS variables.
+- `?look=classic` is the old look, untouched. Gameplay code untouched: both fingerprints match.
+- Status: built, pushed to the branch, not on `main`. Waiting for him to look at it.
 
 ## Next Step
-Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
+Adrian looks at the dark look on the branch (dev server, not the live site) and says what to change or "merge".
+Knobs are the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
+Before that, still true: Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
 His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the
 ships' corners are (SKYWAY.SHIP_R / SHIP_A); the clock on this map (PACE_SKYWAY_* in core/Maps.js); which end of a
 ship you fly in by (`flip` in TrackSkyway.buildShip). Measure any change with `npm run mapcheck`, `npm run feel:skyway`

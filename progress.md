@@ -474,3 +474,19 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
 - One of the ten (Void) kept leftover objects twice; a second, targeted edit removed them.
 - Nothing in the game or the repo's code changed. The images and the prompts are kept outside the repo.
 
+## The dark look, built (2026-11-18)
+- Reference image generated first from the real frame and the three concepts Adrian named; three colours of it.
+- New: `src/systems/Look.js` (haze pass, grade pass, ten colours, the HUD's colour). Changed: `core/Game.js`
+  (composer with a depth texture, the two passes, colour picked per run, indoor exposure), `level/Sky.js`
+  (a quiet variant), `level/WorldBuilder.js` (fewer asteroids, thinned by position), `ui/HUD.js` (colours go
+  through the look), `index.html` (CSS variables under `body.look`), `tools/verify/README.md`.
+- Not touched: anything under `gameplay/`, `level/Track*.js`, `core/Constants.js`, `core/Modes.js`,
+  `core/Maps.js`, `systems/Input.js`. `npm run fingerprint`: EASY and HARD both unchanged. `npm run build` passes.
+- Checked in the browser (stepped frames, no console errors): the approach to a ship, the mouth, inside a ship,
+  open road, a spiral with the deck overhead, the classic map inside and out, the cockpit view, the title and
+  game-over screens; all ten colours seen on the same frame. `?look=classic` draws the old
+  frame. Forty picks in a row: never the same colour twice running, all ten came up.
+- Real Chrome frame times: see findings.md (about 1 fps dearer than the old look, no frame over 20 ms).
+- Not verified: his eyes on it in motion; low quality (Q);
+  a phone or a slower machine; whether haze ever sits over an obstacle thickly enough to matter (the densest
+  roadside bank lets at least half of what is behind it through, by its numbers, not by a test).

@@ -113,6 +113,29 @@
     .newbest { font: 900 16px 'Orbitron'; letter-spacing: 0.3em; color: #ffd36b; text-shadow: 0 0 14px rgba(255, 211, 107, 0.8); }
     .hint { font: 600 13px 'Orbitron'; letter-spacing: 0.2em; color: var(--dim); }
     .tip { font: 600 15px 'Rajdhani'; letter-spacing: 0.04em; color: #9fe8ff; margin-top: 6px; line-height: 1.3; }
+    /* ---------- the look (src/systems/Look.js): black and the run's one colour ----------
+       --lk0 deep shade, --lk1 the colour, --lk2 bright, --lk3 nearly white, --lkg its glow, --lka warning.
+       Without body.look (?look=classic) none of this applies and the HUD is the original. */
+    body.look { --cyan: var(--lk2); --pink: var(--lk2); --amber: var(--lk3); --ink: var(--lk3); --dim: color-mix(in srgb, var(--lk2) 62%, transparent); }
+    body.look #score, body.look #speed { text-shadow: 0 0 18px var(--lkg); }
+    body.look #chain { text-shadow: 0 0 12px var(--lkg); }
+    body.look #coins { color: var(--lk2); text-shadow: 0 0 16px var(--lkg); }
+    body.look #clock { color: var(--lk3); text-shadow: 0 0 22px var(--lkg); }
+    body.look #clockBox.low #clock { color: var(--lka); text-shadow: 0 0 24px var(--lka); }
+    body.look #clockBox.out #clock { color: var(--lka); }
+    body.look #clockAdd { color: var(--lk2); text-shadow: 0 0 14px var(--lkg); }
+    body.look #gateFill { background: linear-gradient(90deg, var(--lk0), var(--lk2)); box-shadow: 0 0 12px var(--lk1); }
+    body.look #hint { text-shadow: 0 0 14px var(--lkg), 0 2px 6px #000; }
+    body.look .logo { background: linear-gradient(180deg, var(--lk3) 0%, var(--lk2) 50%, var(--lk1) 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0 22px var(--lkg)); }
+    body.look .btn { background: linear-gradient(90deg, var(--lk2), var(--lk1)); box-shadow: 0 0 24px var(--lkg); }
+    body.look .mode.sel, body.look .map.sel, body.look .mode[data-mode='hard'].sel { border-color: var(--lk2); box-shadow: 0 0 18px var(--lkg); }
+    body.look .mode[data-mode='hard'] b, body.look .map[data-map] b { color: var(--lk3); }
+    body.look #modeTag { color: var(--lk2); text-shadow: 0 0 10px var(--lkg); }
+    body.look #bestTitle, body.look .newbest { color: var(--lk2); text-shadow: 0 0 14px var(--lkg); }
+    body.look .h2 { text-shadow: 0 0 26px var(--lkg); }
+    body.look .row.big b { color: var(--lk2); text-shadow: 0 0 16px var(--lkg); }
+    body.look .tip { color: var(--lk2); }
+    body.look .tag, body.look .keys { text-shadow: 0 1px 6px #000, 0 0 14px #000; }
     @media (max-width: 640px) { .keys { grid-template-columns: repeat(2, auto); } #score { font-size: 26px; } #speed { font-size: 36px; } #clock { font-size: 38px; } }
   </style>
 </head>

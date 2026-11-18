@@ -19,6 +19,7 @@ export class HUD {
     $('tick1').style.left = (DRIFT.TIERS[0].at / top()) * 100 + '%';
     $('tick2').style.left = (DRIFT.TIERS[1].at / top()) * 100 + '%';
     this.bannerT = 0; this.hintText = ''; this.linger = 0;
+    this.tone = (c) => c;       // the look maps every colour the game hands the HUD onto the run's colour (systems/Look.js)
   }
 
   show(id, on) { this.el[id].classList.toggle('hidden', !on); }
@@ -75,7 +76,7 @@ export class HUD {
     e.gateDist.textContent = v.gateDist != null ? `${Math.max(0, Math.round(v.gateDist / 10) * 10)} m` : '';
     e.gateFill.style.transform = `scaleX(${Math.max(0, Math.min(1, v.gateFrac || 0)).toFixed(3)})`;
     e.boostFill.style.transform = `scaleX(${Math.max(0, Math.min(1, v.boost)).toFixed(3)})`;
-    e.boostFill.style.setProperty('--tier', hex(DRIFT.TIERS[Math.max(0, v.boostTier)].color));
+    e.boostFill.style.setProperty('--tier', this.tone(hex(DRIFT.TIERS[Math.max(0, v.boostTier)].color)));
 
     // the drift panel stays up for a moment after the slide so you can read what it banked
     if (v.drifting) this.linger = 0.9; else this.linger -= dt;
@@ -84,7 +85,7 @@ export class HUD {
       e.driftPts.textContent = fmt(v.points);
       e.driftMult.textContent = v.mult > 1 ? `x${v.mult % 1 ? v.mult.toFixed(1) : v.mult}` : '';
       e.driftTier.textContent = tier >= 0 ? DRIFT.TIERS[tier].name : 'DRIFT';
-      e.drift.style.setProperty('--tier', tier >= 0 ? hex(DRIFT.TIERS[tier].color) : '#ffffff');
+      e.drift.style.setProperty('--tier', this.tone(tier >= 0 ? hex(DRIFT.TIERS[tier].color) : '#ffffff'));
       e.drift.style.setProperty('--prog', Math.max(0, Math.min(1, v.charge / top())).toFixed(3));
     }
     e.drift.classList.toggle('on', v.drifting || this.linger > 0);
@@ -95,7 +96,7 @@ export class HUD {
   banner(top, main, time = 2.6, color = '#9fe8ff') {
     const e = this.el;
     e.bannerTop.textContent = top; e.bannerMain.textContent = main;
-    e.banner.style.setProperty('--c', color);
+    e.banner.style.setProperty('--c', this.tone(color));
     e.banner.classList.remove('on'); void e.banner.offsetWidth; e.banner.classList.add('on');
     this.bannerT = time;
   }
@@ -103,7 +104,7 @@ export class HUD {
   pop(text, color = '#fff', big = false) {
     const d = document.createElement('div');
     d.className = 'pop' + (big ? ' big' : '');
-    d.textContent = text; d.style.color = color;
+    d.textContent = text; d.style.color = this.tone(color);
     d.style.left = 50 + (Math.random() - 0.5) * 10 + '%';
     this.el.pops.appendChild(d);
     setTimeout(() => d.remove(), 1300);
@@ -112,6 +113,7 @@ export class HUD {
   /** Time added to the clock (a gate, or a banked drift in its tier colour). */
   addTime(seconds, color = '#7dffc0') {
     const a = this.el.clockAdd;
+    color = this.tone(color);
     a.textContent = `+${seconds.toFixed(1)} s`;
     a.style.color = color; a.style.textShadow = `0 0 14px ${color}`;
     a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
@@ -127,13 +129,16 @@ export class HUD {
 
   flash(color = 'rgba(255,60,80,0.35)') {
     const f = this.el.flash;
-    f.style.background = color;
+    f.style.background = this.tone(color);
     f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
   }
 
-  camLabel(mode) {
+  camLabel(mode) { this.note(mode === 'cockpit' ? 'COCKPIT VIEW' : 'CHASE VIEW'); }
+
+  /** A word in the corner for a moment (the view just chosen, the run's colour). */
+  note(text) {
     const e = this.el.cam;
-    e.textContent = mode === 'cockpit' ? 'COCKPIT VIEW' : 'CHASE VIEW';
+    e.textContent = text;
     e.classList.remove('on'); void e.offsetWidth; e.classList.add('on');
   }
 
