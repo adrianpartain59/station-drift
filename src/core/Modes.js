@@ -26,16 +26,19 @@ export const MODES = {
         // Fully manual handling (ShipPhysics.stepManual). Nothing steers for you.
         MANUAL: {
           // --- steering ---
-          TURN_RATE: 1.5,        // rad/s the nose turns with a key held in (halfway between the assisted 0.7 and the first manual 2.3)
-          TURN_MAX: 2.0,         // ...winding up to this if the key stays down, for the tightest bends
+          TURN_RATE: 1.35,       // rad/s the nose turns with a key held in (assisted was about 0.7, the first manual 2.3)
+          TURN_MAX: 1.85,        // ...winding up to this if the key stays down, for the tightest bends
           WIND: [0.4, 1.0],      // s of holding over which it winds up
           STEER_IN: 6,           // 1/s: how fast a held key builds to its rate (a tap is a nudge)
           STEER_OUT: 18,         // 1/s: how fast it lets go
           GRIP_RATE: 11,         // 1/s: how hard the direction of travel is pulled round to the nose, with grip
           // --- the slide (drift button held): the nose turns exactly as before, the ship does not follow it ---
           SLIDE_GRIP: 2.4,       // 1/s: how hard travel is pulled to the nose while sliding. Lower = slower to come round
-          SLIDE_RADIUS: 60,      // m: the tightest arc the ship itself can travel while sliding. A bend tighter than
-                                 //    this cannot be held: the ship runs wide of it for as long as the slide lasts
+          // However far in the nose is turned, a sliding ship cannot travel an arc tighter than this:
+          SLIDE_WIDE: 1.15,      //   the radius of the bend it is in, times this (so a held slide always runs wide of the
+                                 //   bend rather than cutting inside it). Higher = every slide runs wider.
+          SLIDE_RADIUS: 60,      //   m, at the least: bends tighter than about 50 m are run wide of all the more
+          SLIDE_RADIUS_MAX: 90,  //   m, at the most: what it gets on straights and long sweepers
           MAX_SLIP: 0.95,        // rad: the most the nose can be turned in from the direction of travel (no spin-outs)
           KICK: 0.14,            // rad the tail steps out when the button goes down with a steer key held
           KICK_TIME: 0.12,

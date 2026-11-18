@@ -96,3 +96,29 @@
   slide, 43.5 degrees stored): original 96% (42 degrees inward), first fix 12% (5 degrees), now 32% (14 degrees).
   Pull toward the nose at the moment of letting go: EXIT_PULL 1.0 -> 5.0, so steering also answers at once.
 - Easy fingerprint unchanged; hard 24 seeds PASS.
+
+## Slide runs wide of every bend; steering down a bit (2026-11-17)
+- Adrian: exit angle good now; the drift does not slide out enough, he takes drifts too sharp and has an
+  accident; turn regular steering down a bit.
+- Measured cause, hands only (key + SPACE from 5 m before the bend to 4 m before its end, then hands off, at
+  cruise, every station bend with a straight either side in the first 9 km of 40 seeds, 779 bends):
+  | bend radius | share of bends | before: ends on | before: width used | after: ends on | after: width used |
+  |---|---|---|---|---|---|
+  | under 45 m | 34% | outer wall 97% | 99% | outer wall 98% | 99% |
+  | 45-55 m | 44% | outer wall 45% | 78% | outer wall 58% | 86% |
+  | 55-65 m | 18% | INSIDE wall 45% | 25% | clean 92%, outer 8% | 51% |
+  | 65-80 m | 4% | INSIDE wall 100% | 0% | clean 80%, inside 17% | 39% |
+  The slide's arc was one fixed radius (60 m), so the gentler bends were cut inside. That is his accident.
+- Fix: arc = bend radius x SLIDE_WIDE (1.15), kept between SLIDE_RADIUS 60 and SLIDE_RADIUS_MAX 90
+  (ShipPhysics.stepManual). Tight bends as before; straights and sweepers 90 m.
+- Rejected on the same test: one wider fixed arc. 78 m, and 72 m with SLIDE_GRIP 2.0, both took the 45-55 m
+  bends (the most common) to 84% outer-wall endings.
+- Steering: TURN_RATE 1.5 -> 1.35 rad/s, TURN_MAX 2.0 -> 1.85. Key held 0.4 s on a straight at 46 m/s: nose
+  22 -> 20 degrees, moved 1.76 -> 1.58 m; 0.6 s: 38 -> 35 degrees, 5.47 -> 4.94 m. The slide's nose turns at
+  the same rate, which is where the 45-55 m row's extra width comes from.
+- Real key events in the browser, seed 42, first gentle bend (R 64 m, 58 m long), from the middle, key + SPACE
+  held: 5.33 m out at 1.2 s, reaching the outer wall as the bend ends (1.25 s). Before: 3.6 m, then back in.
+- FAIR_SHARE kept at 0.55, so the layout assumes the same share of the smaller turn rate. Obstacles per km
+  4.1 -> 3.8, shortest sight time 1.20 -> 1.32 s.
+- Hard, 30 seeds: PASS. Grip bot 0 obstacle hits, 0 hard wall hits; sliding bot 0 obstacle hits, 2 hard wall hits.
+  Easy fingerprint unchanged. Build passes. No console errors.

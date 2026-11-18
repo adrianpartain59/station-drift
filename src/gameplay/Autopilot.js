@@ -84,7 +84,7 @@ export class Autopilot {
     // sliding, and room on the outside for it to run wide. Let go a touch early so grip is back for the way out.
     const here = at(0), dir = here > 0 ? -1 : 1, gapOut = p.lim + dir * p.x;
     out.drift = this.o.drift && !out.brake && Math.abs(here) >= DRIFT.ARM_K && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K
-      && Math.abs(here) < 1.08 / M.SLIDE_RADIUS && gapOut > 3;
+      && Math.abs(here) < 1.08 / M.SLIDE_RADIUS && gapOut > 3.4;
     void kSign;
     return out;
   }

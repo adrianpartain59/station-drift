@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 7 (hard mode), branch `hard-mode` from main @ e2e6eb5
+Phase 11 (hard mode feel, round six), branch `hard-mode` from main @ e2e6eb5
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -88,6 +88,24 @@ inside wall, though it did not feel that way during the slide.
 - Fix: for 0.32 s after letting go the nose swings back to the line of travel (EXIT_RATE) and grip returns as it
   gets there (EXIT_PULL). The ship leaves the slide going the way it was going. Slide itself untouched.
 - Test bot: commits to a clear lane when an obstacle is close; judges a crossing with more room; finer look-ahead.
+- Status: complete, pending Adrian's hands.
+
+### Phase 11: Slide runs wide of every bend; steering down a bit (Adrian's sixth playtest, 2026-11-17)
+(His fifth note, "now it hits the outer wall, find a middle", set EXIT_PULL 1.0 -> 5.0: commit d359d1b.)
+His notes: the exit angle feels good now. The drift does not slide out enough: he expects the ship to slide out
+round a corner, it does not, he takes the drift too sharp and has an accident. Turn regular steering down a bit.
+- Cause (measured, every station bend of 40 seeds, hands only: key + SPACE through the bend, then hands off):
+  the slide's arc was one fixed radius, 60 m. Bends tighter than that ran wide; the gentler ones (R 55 m and up,
+  a fifth of station bends) were cut inside: 45% of R 55-65 bends and all of R 65-80 ended on the INSIDE wall.
+- Fix: the arc is now the bend's own radius x SLIDE_WIDE (1.15), between SLIDE_RADIUS (60, tight bends as
+  before) and SLIDE_RADIUS_MAX (90, straights and sweepers). Same test: inside-wall endings 45% -> 0% and
+  100% -> 3-17%; width used 25% -> 51% and 0% -> 39%.
+- A blanket wider arc (tried 78 m, then 72 m with less slide grip) was rejected: it moved the common R 45-55
+  bends from 45% to 84% outer-wall endings in the same test.
+- TURN_RATE 1.5 -> 1.35 rad/s (TURN_MAX 2.0 -> 1.85). The nose turns at the same rate in a slide, so this alone
+  makes the common bends run a little wider too (R 45-55: outer-wall endings 45% -> 58%, width used 78% -> 86%).
+- FAIR_SHARE stays 0.55: the layout assumes the same share of a smaller turn rate, so the proof keeps its margin.
+- Exit untouched.
 - Status: complete, pending Adrian's hands.
 
 ## Next Step

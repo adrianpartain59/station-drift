@@ -177,10 +177,15 @@ export class ShipPhysics {
     if (exiting) { this.psi += (this.theta - this.psi) * ease(M.EXIT_RATE, dt); this.exitT -= dt; }
     let slip = this.psi - this.theta;
     // How fast the direction of travel comes round to the nose. Sliding, that is slower, and it tops out:
-    // the ship cannot travel an arc tighter than SLIDE_RADIUS however far in the nose is turned, so in a
-    // tighter bend it runs wide for as long as the slide is held.
+    // however far in the nose is turned, the ship cannot travel an arc tighter than a set radius. That radius
+    // is the bend's own and a bit more (SLIDE_WIDE), so a held slide runs wide of the bend it is in instead
+    // of cutting inside it, kept between SLIDE_RADIUS (tight bends, which it runs wide of all the more) and
+    // SLIDE_RADIUS_MAX (straights and sweepers).
     let pull = slip * (exiting ? lerp(M.EXIT_PULL, this.gripNow, out * out) : this.gripNow);
-    if (this.drift) { const top = v / M.SLIDE_RADIUS; pull = clamp(pull, -top, top); }
+    if (this.drift) {
+      const arc = clamp(M.SLIDE_WIDE / Math.max(Math.abs(k), 1e-6), M.SLIDE_RADIUS, M.SLIDE_RADIUS_MAX);
+      const top = v / arc; pull = clamp(pull, -top, top);
+    }
     this.theta += (pull + k * sdot) * dt;
     // on a straight with the keys up, a nose within a degree or two of dead ahead settles dead ahead
     if (raw === 0 && k === 0 && !this.drift && Math.abs(this.psi) < M.DETENT) this.psi *= Math.exp(-M.DETENT_RATE * dt);
