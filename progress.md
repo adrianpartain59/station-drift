@@ -418,7 +418,8 @@ track could curve under or over itself. A probe on the real hard-mode physics be
 scripted player who eases the arrow held one slide right round 360 and 720 degrees at R 85 / 100 / 115 m, at
 93 and at 120 m/s, without touching a rail (4.6-7.9 s a turn).
 
-Built (branch `claude/new-map-414ab7`, not on `main`)
+Built (merged into `main` the same day on Adrian's word, "Merge to main", fast-forward from 513796e; both classic
+fingerprints matched and the build passed before the push)
 - A spiral piece in the SKYWAY generator: a short run-in, right round once (15% of them: twice), R 82-104 m,
   a steady 5-8.5% down, a short run-out, then a sweeper the other way. At most one per stretch of open air.
 - The no-overlap rule is 3D now: two stretches may overlap in plan only with 18 m between their decks, and

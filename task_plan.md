@@ -185,8 +185,8 @@ His words: "is it possible for us to add downward spiral sections where you coul
 - Course dresses it (coins on the inside third, boards all the way round); the feel tool has rows for it; the
   HUD says SPIRAL / HOLD THE SLIDE; the whole spiral stays built while it is near.
 - Not built: other crossings (flyovers, figure-8s), upward spirals. They need the heading rule replaced.
-- On the branch only, not on `main`.
-- Status: complete, waiting for how it feels to him.
+- Merged into `main` on 2026-11-18 on Adrian's word ("Merge to main"), fast-forward: live from that push.
+- Status: complete.
 
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
