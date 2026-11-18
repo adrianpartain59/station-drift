@@ -30,6 +30,10 @@ export class Track {
     this.rng = mulberry32(seed);
     this.X = []; this.Z = []; this.H = []; this.K = []; this.W = [];
     this.ZONE = []; this.FLAG = []; this.SEC = [];
+    // Height of the floor (Y) and its slope along the track (G, metres per metre). The classic map is flat.
+    this.Y = []; this.G = []; this.gy = 0;
+    this.map = 'classic';
+    this.calmK = 0;        // obstacles may only stand where |k| <= this (classic: dead straights only)
     this.sections = [];
     this.pieces = [];
     this.gx = 0; this.gz = 0; this.gh = 0;
@@ -37,8 +41,12 @@ export class Track {
     this.paletteIdx = Math.floor(this.rng() * PALETTES.length);
     this.nameIdx = Math.floor(this.rng() * STATION_NAMES.length);
     this.nextStationW = lerp(TRACK.STATION_W[0], TRACK.STATION_W[1], this.rng());
+    this.init();
     this.buildOpening();
   }
+
+  /** Hook for other maps (level/TrackSkyway.js): set up before the first piece is laid. */
+  init() {}
 
   get len() { return this.X.length; }
   r(a = 0, b = 1) { return a + (b - a) * this.rng(); }
@@ -57,6 +65,8 @@ export class Track {
     out.x = lerp(this.X[i], this.X[i + 1], f);
     out.z = lerp(this.Z[i], this.Z[i + 1], f);
     out.h = lerp(this.H[i], this.H[i + 1], f);
+    out.y = lerp(this.Y[i], this.Y[i + 1], f);
+    out.g = lerp(this.G[i], this.G[i + 1], f);
     out.k = this.K[i];
     out.w = lerp(this.W[i], this.W[i + 1], f);
     out.zone = this.ZONE[i];
@@ -79,6 +89,7 @@ export class Track {
       this.w += dw;
       this.X.push(this.gx); this.Z.push(this.gz); this.H.push(this.gh); this.K.push(k);
       this.W.push(this.w); this.ZONE.push(zone); this.FLAG.push(flag); this.SEC.push(sec);
+      this.Y.push(this.gy); this.G.push(0);
       const hm = this.gh + k * 0.5;
       this.gx += Math.sin(hm); this.gz += Math.cos(hm);
       this.gh += k;

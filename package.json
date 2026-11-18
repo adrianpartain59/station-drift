@@ -7,8 +7,11 @@
     "dev": "vite --port 5190 --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --port 5191",
-    "verify": "node tools/verify/passability.mjs --seeds 200 --km 12",
-    "verify:hard": "node tools/verify/passability.mjs --mode hard --seeds 200 --km 12",
+    "verify": "node tools/verify/passability.mjs --map classic --mode easy --seeds 200 --km 12",
+    "verify:hard": "node tools/verify/passability.mjs --map classic --mode hard --seeds 200 --km 12",
+    "verify:skyway": "node tools/verify/passability.mjs --map skyway --mode easy --seeds 200 --km 12",
+    "verify:skyway:hard": "node tools/verify/passability.mjs --map skyway --mode hard --seeds 200 --km 12",
+    "mapcheck": "node tools/verify/mapcheck.mjs --map skyway --seeds 300 --km 12",
     "fingerprint": "node tools/verify/fingerprint.mjs",
     "feel": "node tools/verify/feel.mjs"
   },

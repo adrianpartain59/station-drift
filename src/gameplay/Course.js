@@ -8,6 +8,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
+// Sight over hills: the pilot's eye above the floor (the cockpit view, the lower of the two cameras)
+// and the height above the floor of the spot that has to be seen (the middle of anything hittable).
+const EYE = 3.0, TARGET = 2.0;
+
 /** Smallest clearance from point (s, x) to an obstacle's surface (negative = inside). */
 export function clearance(o, s, x) {
   if (o.shape === 'post') return Math.hypot(s - o.s, x - o.x) - o.r;
@@ -17,6 +21,58 @@ export function clearance(o, s, x) {
 
 /** Where a sweeping laser's beam is across the corridor at time t. */
 export const beamX = (o, t) => o.bx + o.amp * Math.sin(o.om * t + o.ph);
+
+// ---------------------------------------------------------------------------------------------
+// Movers (the SKYWAY map's open-air obstacles). Each one moves inside a fixed envelope: a disc
+// ('post') or a box painted on the deck. The layout, the test bots and the proof all treat the
+// whole envelope as solid, so nothing ever depends on timing; only the real hit test below looks
+// at where the moving parts are right now. tools/verify checks that no part ever leaves its envelope.
+// ---------------------------------------------------------------------------------------------
+export const MOVERS = new Set(['orbit', 'patrol', 'beacon', 'shuttle']);
+
+/**
+ * The parts of mover `o` that can be hit at time t, in track coordinates.
+ * Each is a circle { s, x, r }, a bar { s, x, s2, x2, r } or a box { s, x, hl, hw }.
+ */
+export function moverParts(o, t, out = []) {
+  out.length = 0;
+  const a = o.om * t + o.ph;
+  switch (o.kind) {
+    case 'orbit':      // rocks circling a beacon
+      for (let i = 0; i < o.n; i++) { const q = a + (i * 6.283185307179586) / o.n; out.push({ s: o.s + o.orb * Math.cos(q), x: o.x + o.orb * Math.sin(q), r: o.rr }); }
+      break;
+    case 'patrol':     // drones sweeping across a band, one behind the other, out of step
+      for (let i = 0; i < o.n; i++) out.push({ s: o.s + (i - (o.n - 1) / 2) * o.gap, x: o.cx + o.amp * Math.sin(a + i * o.lag), r: o.rr });
+      break;
+    case 'beacon': {   // a lighthouse: one bar of light turning about a pylon
+      const c = Math.cos(a) * o.arm, d = Math.sin(a) * o.arm;
+      out.push({ s: o.s - c, x: o.x - d, s2: o.s + c, x2: o.x + d, r: 0.35 }, { s: o.s, x: o.x, r: 1.2 });
+      break;
+    }
+    case 'shuttle':    // a hauler running up and down a marked lane
+      out.push({ s: o.s + o.amp * Math.sin(a), x: o.x, hl: 5.5, hw: 1.7 });
+      break;
+  }
+  return out;
+}
+
+const PARTS = [];
+/** Smallest clearance from point (s, x) to any moving part of mover `o` at time t. */
+export function moverClearance(o, s, x, t) {
+  let best = Infinity;
+  for (const p of moverParts(o, t, PARTS)) {
+    let c;
+    if (p.hl !== undefined) {
+      const dx = Math.abs(s - p.s) - p.hl, dy = Math.abs(x - p.x) - p.hw;
+      c = Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0);
+    } else if (p.s2 !== undefined) {
+      const ux = p.s2 - p.s, uy = p.x2 - p.x, f = clamp(((s - p.s) * ux + (x - p.x) * uy) / (ux * ux + uy * uy || 1), 0, 1);
+      c = Math.hypot(s - p.s - ux * f, x - p.x - uy * f) - p.r;
+    } else c = Math.hypot(s - p.s, x - p.x) - p.r;
+    if (c < best) best = c;
+  }
+  return best;
+}
 
 /** Half-width (across the corridor) an obstacle blocks, and its half-length along it. */
 export const halfWidth = (o) => (o.shape === 'post' ? o.r : o.hw);
@@ -87,6 +143,8 @@ export class Course {
     this.oi = 0; this.ci = 0; this.pdi = 0; this.gi = 0; // how far the ship has got through each list
     this.lastGate = 0;
     this.prevRow = null;   // last row laid: { end, free, y }
+    this.hilly = track.map === 'skyway';
+    this.reach = this.hilly ? 36 : 16;   // how far along the track anything hittable can reach from its own centre
     this.sync();
   }
 
@@ -130,6 +188,12 @@ export class Course {
         const off = Math.abs((T.X[i] - ax) * dz - (T.Z[i] - az) * dx) / L; // centreline's distance from the sight line
         if (off > T.W[i] - 0.6) { ok = false; break; }
       }
+      // where the map has hills, a crest hides what is beyond it: the line from the pilot's eye to the
+      // spot (at ship height) has to clear the road all the way
+      if (ok && this.hilly) {
+        const Y = T.Y, e = Y[i0] + EYE, dy = Y[i1] + TARGET - e, n = i1 - i0;
+        for (let i = i0 + 2; i < i1; i += 2) if (Y[i] + 0.25 > e + (dy * (i - i0)) / n) { ok = false; break; }
+      }
       if (!ok) break;
       best = i0;
     }
@@ -144,12 +208,14 @@ export class Course {
   update(ship, hooks, t = 0) {
     const s = ship.s, x = ship.x;
     const O = this.obstacles;
-    while (this.oi < O.length && O[this.oi].s < s - 16) this.oi++;
+    const reach = this.reach;
+    while (this.oi < O.length && O[this.oi].s < s - reach) this.oi++;
     for (let i = this.oi; i < O.length; i++) {
       const o = O[i];
-      if (o.s > s + 16) break;
-      // a sweeping laser only hurts where its beam is right now (the layout and the proof treat its whole sweep as solid)
-      const c = (o.kind === 'sweep' ? Math.hypot(s - o.s, x - beamX(o, t)) - 0.3 : clearance(o, s, x)) - SHIP.HIT_RADIUS;
+      if (o.s > s + reach) break;
+      // a sweeping laser only hurts where its beam is right now (the layout and the proof treat its whole sweep as solid);
+      // a mover only where its moving parts are right now (likewise)
+      const c = (o.kind === 'sweep' ? Math.hypot(s - o.s, x - beamX(o, t)) - 0.3 : o.mover ? moverClearance(o, s, x, t) : clearance(o, s, x)) - SHIP.HIT_RADIUS;
       if (c < 0) { if (!o.hit && ship.ghost <= 0 && hooks.crash(o) !== false) o.hit = true; }
       else if (c < o.near) o.near = c;
       if (!o.passed && s > o.s + halfLength(o) + 1.5) {
@@ -215,6 +281,7 @@ export class Course {
 
   // ---------- pieces ----------
   dress(p) {
+    if (this.hilly && this.track.sections[p.sec].type === 'space') return this.dressAir(p);
     if (COURSE.SPANS) return this.dressSpans(p);
     const T = this.track, sec = T.sections[p.sec];
     const d = p.d;
@@ -468,22 +535,26 @@ export class Course {
     // Where the ship may be coming from. With a row close behind and the walls unchanged since, it came
     // through that row's opening. Otherwise (first of a set, or the corridor has narrowed in between)
     // it can be anywhere across the corridor, sliding either way.
-    const settled = this.settledStart(s);
+    // On a calm sweeper (SKYWAY) the same reckoning holds from where the sweeper starts, with two things
+    // given away by the caller: the turning the sweeper itself takes (already off `acc`), and time,
+    // counted at the inside rail where the road comes at the ship fastest (`vs`).
+    const settled = ctx.calm ? this.calmStart(s) : this.settledStart(s);
+    const vs = ctx.vs || v;
     const fresh = !prev || settled > prev.end;
     const from = fresh ? [[-lim, lim]] : prev.free;
     const react = fresh ? lerp(FAIR.REACT_FIRST[0], FAIR.REACT_FIRST[1], d) : lerp(FAIR.REACT_NEXT[0], FAIR.REACT_NEXT[1], d);
-    const move = v * worstTime(from, free, acc, v, lim);
+    const move = vs * worstTime(from, free, acc, v, lim);
     // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
     let seen = 0;
     for (const o of row.items) seen = Math.max(seen, this.sightStart(s + (o.ds || 0), clamp(0, o.x - halfWidth(o), o.x + halfWidth(o))));
-    let sMin = Math.max(s, seen + v * tSee + row.front);
+    let sMin = Math.max(s, seen + vs * tSee + row.front);
     if (prev) sMin = Math.max(sMin, prev.end + FAIR.MIN_GAP + row.front);
     if (fresh) {
       // seen, reacted to, and the whole move made on the straight, after any narrowing (never mid-bend)
-      sMin = Math.max(sMin, seen + v * react + move + row.front, settled + move + 2 + row.front);
+      sMin = Math.max(sMin, seen + vs * react + move + row.front, settled + move + 2 + row.front);
     } else {
       // far enough past the previous row to react and make the move
-      sMin = Math.max(sMin, prev.end + v * react + move + row.front);
+      sMin = Math.max(sMin, prev.end + vs * react + move + row.front);
     }
     return { sMin, s0, s1, free, lim };
   }
@@ -739,6 +810,139 @@ export class Course {
           }
           if (!items.length) return null;
           return { items, y, front: 0.7, back: backOf(items, 6) };
+        }
+      }
+    };
+  }
+
+  // ---------- SKYWAY: open air ----------
+  /** Where the calm stretch that s sits on begins: gentle enough to stand on (track.calmK) and no longer changing width. */
+  calmStart(s) {
+    const T = this.track, K = T.K, W = T.W, lim = T.calmK;
+    let i = clamp(Math.round(s), 1, K.length - 1);
+    while (i > 0 && Math.abs(K[i - 1]) <= lim && W[i - 1] === W[i]) i--;
+    return i;
+  }
+
+  /**
+   * One piece of open air on the SKYWAY map. Bends carry nothing to hit: a racing line of coins and
+   * chevrons on the outside. A calm sweeper may carry one mover (late in a run, sometimes two).
+   */
+  dressAir(p) {
+    const T = this.track, d = p.d;
+    if (COURSE.SPANS) this.flushSpan();          // hard mode: the ship's last straight ends at its exit
+    // gates: out of every ship, at the end of the opening straight, and along the way so the next is never far
+    if (p.type === 'space-lead') this.gate(p.s0 + 1, 'out', T.sections[p.sec - 1]);
+    else if (p.type === 'opening') this.gate(p.s1 - 2, 'mid', null);
+    else if (p.s0 - this.lastGate > 560 && p.type !== 'funnel') this.gate(p.s0 + 2, 'mid', null);
+    this.prevRow = null;
+    const lim = this.lim((p.s0 + p.s1) / 2);
+    switch (p.type) {
+      case 'opening': this.coinLine(p.s0 + 40, p.s1 - 6, 0, 0); break;
+      case 'space-lead': if (this.chance(0.5)) this.pad(p.s0 + 18, 0); break;
+      case 'air-straight': this.coinLine(p.s0 + 3, p.s1 - 3, 0, 0); break;
+      case 'funnel': this.coinLine(p.s0 + 24, p.s1 - 8, 0, 0); break;
+      case 'air-calm': this.airCalm(p, d); break;
+      case 'air-bend': case 'air-ess': {
+        // the line a long slide wants: in from the middle, down to the inside by two thirds round, out again
+        const pts = [[p.arcs[0].s0 - 4, 0]];
+        for (const a of p.arcs) {
+          const len = a.s1 - a.s0, amp = a.turn * 0.58 * lim;
+          pts.push([a.s0 + len * 0.35, amp * 0.7], [a.s0 + len * 0.65, amp], [a.s1 - 2, amp * 0.45]);
+          this.airChevrons(a);
+        }
+        pts.push([p.arcs[p.arcs.length - 1].s1 + 12, 0]);
+        this.coinPath(pts);
+        if (!p.hairpin && !p.align && this.chance(0.12)) this.pad(p.arcs[p.arcs.length - 1].s1 + 4, 0);
+        break;
+      }
+    }
+    if (COURSE.SPANS) this.coins.sort((q, r) => q.s - r.s);
+  }
+
+  /** Chevron boards round the outside of an open-air bend, spaced for a wide road. */
+  airChevrons(a) {
+    const len = a.s1 - a.s0, n = Math.max(3, Math.min(7, Math.round(len / 34)));
+    for (let i = 0; i < n; i++) this.signs.push({ s: a.s0 + 4 + (i * (len * 0.7)) / n, side: -a.turn, turn: a.turn, level: 0, big: true });
+  }
+
+  /** A calm sweeper: one mover standing where the ship has provably had time to see it and get round it. */
+  airCalm(p, d) {
+    const a = p.s0 + 4, b = p.s1 - 8, lim = this.lim((a + b) / 2);
+    const line = [];
+    if (b > FAIR.NO_ROWS_BEFORE + 140 && this.chance(0.88)) {
+      const v = topSpeed(b), kMax = Math.abs(p.k || 0);
+      const vs = v / (1 - kMax * lim);                         // closing speed at the inside rail
+      // what is left of the ship's sideways ability once it has paid for the sweeper itself (v^2 / R at the inside rail)
+      const acc = lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(v) - kMax * v * vs;
+      if (acc > 5) {
+        const ctx = { b, d, v, vs, acc, tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d), calm: true };
+        const count = d > 0.3 && this.chance(0.1 + 0.3 * d) ? 2 : 1;
+        let at = a;
+        for (let n = 0; n < count; n++) {
+          const placed = this.tryPlace(this.moverDesigner(d, this.prevRow ? this.prevRow.y : null), at, ctx);
+          if (!placed) break;
+          for (const it of placed.row.items) this.obstacles.push({ ...it, s: placed.s + (it.ds || 0), id: this.oid++, hit: false, near: 99, passed: false });
+          this.rows.push({ s: placed.s, s0: placed.s0, s1: placed.s1, free: placed.free, y: placed.row.y, kind: 'air' });
+          this.prevRow = { end: placed.s1, free: placed.free, y: placed.row.y };
+          line.push([placed.s0, placed.row.y], [placed.s1, placed.row.y]);
+          at = placed.s1 + 70;
+        }
+        this.obstacles.sort((q, r) => q.s - r.s);
+      }
+    }
+    if (line.length) this.coinPath([[Math.max(a, line[0][0] - 60), line[0][1]], ...line, [Math.min(b, line[line.length - 1][0] + 24), line[line.length - 1][1]]]);
+    else { if (this.chance(0.5)) this.pad(a + 30, 0); this.coinWave(a + 50, b - 4, lim * 0.3, this.r(120, 180)); }
+    this.prevRow = null;      // a bend follows: the ship can be anywhere after it
+  }
+
+  /**
+   * Picks a mover (its random choices fixed here) and returns a function that builds it for position s:
+   * { items: [the mover, with its envelope as its shape], y: the middle of the way round, front, back }.
+   */
+  moverDesigner(d, prevY) {
+    const R = SHIP.RADIUS;
+    const u = [this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng(), this.rng()];
+    const kind = u[0] < 0.3 ? 'orbit' : u[0] < 0.6 ? 'patrol' : u[0] < 0.8 ? 'beacon' : 'shuttle';
+    // which side of the road it favours: mostly not the side the last one left open
+    const side = prevY == null ? (u[1] < 0.5 ? -1 : 1) : (prevY > 0 ? 1 : -1) * (u[1] < 0.8 ? 1 : -1);
+    const spin = (u[2] < 0.5 ? -1 : 1), ph = u[3] * 6.283;
+    return (s) => {
+      const lim = this.lim(s), [, wMax] = this.wRange(s - 2, s + 2);
+      // the way round: the middle of the wider side, never further than a lane or two from the envelope
+      const way = (x, half) => {
+        const sgn = x > 0 || (x === 0 && side > 0) ? -1 : 1;                // pass on the side with more road
+        return clamp(x + sgn * (half + R + 5.5), -(lim - 2), lim - 2);
+      };
+      switch (kind) {
+        case 'orbit': {
+          const n = d > 0.25 && u[4] < 0.45 ? 3 : 2, rr = lerp(1.7, 2.5, u[5]), orb = lerp(5.5, 8.5, u[6]);
+          const r = orb + rr + 0.8;
+          const x = side * lerp(0, lim - r - 9, u[7]);
+          return { items: [{ kind, shape: 'post', mover: true, x, r, ds: 0, n, rr, orb, om: spin * lerp(1.0, 1.5, u[4]), ph }], y: way(x, r), front: r, back: r };
+        }
+        case 'patrol': {
+          // two or three drones crossing a band. Half the time the band runs out past the rail, so that side is shut.
+          const n = d > 0.3 && u[4] < 0.5 ? 3 : 2, rr = 1.3, gap = 8, hw0 = lerp(7, 11, u[5]);
+          const hl = ((n - 1) * gap) / 2 + rr + 0.8;
+          const walled = u[6] < 0.5;
+          const edge = walled ? side * (lim + R - 2 * hw0) : null;         // free end of a walled band
+          const x0 = walled ? Math.min(edge, side * (wMax + 1.5)) : side * lerp(0, lim - hw0 - 9, u[7]) - hw0;
+          const x1 = walled ? Math.max(edge, side * (wMax + 1.5)) : x0 + 2 * hw0;
+          // the drones turn round inside the rail and inside the band's free end
+          const lo = Math.max(x0, -(lim + R)) + rr + 0.8, hi = Math.min(x1, lim + R) - rr - 0.8;
+          const x = (x0 + x1) / 2, hw = (x1 - x0) / 2;
+          return { items: [{ kind, shape: 'box', mover: true, x, hl, hw, ds: 0, n, rr, gap, cx: (lo + hi) / 2, amp: (hi - lo) / 2, lag: 2.1, om: spin * lerp(1.1, 1.7, u[4]), ph, side: walled ? side : 0 }], y: walled ? clamp(edge - side * (R + 6), -(lim - 2), lim - 2) : way(x, hw), front: hl, back: hl };
+        }
+        case 'beacon': {
+          const arm = lerp(7.5, 11, u[5]), r = arm + 1.2;
+          const x = side * lerp(0, lim - r - 9, u[7]);
+          return { items: [{ kind, shape: 'post', mover: true, x, r, ds: 0, arm, om: spin * lerp(0.8, 1.2, u[4]), ph }], y: way(x, r), front: r, back: r };
+        }
+        default: {
+          const amp = lerp(13, 21, u[5]), hl = amp + 5.5 + 0.8, hw = 1.7 + 0.8;
+          const x = side * lerp(3, lim - hw - 9, u[7]);
+          return { items: [{ kind, shape: 'box', mover: true, x, hl, hw, ds: 0, amp, om: spin * lerp(0.5, 0.75, u[4]), ph }], y: way(x, hw), front: hl, back: hl };
         }
       }
     };

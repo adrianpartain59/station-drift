@@ -127,3 +127,69 @@ don't want to change the controls at all."
   - Exit and plain steering untouched. No track reading.
 - Known cost: holding the arrow all the way through a long gentle bend will cut inside; the answer is to ease
   off the arrow, which now does something.
+
+# Second map: SKYWAY (2026-11-18)
+
+Adrian's brief: a new map where the open-air parts are the focus, much wider, nearly always bending (kart-track
+style) so slides are wide and long; stations become short interludes that need controlled slides; the track rises
+and falls on smooth curves, combined with the bends; open-air obstacles are sparse and move; stations read as
+ships you fly through. The background (sky, palettes) stays. The old map stays switchable.
+
+## What the code does today (read at main @ 4acc798)
+- `Track.H` is HEADING, not height. There is no height anywhere: every surface, the ship, the camera, coins,
+  gates, obstacles, skid marks and sparks sit on y = 0. Height is new for all of them.
+- `Track.K` is piecewise constant. A bend "counts" (arms a held drift, flips an S, pays the apex bonus) when
+  |k| >= DRIFT.ARM_K = 1/125. In HARD, charge needs slip >= 0.08 rad the same way as a bend of |k| >= 1/250,
+  otherwise it earns 15% (CHARGE_STRAIGHT). A slide carries a bend of radius R at speed v with slip = (v/R)/2.4.
+- The classic map never turns more than 0.95 rad from world forward; that is the only thing keeping it from
+  crossing itself.
+- All fairness maths (Course.judge, the verifier's search) assumes obstacles stand on a dead straight.
+- Windows work by a trick worth keeping: the hull is drawn single-sided, so from inside you look straight
+  through it at the sky.
+
+## Design
+Two maps, `src/core/Maps.js`: `classic` (Track.js, untouched in behaviour) and `skyway` (level/TrackSkyway.js,
+default on this branch). `?map=`, a title chip, saved pick. No new key.
+
+Dimensions
+- Open air: 64 m between the soft rails (half-width 32; classic 30 m). Sections 1,250-1,900 m.
+- Stations: same corridor as classic (15-21 m, hall 26 m), 400-620 m. Open air is about three quarters of the distance.
+
+Bends in open air (all piecewise-constant k, all |k| >= 1/118 so every one arms and charges)
+- sweeper: R 84-118 m, 55-115 degrees          - hairpin: R 66-84 m, 140-170 degrees
+- esses: 2-4 linked arcs, R 72-110 m, 45-85 degrees each, 8-14 m neutral between
+- calm sweeper: R 420-640 m (or straight), 210-290 m: the only place a mover may stand
+- at cruise the centreline asks 0.32-0.76 rad/s (easy) and 0.39-0.91 rad/s (hard); the inside line up to ~1.5.
+  A hard slide gives 1.1 rad/s at the flick angle and 2.28 at full angle, so every line across the road can be held.
+Bends in stations: R 44-60 m easing to 30-42 m with distance, 29-57 degrees, always in left-right pairs.
+
+Not running into itself
+- Heading never leaves +-85 degrees from world forward, so the track never travels backward. Reversing sideways
+  direction means turning through forward on an arc of R >= 66 m, which puts anti-parallel legs >= 131 m apart
+  centre to centre (64 m of road).
+- Stations lie along world forward: approach, hull and run-out are a straight line, the path inside swings at
+  most +-46 m off the axis, and the hull is built from the path's real extents.
+- No over/under passes. `npm run mapcheck` asserts no two stretches come within road + hull clearance, over many seeds.
+
+Height
+- Grade cap 13%. Crest radius >= 700 m, sag radius >= 420 m. Grade is a cosine blend between knots at piece
+  boundaries, so slope and vertical curvature are both continuous (curvature is zero at every knot).
+- Knots are chosen with a magnitude of 5-13%, so bends are climbed, descended or crested, not flat.
+- Calm sweepers never crest (movers must stay in sight). Stations are level; the approach and run-out are level.
+- Slope does not change speed. The ship follows the surface; pace, par and the proof are unchanged by height.
+  The proof does account for crests hiding things (sight is checked in 3D).
+
+Obstacles in open air: sparse, moving, proved as solid over their whole sweep
+- orbit (rocks circling a beacon), patrol (drones sweeping across a marked band), beacon (rotating beams),
+  shuttle (a hauler running up and down a marked lane). One group per calm sweeper, at most two late in a run.
+- Layout and proof treat the mover's envelope (a disc or a box painted on the deck) as solid. The verifier also
+  samples every mover's real motion and asserts it never leaves its envelope.
+- On a calm sweeper the proof gives away the turning the sweeper itself needs: usable sideways acceleration is
+  share x ability - v^2/R at the inside rail, and time is counted at the inside rail's faster closing speed.
+- Stations keep the static rows, through the existing code paths.
+
+Stations as ships
+- One rigid hull per station, lofted along the axis: prow prongs either side of a lit hangar mouth, tapered
+  bow, mid-body, bridge tower, fins, engine nacelles with glowing bells at the stern exit, name on the flanks.
+  Interior: bulkhead frames, the existing ribs / windows / skylights.
+- One or two draw calls per ship instead of per-chunk hull strips.

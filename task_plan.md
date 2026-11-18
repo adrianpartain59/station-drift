@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 14 (drift softened a little; waiting on Adrian's hands), branch `hard-mode` from main @ e2e6eb5
+Phase 17 (second map, SKYWAY), branch `claude/new-map-414ab7` from main @ 4acc798
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -141,11 +141,25 @@ His note: much better, almost perfect, a little sharp; regular steering may be t
 - Live at https://adrianpartain59.github.io/station-drift/
 - Status: complete.
 
+### Phase 17: Second map, SKYWAY (Adrian, 2026-11-18). Branch `claude/new-map-414ab7` from main @ 4acc798
+Goal: a second, entirely new map beside the classic one: open air is the main event (64 m wide, nearly always
+bending, hills), stations are short ship-like interludes, open-air obstacles are sparse and move. Classic stays
+one switch away and provably unchanged. Design: findings.md, "Second map: SKYWAY".
+- 17a Guard: `npm run fingerprint` now covers HARD on the classic map too. Status: complete
+- 17b Design written to findings.md. Status: complete
+- 17c Generator (level/TrackSkyway.js), height, `npm run mapcheck`. Status: in_progress
+- 17d Course: open-air dressing, movers, 3D sight; verifier extended. Status: pending
+- 17e World follows height: builder, ship, camera, course view, effects. Open-air deck. Status: pending
+- 17f Ship hulls for stations. Frame budget measured. Status: pending
+- 17g Map switch (`?map=`, title chip). Status: pending
+- 17h `npm run feel` on open-air bends; full verification both maps both modes. Status: pending
+- 17i Browser check both cameras, build, commit, push branch, open in Chrome, hand-over. Status: pending
+
 ## Next Step
-Adrian plays hard. If a tap of the arrow alone still feels sharp: SLIDE_ANGLE 0.45 -> 0.37 (measured candidate).
-Regular steering (TURN_RATE 1.35 -> 1.2) only as its own round, on his say. Still open: test bot's lane scoring
-(Phase 12; seeds 5147 and 139). Measure any change with `npm run feel` first. Merge `hard-mode` only when he says.
-THE REPO IS PUBLIC NOW: everything committed is readable by anyone, and every push to `main` goes live on Pages.
+Phase 17c: write level/TrackSkyway.js and tools/verify/mapcheck.mjs, get the map statistics right in node.
+Still open from before, not part of this phase: the test bot's lane scoring (Phase 12; seeds 5147 and 139);
+SLIDE_ANGLE 0.45 -> 0.37 if a tap alone still feels sharp. Neither may be done without Adrian's word.
+THE REPO IS PUBLIC: every push to `main` goes live. This branch is never pushed to `main` without his say.
 Keep secrets, private paths and other projects out of commits and out of these notes.
 
 ## Decisions Made

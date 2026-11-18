@@ -1,6 +1,6 @@
 import { SHIP, DRIFT, COURSE } from '../core/Constants.js';
 import { ShipPhysics } from './ShipPhysics.js';
-import { clearance, halfWidth } from './Course.js';
+import { clearance, halfWidth, halfLength } from './Course.js';
 
 /**
  * A driver that only does what a person at a keyboard can: left / right / nothing, a drift button and
@@ -151,7 +151,7 @@ export class Autopilot {
         sim.step(dtSim, keys);
         let hit = false;
         for (const ob of obs) {
-          if (Math.abs(ob.s - sim.s) > 14) continue;
+          if (Math.abs(ob.s - sim.s) > (ob.mover ? halfLength(ob) + 8 : 14)) continue;
           const c = clearance(ob, sim.s, sim.x) - SHIP.RADIUS;
           if (c < room) { hit = true; break; }
           if (c < minClear) minClear = c;
