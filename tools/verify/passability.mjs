@@ -47,7 +47,10 @@ const flag = (name) => process.argv.includes('--' + name);
 const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERBOSE = flag('verbose');
 // --self-test: slide every obstacle SHOVE metres back toward the bend before it, which makes the course unfair on
 // purpose. The check must then FAIL; if it still passes, the check is not checking anything.
-const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), BOTS = !flag('no-bots') && !SELF_TEST;
+// Movers stand on long calm sweepers with more room in hand than a station's rows have (the layout's own bar for
+// them is well above this check's), so the self-test shoves them further: far enough to put them back in, or
+// right up against, the bend before. It then has to catch them on every seed, in their own right.
+const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), SHOVE_AIR = arg('shove-air', 130), BOTS = !flag('no-bots') && !SELF_TEST;
 const L = KM * 1000;
 const Track = function (seed) { return makeTrack(MAP, seed); };   // `new Track(seed)` below builds the chosen map
 
@@ -201,7 +204,7 @@ function checkSeed(seed) {
   const T = new Track(seed); T.ensure(L + 800);
   const C = new Course(T, seed);
   const out = { seed, fails: [], groups: 0, minSight: 99, minOpen: 99, searchStates: 0, obstacles: 0, rowsPerKm: 0, movers: 0, airGroups: 0, airFails: 0, shipFails: 0 };
-  if (SELF_TEST) for (const o of C.obstacles) o.s -= SHOVE;
+  if (SELF_TEST) { for (const o of C.obstacles) o.s -= o.mover ? SHOVE_AIR : SHOVE; C.obstacles.sort((p, q) => p.s - q.s); }
   const obs = C.obstacles.filter((o) => o.s < L);
   out.obstacles = obs.length;
 
@@ -350,7 +353,7 @@ if (BOTS) {
 console.log(`  ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 if (SELF_TEST) {
   const caught = all.filter((r) => r.fails.length).length;
-  console.log(`\nSELF-TEST (every obstacle shoved ${SHOVE} m toward the bend before it): ${fails.length} problems reported on ${caught} of ${SEEDS} seeds.`);
+  console.log(`\nSELF-TEST (every obstacle shoved ${SHOVE} m toward the bend before it${MAP === 'skyway' ? `, movers ${SHOVE_AIR} m` : ''}): ${fails.length} problems reported on ${caught} of ${SEEDS} seeds.`);
   for (const f of fails.slice(0, 5)) console.log('  e.g. ' + f);
   let ok = caught === SEEDS;
   if (MAP === 'skyway') {

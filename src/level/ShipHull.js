@@ -89,14 +89,14 @@ export function buildShipHull(track, sec, m) {
 
   // ---- the shape: three hull forms, engines at one end, a prow at the other ----
   const V = hu.variant;                         // 0 carrier (wide, flat), 1 freighter (boxy, tall), 2 cruiser (lean, finned)
-  const beam = [48, 32, 25][V], rise = [19, 36, 27][V], keel = [14, 21, 16][V];
+  const beam = [58, 40, 32][V], rise = [24, 44, 34][V], keel = [18, 26, 20][V];
   const eng = hu.flip ? 0 : 1;                  // which end (0 = where you come in, 1 = where you leave) carries the engines
   const wMouth = (t) => lerp(hu.w0, hu.w1, t) + 8;
   const slice = (k) => {
     const t = k / N;
     const te = eng ? 1 - t : t;                 // 0 at the engine end, 1 at the prow
     // how far the hull has swelled from a mouth to its full section: blunt at the engines, long taper at the prow
-    const grow = Math.min(smooth(te / 0.12), smooth((1 - te) / 0.3));
+    const grow = Math.min(smooth(te / 0.09), smooth((1 - te) / 0.3));
     const waist = 1 - 0.12 * Math.sin(Math.PI * 3 * t) * (V === 2 ? 1 : 0.4);
     const lo = Math.min(need[k][0], -(wMouth(t) + grow * beam * waist));
     const hi = Math.max(need[k][1], wMouth(t) + grow * beam * waist);
@@ -201,10 +201,10 @@ export function buildShipHull(track, sec, m) {
 
   // ---- engines: nacelles flanking the mouth at one end, bells lit, plumes trailing ----
   const se = S[eng ? N : 0], ze = se.z, wm = (eng ? hu.w1 : hu.w0);
-  const R = [11, 13, 8.5][V], count = V === 2 ? 4 : 2;
+  const R = [15, 17, 11][V], count = V === 2 ? 4 : 2;
   for (let i = 0; i < count; i++) {
     const side = i % 2 ? 1 : -1, row = i >> 1;
-    const ex = x0 + side * (wm + 8 + R + 6 + (V === 0 ? 16 : 0)), ey = yF + H / 2 + (count === 4 ? (row ? 19 : -9) : 3);
+    const ex = x0 + side * (wm + 8 + R + 6 + (V === 0 ? 16 : 0)), ey = yF + H / 2 + (count === 4 ? (row ? 24 : -9) : 4);
     const zb = ze + zDir * 9, zf = ze - zDir * 52;                // bell end, far end
     hull.tube(ex, ey, Math.min(zb, zf), Math.max(zb, zf), eng ? R * 0.82 : R, eng ? R : R * 0.82);
     hull.disc(ex, ey, zf, R * 0.82, -zDir);

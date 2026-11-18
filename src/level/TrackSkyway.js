@@ -270,7 +270,12 @@ export class SkywayTrack extends Track {
       uMin = Math.min(uMin, this.X[i] - x0 - this.W[i]); uMax = Math.max(uMax, this.X[i] - x0 + this.W[i]);
       wMax = Math.max(wMax, this.W[i]);
     }
-    sec.hull = { x0, z0, z1: this.gz, y: this.gy, uMin, uMax, w0: this.W[sec.s0], w1: this.W[sec.s1 - 1], variant: Math.floor(this.rng() * 3), flip: this.rng() < 0.5 };
+    // Which hull form, and which end you come in by. (You always come in between the engines: seen from
+    // astern a ship reads as a ship at once, which its bow, head-on and against the light, does not. The
+    // draw is still made, so the seed's map is the same whichever way this is set.)
+    const variant = Math.floor(this.rng() * 3), bowFirst = this.rng() < 0.5;
+    void bowFirst;
+    sec.hull = { x0, z0, z1: this.gz, y: this.gy, uMin, uMax, w0: this.W[sec.s0], w1: this.W[sec.s1 - 1], variant, flip: true };
   }
 
   shipRadius(d) { return lerp(this.r(S.SHIP_R[0][0], S.SHIP_R[0][1]), this.r(S.SHIP_R[1][0], S.SHIP_R[1][1]), d); }
