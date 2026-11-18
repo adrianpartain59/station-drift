@@ -128,3 +128,12 @@ node tools/verify/feel.mjs --brief SLIDE_WIND=0.9 / SLIDE_WIND=0.9 BITE_TIME=0.5
 Open the game from the dev server with `?perf=<seconds>` (and `?bot&autostart&mute`) and it measures real
 frame times for that long, then freezes and reports them: in the page title, in `window.__perf`, and in the dev
 server's log (`[perf] ...`). The tab has to be in front: a hidden tab is throttled by the browser.
+
+## Trying another speed
+
+`?speed=2` in the game and `--speed 2` on `passability.mjs` and `feel.mjs` multiply everything measured in
+metres per second (cruise, start speed, and the rates that go with them). It is a test hook: nothing is saved,
+no best is kept, and the game's own numbers do not change. The course is laid out for whatever speed is live,
+so the check still means what it says at any speed; expect far fewer obstacles at a higher one, because the
+straights and calm sweepers do not get longer.
+

@@ -157,6 +157,12 @@ one switch away and provably unchanged. Design: findings.md, "Second map: SKYWAY
 - Status: complete. Merged into `main` on 2026-11-18 on Adrian's word ("Merge to main"), fast-forward, before he had
   played it: SKYWAY is the default map on the live site from that push. Real hands on the new map still to come.
 
+### Phase 18: Twice the speed, as a test (Adrian, 2026-11-18)
+His words: "make the base movement speed a lot faster like twice as fast, I just want to see how that feels".
+- `?speed=2` test hook (game) and `--speed 2` (tools). The game's own numbers are unchanged. Measured: progress.md.
+- On the branch only, not on `main`.
+- Status: complete, waiting for how it feels to him.
+
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
 His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the

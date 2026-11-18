@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { TRACK, SHIP, DRIFT, SCORE, CLOCK, CAMERA, RENDER } from './Constants.js';
 import { GameState } from './GameState.js';
 import { MODES } from './Modes.js';
-import { MAPS, makeTrack, applyGame } from './Maps.js';
+import { MAPS, TEST, makeTrack, applyGame } from './Maps.js';
 import { buildShipHull, disposeShipHull } from '../level/ShipHull.js';
 import { Materials } from '../level/Materials.js';
 import { WorldBuilder } from '../level/WorldBuilder.js';
@@ -90,11 +90,15 @@ export class Game {
     for (const b of document.querySelectorAll('.mode')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
     for (const b of document.querySelectorAll('.map')) b.addEventListener('click', () => this.setMap(b.dataset.map));
 
+    // Test hook: ?speed=2 runs everything twice as fast (core/Maps.js TEST). Not saved, and no best is kept.
+    const speed = Number(params.get('speed'));
+    if (speed >= 0.5 && speed <= 3 && speed !== 1) { TEST.speed = speed; GameState.test = true; }
     // which game: EASY or HARD, on which map (?mode= and ?map= win over the saved choices)
     if (MODES[params.get('mode')]) GameState.setMode(params.get('mode'));
     if (MAPS[params.get('map')]) GameState.setMap(params.get('map'));
     this.hud.setMode(applyGame(GameState.mode, GameState.map), MODES);
     this.hud.setMap(GameState.map, MAPS);
+    if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
 
     this.newRun(params.has('seed') ? Number(params.get('seed')) : (Math.random() * 1e9) | 0);
     GameState.phase = 'title';
@@ -224,6 +228,7 @@ export class Game {
     if (!MODES[name] || name === g.mode || g.phase === 'playing' || g.phase === 'paused') return;
     g.setMode(name);
     this.hud.setMode(applyGame(name, g.map), MODES);
+    if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
     this.audio.ui();
     if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
   }
@@ -552,7 +557,7 @@ export class Game {
     const boostN = ph.boosting ? 1 : 0;
     // front pods and the yoke turn to face the way the ship is going: counter-steer in a slide
     const counter = clamp(ph.beta - ph.steer * 0.22, -0.75, 0.75);
-    m.update(dt, g.time, clamp(ph.v / 50, 0, 1.2), boostN, col, counter, ph.steer);
+    m.update(dt, g.time, clamp(ph.v / (50 * TEST.speed), 0, 1.2), boostN, col, counter, ph.steer);
 
     m.group.updateMatrixWorld();
     const side = this.tmpV.set(Math.cos(p.yaw), 0, -Math.sin(p.yaw));

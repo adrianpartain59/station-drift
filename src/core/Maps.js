@@ -40,6 +40,14 @@ export const makeTrack = (name, seed) => MAPS[mapName(name)].make(seed);
 const GROUPS = { SHIP, DRIFT, CLOCK, SCORE, FAIR, COURSE };
 const clone = (v) => (Array.isArray(v) ? v.map(clone) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clone(x)])) : v);
 
+// A test hook, not a setting: `?speed=2` in the game, `--speed 2` in the tools. Everything measured in
+// metres per second is multiplied: cruise and start speed, and with them the rates that would otherwise
+// take twice as long to do the same job (pulling away, braking, a boost coming on, what a wall or a slide
+// scrubs off). Nothing measured in seconds or radians is touched: the steering, the slide and the clock
+// are exactly as they are, which is the point of trying it. The course is laid out for whatever speed is
+// live, so it stays provably fair; it just has less room to put things in.
+export const TEST = { speed: 1 };
+
 /**
  * Make `mode` on `map` the live rule set: the mode's numbers (core/Modes.js), then whatever the map
  * lays over them. CLASSIC lays nothing over, so it is exactly the mode. Returns the mode's name.
@@ -48,5 +56,12 @@ export function applyGame(mode, map) {
   const m = applyMode(mode);
   const set = MAPS[mapName(map)].set?.[m] || {};
   for (const [g, vals] of Object.entries(set)) Object.assign(GROUPS[g], clone(vals));
+  const k = TEST.speed;
+  if (k !== 1) {
+    SHIP.CRUISE = SHIP.CRUISE.map((v) => v * k);
+    for (const key of ['START_SPEED', 'ACCEL', 'COAST', 'BRAKE_DECEL', 'SCRAPE_DRAG', 'SCRUB', 'GRAZE_SPEED', 'CRASH_MIN']) SHIP[key] *= k;
+    DRIFT.MIN_SPEED *= k; DRIFT.BOOST_ACCEL *= k;
+    if (SHIP.MANUAL) SHIP.MANUAL.SLIDE_DRAG *= k;
+  }
   return m;
 }

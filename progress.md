@@ -327,3 +327,31 @@ Not verified
   CLASSIC chip gives the old map.
 - He had not played the new map when he said it. The knobs listed under "Next Step" in task_plan.md are
   still his to turn.
+
+## Twice the speed, to feel it (2026-11-18, Adrian: "make the base movement speed a lot faster like twice as fast, I just want to see how that feels")
+- Built as a test hook, not a change to the game's numbers: `?speed=2` in the game, `--speed 2` in the tools
+  (`TEST` in core/Maps.js). Any value from 0.5 to 3. Everything in metres per second is multiplied (cruise, start
+  speed, and the rates that would otherwise take twice as long: pulling away, braking, boost, what a wall or a
+  slide scrubs off). Steering, the slide and the clock are untouched. The HUD says SPEED x2 and no best is saved.
+  On the branch only; not on `main`, so the live site does not have it.
+- At 1x nothing moves: both classic fingerprints match and the SKYWAY numbers are the same.
+- What 2x does on SKYWAY, measured (hard cruise becomes 92-120 m/s, the speedo reads 660-1,040):
+  | | 1x | 2x |
+  |---|---|---|
+  | time in the median open-air bend, hard | 2.3 s | 1.2 s |
+  | open-air bends an eased slide clears | 100% | 44% (R 70-90), 72%, 81% (R 105-120); hairpins 50% |
+  | slide held, average | 2.3-2.9 s | 1.2-1.5 s |
+  | open-air bends plain steering clears | 100% | 90-100%; hairpins 69% |
+  | tight ship corners an eased slide clears | 79% | 13% (82% end on the outer wall) |
+  | tight ship corners plain steering clears | 58% | 21% |
+  | obstacle groups per km, hard / easy | 1.2 / 0.6 | 0.1 / 0.02 |
+  | movers per km, hard / easy | 0.37 / 0.33 | 0.06 / 0 |
+  | drifting bot's median run, hard | 10-11 km | 7.6 km |
+  The proof still passes (16 seeds per mode): the layout places for whatever speed is live, so nothing unfair
+  is laid; it simply finds almost nowhere with room. Ships cannot be taken at cruise: R 30-56 m at 92-120 m/s
+  asks 1.6-4.0 rad/s and the slide tops out at 2.28. The brake (S) is what gets through them.
+- In easy the no-drift bot hits a wall 124 times in 192 km (grip steering cannot hold a bend at this speed) and
+  the drifting bot's clock never runs out.
+- If he likes the speed: the map has to grow with it (bend radii and lengths, calm sweepers, ship corners all
+  about twice the size) for bends to last as long, ships to be drivable and obstacles to come back. Not done.
+

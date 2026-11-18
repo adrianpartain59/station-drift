@@ -34,6 +34,12 @@ export class HUD {
     if (!this.el.title.classList.contains('hidden')) this.phase('title');
   }
 
+  /** A test hook is on (?speed=): say so next to the score, after the mode. */
+  testTag(text) {
+    const t = $('modeTag');
+    t.textContent = (t.textContent ? t.textContent + '  \u00b7  ' : '') + text;
+  }
+
   /** Mark the chosen map on every map chip and fill in the blurbs. */
   setMap(name, maps) {
     for (const b of document.querySelectorAll('.map')) {

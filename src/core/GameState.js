@@ -54,8 +54,11 @@ class State {
   get best() { return this.bests[this.map][this.mode] || 0; }
 
   persist() {
-    if (this.score > this.best) this.bests[this.map][this.mode] = Math.floor(this.score);
-    save(BEST_KEY[this.map][this.mode], this.best);
+    // a run on a test hook (?speed=) is not a run of the game: it never becomes a best
+    if (!this.test) {
+      if (this.score > this.best) this.bests[this.map][this.mode] = Math.floor(this.score);
+      save(BEST_KEY[this.map][this.mode], this.best);
+    }
     save('sd.bank', this.bank);
     save('sd.learned', this.learned);
   }

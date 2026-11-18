@@ -34,7 +34,7 @@
 //  - MOVERS   an obstacle that moves is treated as solid over its whole envelope, so nothing relies on
 //             timing; and every mover's real motion is sampled to prove it never leaves that envelope.
 
-import { makeTrack, applyGame, MAPS, DEFAULT_MAP } from '../../src/core/Maps.js';
+import { makeTrack, applyGame, MAPS, DEFAULT_MAP, TEST } from '../../src/core/Maps.js';
 import { Course, clearance, halfLength, halfWidth, moverParts } from '../../src/gameplay/Course.js';
 import { ShipPhysics } from '../../src/gameplay/ShipPhysics.js';
 import { Autopilot } from '../../src/gameplay/Autopilot.js';
@@ -57,6 +57,7 @@ const Track = function (seed) { return makeTrack(MAP, seed); };   // `new Track(
 // The contract each mode is held to. Hard asks more of the player, and says so.
 const MAP = strArg('map', DEFAULT_MAP);
 if (!MAPS[MAP]) { console.error('unknown map: ' + MAP); process.exit(2); }
+TEST.speed = arg('speed', 1);          // test hook: everything in metres per second multiplied (core/Maps.js)
 const MODE_NAME = applyGame(strArg('mode', 'easy'), MAP);
 if (process.env.PACE) CLOCK.PACE = JSON.parse(process.env.PACE);   // tuning aid: try a par-pace table without editing the map
 const RULE = {
@@ -338,7 +339,7 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
   if (VERBOSE) console.log(`seed ${seed}: ${r.groups} groups, min sight ${r.minSight.toFixed(2)} s, min opening ${r.minOpen.toFixed(1)} m` + (r.pace ? `, pace bot ${r.pace.avg.toFixed(1)} m/s clock>=${r.pace.minClock.toFixed(1)} s, grip bot ${r.grip.avg.toFixed(1)} m/s` : '') + (r.fails.length ? `  ** ${r.fails.length} FAIL` : ''));
 }
 const sum = (f) => all.reduce((a, r) => a + f(r), 0), min = (f) => all.reduce((a, r) => Math.min(a, f(r)), Infinity);
-console.log(`\nPassability check, ${MAPS[MAP].label} map, ${MODE_NAME.toUpperCase()} mode: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
+console.log(`\nPassability check, ${MAPS[MAP].label} map, ${MODE_NAME.toUpperCase()} mode${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
 console.log(`  obstacles ${sum((r) => r.obstacles)} in ${sum((r) => r.groups)} groups (${(sum((r) => r.groups) / (SEEDS * KM)).toFixed(1)} per km)`);
 if (MAP === 'skyway') console.log(`  of those, movers in open air: ${sum((r) => r.movers)} (${(sum((r) => r.movers) / (SEEDS * KM)).toFixed(2)} per km), each proved to stay inside the envelope treated as solid`);
 console.log(`  shortest time in sight at top speed: ${min((r) => r.minSight).toFixed(2)} s (rule: >= ${RULE.MIN_SIGHT})`);
