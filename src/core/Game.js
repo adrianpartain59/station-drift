@@ -93,12 +93,16 @@ export class Game {
     // Test hook: ?speed=2 runs everything twice as fast (core/Maps.js TEST). Not saved, and no best is kept.
     const speed = Number(params.get('speed'));
     if (speed >= 0.5 && speed <= 3 && speed !== 1) { TEST.speed = speed; GameState.test = true; }
+    // Test hook: ?air=1.5 sets how many times the ships' speed the open air runs at on SKYWAY (1 = all one speed).
+    const air = Number(params.get('air'));
+    if (air >= 1 && air <= 3) { TEST.air = air; GameState.test = true; }
     // which game: EASY or HARD, on which map (?mode= and ?map= win over the saved choices)
     if (MODES[params.get('mode')]) GameState.setMode(params.get('mode'));
     if (MAPS[params.get('map')]) GameState.setMap(params.get('map'));
     this.hud.setMode(applyGame(GameState.mode, GameState.map), MODES);
     this.hud.setMap(GameState.map, MAPS);
     if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
+    if (TEST.air) this.hud.testTag(`OPEN AIR x${TEST.air}`);
 
     this.newRun(params.has('seed') ? Number(params.get('seed')) : (Math.random() * 1e9) | 0);
     GameState.phase = 'title';
@@ -161,7 +165,7 @@ export class Game {
     this.ship.group.visible = true;
     for (const t of this.trails) t.reset();
     for (const k of this.skids) k.reset();
-    this.lastGateS = 0; this.zone = -1;
+    this.lastGateS = 0; this.zone = -1; this.ramp = 0;
     this.updateChunks(true);
     this.warmUp();
   }
@@ -229,6 +233,7 @@ export class Game {
     g.setMode(name);
     this.hud.setMode(applyGame(name, g.map), MODES);
     if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
+    if (TEST.air) this.hud.testTag(`OPEN AIR x${TEST.air}`);
     this.audio.ui();
     if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
   }
@@ -466,6 +471,17 @@ export class Game {
     }
     if (g.phase === 'over') this.overTimer += raw;
     if (g.phase === 'title') { ph.engineCut = false; }
+
+    // SKYWAY with fast open air: say so as the road takes the speed over (the brake field into a ship, the launch out)
+    const F = this.track.F;
+    if (F && SHIP.AIR_SPEED && SHIP.AIR_SPEED !== 1) {
+      const i = Math.min(F.length - 2, Math.max(0, Math.floor(ph.s))), ramp = Math.sign(F[i + 1] - F[i]);
+      if (ramp !== this.ramp) {
+        this.ramp = ramp;
+        if (playing && ramp < 0) { this.hud.pop('BRAKE FIELD', '#ffb24a', true); this.audio.ui(); }
+        else if (playing && ramp > 0) { this.hud.pop('LAUNCH', '#5ff3ff', true); this.audio.pad(); this.rig.kick(0.9); this.rig.shake(0.2); }
+      }
+    }
 
     if (playing) {
       g.distance = ph.dist;

@@ -12,10 +12,9 @@
 // 3. REPORT       How much of the distance is open air, how wide it is, how much of it is bending, how
 //                 long the bends last at cruise speed, and how much of the bending is on a slope.
 //                 (Reported for both maps; the rules in 2 only bind where a map has height.)
-import { makeTrack, MAPS, DEFAULT_MAP } from '../../src/core/Maps.js';
+import { makeTrack, applyGame, MAPS, DEFAULT_MAP } from '../../src/core/Maps.js';
 import { SKYWAY } from '../../src/level/TrackSkyway.js';
 import { TRACK, DRIFT } from '../../src/core/Constants.js';
-import { applyMode } from '../../src/core/Modes.js';
 import { cruiseSpeed } from '../../src/gameplay/Pace.js';
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i < 0 ? def : process.argv[i + 1]; };
@@ -30,11 +29,8 @@ const HULL = TRACK.HULL_PAD + 2;
 // the fastest the vertical curvature may build: full sag curvature reached over half the shortest knot spacing
 const JERK = (Math.PI / (SKYWAY.SAG_R * SKYWAY.KNOT_MIN)) * 1.02;
 
-applyMode('hard');
-const HARD_CRUISE = cruiseSpeed(0);
-applyMode('easy');
-const EASY_RATIO = cruiseSpeed(0) / HARD_CRUISE;
-applyMode('hard');
+// bend times are worked out at each mode's own cruise speed there (in HARD, SKYWAY's open air runs faster than its ships)
+const speedOf = (mode, T, i) => { applyGame(mode, MAP); return cruiseSpeed(i, T); };
 const fails = [];
 const stat = { air: 0, total: 0, real: 0, any: 0, straight: 0, longest: 0, bends: 0, bendLen: [], bendR: [], bendT: [], bendTe: [], slopeBend: 0, slope: 0,
   gMax: 0, crest: 0, sag: 0, jerk: 0, yMin: 0, yMax: 0, minGap: Infinity, wMin: Infinity, wSum: 0, wN: 0, stations: 0, stationLen: [], airLen: [], calm: 0 };
@@ -125,7 +121,7 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
   for (let i = 1; i < n; i++) {
     if (T.ZONE[i] !== 1 || Math.abs(T.K[i]) < DRIFT.ARM_K || T.K[i] === T.K[i - 1]) continue;
     let j = i; while (j < n && T.K[j] === T.K[i]) j++;
-    stat.bends++; stat.bendLen.push(j - i); stat.bendR.push(1 / Math.abs(T.K[i])); stat.bendT.push((j - i) / cruiseSpeed(i)); stat.bendTe.push((j - i) / (cruiseSpeed(i) * EASY_RATIO));
+    stat.bends++; stat.bendLen.push(j - i); stat.bendR.push(1 / Math.abs(T.K[i])); stat.bendT.push((j - i) / speedOf('hard', T, i)); stat.bendTe.push((j - i) / speedOf('easy', T, i));
   }
   for (const S of T.sections) {
     if (S.s1 > n) continue;

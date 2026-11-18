@@ -30,6 +30,8 @@ if (!MAPS[MAP]) { console.error('unknown map: ' + MAP); process.exit(2); }
 if (mapAt >= 0) process.argv.splice(mapAt, 2);
 const speedAt = process.argv.indexOf('--speed');   // test hook: everything in metres per second multiplied (core/Maps.js)
 if (speedAt >= 0) { TEST.speed = Number(process.argv[speedAt + 1]); process.argv.splice(speedAt, 2); }
+const airAt = process.argv.indexOf('--air');       // test hook: how many times the ships' speed open air runs at (SKYWAY)
+if (airAt >= 0) { TEST.air = Number(process.argv[airAt + 1]); process.argv.splice(airAt, 2); }
 applyGame('hard', MAP);
 const Track = function (seed) { return makeTrack(MAP, seed); };
 const { ShipPhysics } = await import('../../src/gameplay/ShipPhysics.js');
@@ -141,7 +143,7 @@ function run(b, set, kind) {
   // (a ship's corners come in close pairs: each is taken from the straight before it, however short that is)
   let back = b.air ? 60 : 40;
   if (!b.air && MAP === 'skyway') { let q = 0; while (q < 40 && b.T.K[b.s0 - 1 - q] === 0) q++; back = Math.max(6, q - 1); }
-  p.reset(b.s0 - back); p.v = cruiseSpeed(b.s0); p.x = -out * START_IN; p.theta = 0; p.psi = 0;
+  p.reset(b.s0 - back); p.v = cruiseSpeed(b.s0, b.T); p.x = -out * START_IN; p.theta = 0; p.psi = 0;
   const queue = []; let wall = null, late = false, maxOut = -99, after = -1, tier = -1, started = false, slid = 0;
   let minX = 99, maxX = -99, slideT = 0, slideLen = 0;
   const from = kind === 'late' ? b.s0 + p.v * 0.25 : b.s0 - 5, to = b.s1 - 4;
@@ -216,7 +218,7 @@ if (MAP === 'skyway') {
   ];
   const deg = (B) => (B.reduce((a, b) => a + Math.abs(b.k) * (b.s1 - b.s0), 0) / Math.max(1, B.length)) * 57.3;
   const lenOf = (B) => B.reduce((a, b) => a + b.s1 - b.s0, 0) / Math.max(1, B.length);
-  console.log(`\nSKYWAY${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}, scripted players at cruise speed in HARD: ${air.length} open-air bends and ${ship.length} ship corners (40 seeds, first 9 km of each)`);
+  console.log(`\nSKYWAY${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}${SHIP.AIR_SPEED && SHIP.AIR_SPEED !== 1 ? `, open air at ${SHIP.AIR_SPEED}x the ships' speed` : ''}, scripted players at cruise speed in HARD: ${air.length} open-air bends and ${ship.length} ship corners (40 seeds, first 9 km of each)`);
   console.log('  slide = seconds the slide is held in the bend (average, and the 90th-percentile bend); road = metres of the road\'s width crossed;');
   console.log('  rails in open air are soft (a touch costs a little speed and the slide); a ship\'s walls are hard.');
   const AIR_PLAYERS = [...PLAYERS, ['line', 'takes the wide line, feathers (open air only)']];

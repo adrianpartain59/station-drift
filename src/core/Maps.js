@@ -19,9 +19,11 @@ export const MAPS = {
     // the bends here are long, so a good slide banks far more time per kilometre than on the classic
     // map, and the par pace has to ask for more or the clock would never bite. Tuned so the scripted
     // drivers last about as long as they do on CLASSIC (tools/verify prints how far each gets).
+    // In HARD the open air also runs at twice the ships' speed (Adrian, 2026-11-18): the road brakes the
+    // ship on the way in to a ship's mouth and launches it on the way out (gameplay/Pace.js airFactor).
     set: {
       easy: { CLOCK: { PACE: PACE_SKYWAY_EASY } },
-      hard: { CLOCK: { PACE: PACE_SKYWAY_HARD } },
+      hard: { CLOCK: { PACE: PACE_SKYWAY_HARD }, SHIP: { AIR_SPEED: 2 } },
     },
   },
   classic: {
@@ -46,7 +48,8 @@ const clone = (v) => (Array.isArray(v) ? v.map(clone) : v && typeof v === 'objec
 // scrubs off). Nothing measured in seconds or radians is touched: the steering, the slide and the clock
 // are exactly as they are, which is the point of trying it. The course is laid out for whatever speed is
 // live, so it stays provably fair; it just has less room to put things in.
-export const TEST = { speed: 1 };
+// `?air=1.5` / `--air 1.5` sets how many times the ships' speed the open air runs at (SKYWAY), in either mode.
+export const TEST = { speed: 1, air: 0 };
 
 /**
  * Make `mode` on `map` the live rule set: the mode's numbers (core/Modes.js), then whatever the map
@@ -56,6 +59,7 @@ export function applyGame(mode, map) {
   const m = applyMode(mode);
   const set = MAPS[mapName(map)].set?.[m] || {};
   for (const [g, vals] of Object.entries(set)) Object.assign(GROUPS[g], clone(vals));
+  if (TEST.air) SHIP.AIR_SPEED = TEST.air;
   const k = TEST.speed;
   if (k !== 1) {
     SHIP.CRUISE = SHIP.CRUISE.map((v) => v * k);

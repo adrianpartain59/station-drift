@@ -280,6 +280,8 @@ export class Materials {
     // answers the sky's fill light more than the station plating does
     this.shipHull = new THREE.MeshStandardMaterial({ map: hull.map, emissiveMap: hull.emi, emissive: 0xffffff, emissiveIntensity: 2.4, metalness: 0.2, roughness: 0.72, color: 0xc4cbdb, fog: false });
     this.shipTrim = new THREE.MeshStandardMaterial({ color: 0x4a5162, metalness: 0.5, roughness: 0.5, fog: false });
+    // the launch rail out of a ship: the boost pad's running chevrons, turned down (it is 170 m long)
+    this.launch = new THREE.MeshBasicMaterial({ map: this.pad.map, color: new THREE.Color(0.14, 0.9, 1.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     this.floorGlow = floorGlowTexture();
     this.glowTex = glowSprite();
 

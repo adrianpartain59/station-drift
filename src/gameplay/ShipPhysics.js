@@ -1,5 +1,5 @@
 import { SHIP, DRIFT, TRACK, CLOCK } from '../core/Constants.js';
-import { cruiseSpeed } from './Pace.js';
+import { cruiseSpeed, airRamp } from './Pace.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ease = (rate, dt) => 1 - Math.exp(-rate * dt);
@@ -257,7 +257,7 @@ export class ShipPhysics {
     } else if (this.touch <= 0) { this.wallSide = 0; this.scrape = 0; }
 
     // ---- speed ----
-    const cruise = cruiseSpeed(this.s);
+    const cruise = cruiseSpeed(this.s, T);
     this.braking = !!inp.brake && !this.engineCut;
     let target = cruise;
     if (this.boostT > 0) { this.boostT -= dt; target = cruise * (1 + this.boostGain); if (this.boostT <= 0) this.boostGain = 0; }
@@ -265,8 +265,11 @@ export class ShipPhysics {
     if (this.braking) target *= SHIP.BRAKE_FACTOR;
     if (this.engineCut) target = 0;
     const dv = target - this.v;
-    if (dv > 0) this.v += Math.min(dv, (this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL) * dt);
-    else this.v -= Math.min(-dv, (this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST) * dt);
+    // where the road itself changes the speed (the brake field into a ship, the launch out of one), the ship
+    // is taken up or down as hard as that asks, whatever its own engine would do. Nothing anywhere else.
+    const ramp = airRamp(this.s, T, this.v) * 1.25;
+    if (dv > 0) this.v += Math.min(dv, Math.max(this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL, ramp) * dt);
+    else this.v -= Math.min(-dv, Math.max(this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST, ramp) * dt);
     if (this.drift) this.v -= M.SLIDE_DRAG * Math.abs(slip) * dt;   // sliding sideways scrubs a little speed
     if (this.v < 0) this.v = 0;
     if (this.drift && this.v < DRIFT.MIN_SPEED * 0.8) this.loseDrift('slow');
@@ -422,7 +425,7 @@ export class ShipPhysics {
     } else if (this.touch <= 0) { this.wallSide = 0; this.scrape = 0; }
 
     // ---- speed ----
-    const cruise = cruiseSpeed(this.s);
+    const cruise = cruiseSpeed(this.s, T);
     this.braking = !!inp.brake && !this.engineCut;
     let target = cruise;
     if (this.boostT > 0) { this.boostT -= dt; target = cruise * (1 + this.boostGain); if (this.boostT <= 0) this.boostGain = 0; }
@@ -430,8 +433,11 @@ export class ShipPhysics {
     if (this.braking) target *= SHIP.BRAKE_FACTOR;
     if (this.engineCut) target = 0;
     const dv = target - this.v;
-    if (dv > 0) this.v += Math.min(dv, (this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL) * dt);
-    else this.v -= Math.min(-dv, (this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST) * dt);
+    // where the road itself changes the speed (the brake field into a ship, the launch out of one), the ship
+    // is taken up or down as hard as that asks, whatever its own engine would do. Nothing anywhere else.
+    const ramp = airRamp(this.s, T, this.v) * 1.25;
+    if (dv > 0) this.v += Math.min(dv, Math.max(this.boostT > 0 ? DRIFT.BOOST_ACCEL : SHIP.ACCEL, ramp) * dt);
+    else this.v -= Math.min(-dv, Math.max(this.engineCut ? CLOCK.COAST_DECEL : this.braking ? SHIP.BRAKE_DECEL : SHIP.COAST, ramp) * dt);
     if (!this.drift && this.scrub > 0 && this.v > cruise * SHIP.SCRUB_FLOOR) this.v -= SHIP.SCRUB * this.scrub * dt;
     if (this.drift) this.scrub = 0;
     if (this.v < 0) this.v = 0;

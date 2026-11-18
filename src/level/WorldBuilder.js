@@ -357,6 +357,24 @@ export class WorldBuilder {
       this.sweep(eL, i0, i1, (i) => [-W(i) - K - 0.02, -1.0], (i) => [-W(i) - K - 0.02, -0.75], { when: sp });
       this.sweep(get('rail', m.rail), i0, i1, (i) => [W(i) + 0.35, 0.05], (i) => [W(i) + 0.35, 2.1], { when: sp, normalizeU: true, vScale: 1 / 8 });
       this.sweep(get('railW', m.railWarm), i0, i1, (i) => [-W(i) - 0.35, 0.05], (i) => [-W(i) - 0.35, 2.1], { when: sp, normalizeU: true, vScale: 1 / 8 });
+      // Speed zones (Track.F): where the road brakes the ship on the way in to a ship, amber bars across the
+      // deck, closing up as the mouth comes; where it launches the ship on the way out, a rail of running
+      // chevrons down the middle. They are drawn wherever the map has the zones; whether the speed really
+      // changes there is the mode's business (core/Maps.js).
+      const F = T.F;
+      if (F) {
+        const fall = (i) => sp(i) && F[i + 1] < F[i], rise = (i) => sp(i) && F[i + 1] > F[i];
+        this.sweep(get('launch', m.launch), i0, i1, () => [-3.4, 0.07], () => [3.4, 0.07], { when: rise, normalizeU: true, vScale: 1 / 7 });
+        this.sweep(get('launchE', m.neon(0x5ff3ff, 1.6)), i0, i1, () => [-3.9, 0.06], () => [-3.6, 0.06], { when: rise });
+        this.sweep(get('launchE', m.neon(0x5ff3ff, 1.6)), i0, i1, () => [3.6, 0.06], () => [3.9, 0.06], { when: rise });
+        const bar = get('brake', m.neon(0xff8a3d, 2.2));
+        for (let i = i0; i < i1; i++) {
+          if (!fall(i)) continue;
+          const gap = F[i] > 0.66 ? 16 : F[i] > 0.33 ? 10 : 6;          // closer together as the ship slows
+          if (i % gap === 0) this.box(bar, i, 0, 0.05, 0, 2 * W(i) - 1.4, 0.06, 0.8);
+        }
+      }
+
       // ribs under the deck, and a lifter pod every so often: it floats, and it should look like it means to
       const podN = get('podN', m.neonOut(0x37e6ff, 2.6));
       for (let i = Math.ceil(i0 / 16) * 16; i < i1; i += 16) {

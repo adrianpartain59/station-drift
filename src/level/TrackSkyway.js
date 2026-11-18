@@ -33,6 +33,10 @@ export const SKYWAY = {
   HEIGHT_PULL: 80,         // m: how hard the profile is steered back toward the height it started at
   LEVEL: 80,               // m of level road before a station's mouth
 
+  // speed zones (see gameplay/Pace.js airFactor): open air runs at SHIP.AIR_SPEED times the ships' speed.
+  SLOW: [186, 12],         // the brake field into a ship: this long, done this far before the mouth
+  LAUNCH: [10, 170],       // the launch out of one: starts this far past the exit, takes this long
+
   // stations: ships lying along world forward. The path inside swings left and right in pairs.
   SHIP_U: 70,              // m: furthest the corridor's centre strays from the ship's axis
   SHIP_R: [[42, 56], [30, 40]],   // corner radius at difficulty 0 .. 1
@@ -50,6 +54,7 @@ export class SkywayTrack extends Track {
   init() {
     this.map = 'skyway';
     this.calmK = S.CALM_K;
+    this.F = [];             // per sample: 1 = open air at full speed, 0 = a ship's speed, between = brake field / launch
   }
 
   room(dir) { return dir > 0 ? S.HEADING - this.gh : this.gh + S.HEADING; }
@@ -153,6 +158,11 @@ export class SkywayTrack extends Track {
     this.piece('funnel', f0, { w: this.nextStationW });
     sec.s1 = this.len;
     this.layHeights(sec, p0);
+    // speed zones: launched up to open-air speed out of the last ship, braked back down into the next one
+    for (let i = sec.s0; i < sec.s1; i++) {
+      const up = first ? 1 : clamp((i - sec.s0 - S.LAUNCH[0]) / S.LAUNCH[1], 0, 1);
+      this.F[i] = Math.min(up, clamp((sec.s1 - S.SLOW[1] - i) / S.SLOW[0], 0, 1));
+    }
   }
 
   /** A calm sweeper: gentle enough for something to stand on it fairly. Straight if the heading has no room. */
@@ -262,6 +272,7 @@ export class SkywayTrack extends Track {
     const out = this.straight(56, w);
     this.piece('exit', out.s0, { w });
     sec.s1 = this.len;
+    for (let i = sec.s0; i < sec.s1; i++) this.F[i] = 0;
     this.nextStationW = lerp(TRACK.STATION_W[0], TRACK.STATION_W[1], this.rng());
 
     // the hull is built from where the corridor really goes

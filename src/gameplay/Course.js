@@ -415,7 +415,7 @@ export class Course {
       y = (edge - side * (R + FAIR.PAD) - side * lim) / 2;   // middle of the open lane
       return { items: [{ kind: 'laser', shape: 'box', x: (edge + far) / 2, hl: 0.3, hw: Math.abs(far - edge) / 2, side, ds: 0 }], y, front: 0.3, back: 0.3 };
     };
-    const ctx = { b: sCap + 1, d, v: topSpeed(sCap), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(sCap)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
+    const ctx = { b: sCap + 1, d, v: topSpeed(sCap, this.track), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(sCap, this.track)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
     const placed = this.placeAt(design, sCap, ctx);
     if (!placed) return null;
     const add = (o) => this.obstacles.push({ ...o, id: this.oid++, hit: false, near: 99, passed: false });
@@ -437,7 +437,7 @@ export class Course {
   /** Seconds a gate adds: par time to the next gate. Call once the next gate exists. */
   gateBonus(i) {
     const g = this.gates[i], n = this.gates[i + 1];
-    return n ? parTime(g.s, n.s) : 12;
+    return n ? parTime(g.s, n.s, this.track) : 12;
   }
 
   pad(s, x) { this.pads.push({ s, x, hw: 2.3, hl: 3.2, used: false }); }
@@ -482,7 +482,7 @@ export class Course {
   zone(a, b, d, kind) {
     if (b < FAIR.NO_ROWS_BEFORE) return;
     a = Math.max(a, FAIR.NO_ROWS_BEFORE);
-    const ctx = { b, d, v: topSpeed(b), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(b)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
+    const ctx = { b, d, v: topSpeed(b, this.track), acc: lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(topSpeed(b, this.track)), tSee: lerp(FAIR.SEE[0], FAIR.SEE[1], d) };
     const line = [];
     let n = 0, at = a;
     const maxRows = COURSE.MAX_ROWS;
@@ -547,6 +547,10 @@ export class Course {
     // in plain sight: the moment every piece of the row can be seen (its end nearest the middle)
     let seen = 0;
     for (const o of row.items) seen = Math.max(seen, this.sightStart(s + (o.ds || 0), clamp(0, o.x - halfWidth(o), o.x + halfWidth(o))));
+    // Where the road runs faster on the way in (SKYWAY's open air before a ship), seeing the row from out
+    // there buys less time than the distance suggests. Count sight only from where the ship is down to the
+    // speed this row is laid out for. (Nothing changes where the speed does not: `from` is then 0.)
+    seen = Math.max(seen, this.speedFrom(s, v));
     let sMin = Math.max(s, seen + vs * tSee + row.front);
     if (prev) sMin = Math.max(sMin, prev.end + FAIR.MIN_GAP + row.front);
     if (fresh) {
@@ -815,6 +819,15 @@ export class Course {
     };
   }
 
+  /** The start of the stretch reaching s over which the ship can never be faster than v (0 if it never is). */
+  speedFrom(s, v) {
+    const T = this.track;
+    if (!T.F) return 0;
+    let i = clamp(Math.round(s), 0, T.len - 1);
+    while (i > 0 && topSpeed(i - 1, T) <= v + 1e-6) i--;
+    return i;
+  }
+
   // ---------- SKYWAY: open air ----------
   /** Where the calm stretch that s sits on begins: gentle enough to stand on (track.calmK) and no longer changing width. */
   calmStart(s) {
@@ -871,7 +884,7 @@ export class Course {
     const a = p.s0 + 4, b = p.s1 - 8, lim = this.lim((a + b) / 2);
     const line = [];
     if (b > FAIR.NO_ROWS_BEFORE + 140 && this.chance(0.88)) {
-      const v = topSpeed(b), kMax = Math.abs(p.k || 0);
+      const v = topSpeed(b, this.track), kMax = Math.abs(p.k || 0);
       const vs = v / (1 - kMax * lim);                         // closing speed at the inside rail
       // what is left of the ship's sideways ability once it has paid for the sweeper itself (v^2 / R at the inside rail)
       const acc = lerp(FAIR.COMFORT[0], FAIR.COMFORT[1], d) * lateralAcc(v) - kMax * v * vs;

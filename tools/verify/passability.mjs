@@ -33,6 +33,11 @@
 //             inside rail, where the road comes at the ship fastest.
 //  - MOVERS   an obstacle that moves is treated as solid over its whole envelope, so nothing relies on
 //             timing; and every mover's real motion is sampled to prove it never leaves that envelope.
+//  - SPEED    where open air runs faster than the ships (SHIP.AIR_SPEED), each group is searched at the top
+//             speed of the stretch it stands on, and neither sight nor room is counted from further back
+//             than the point where the ship is down to that speed (the end of the brake field into a
+//             ship). The bots are also held to it: neither may ever be going faster than the top speed
+//             the course is laid out for at that point.
 
 import { makeTrack, applyGame, MAPS, DEFAULT_MAP, TEST } from '../../src/core/Maps.js';
 import { Course, clearance, halfLength, halfWidth, moverParts } from '../../src/gameplay/Course.js';
@@ -58,7 +63,9 @@ const Track = function (seed) { return makeTrack(MAP, seed); };   // `new Track(
 const MAP = strArg('map', DEFAULT_MAP);
 if (!MAPS[MAP]) { console.error('unknown map: ' + MAP); process.exit(2); }
 TEST.speed = arg('speed', 1);          // test hook: everything in metres per second multiplied (core/Maps.js)
+TEST.air = arg('air', 0);              // test hook: how many times the ships' speed open air runs at (SKYWAY)
 const MODE_NAME = applyGame(strArg('mode', 'easy'), MAP);
+const AIR = (MAP === 'skyway' && SHIP.AIR_SPEED) || 1;
 if (process.env.PACE) CLOCK.PACE = JSON.parse(process.env.PACE);   // tuning aid: try a par-pace table without editing the map
 const RULE = {
   easy: {
@@ -110,6 +117,13 @@ function sightStart(T, s, x) {
 
 // Where something may stand: a dead straight (classic), or on SKYWAY anything no tighter than the map's calm limit.
 const calmOf = (T) => T.calmK || 1e-6;
+/** Where the stretch reaching s begins over which the ship can never be going faster than v. 0 where speed never drops (every map but SKYWAY with fast open air). */
+function speedStart(T, s, v) {
+  if (!T.F) return 0;
+  let i = Math.max(0, Math.min(T.len - 1, Math.round(s)));
+  while (i > 0 && topSpeed(i - 1, T) <= v + 1e-6) i--;
+  return i;
+}
 function straightStart(T, s) { const c = calmOf(T); let i = Math.round(s); while (i > 0 && (T.calmK ? Math.abs(T.K[i - 1]) <= c : Math.abs(T.K[i - 1]) < c)) i--; return i; }
 /**
  * The tightest calm sweeper over [a, b], and the widest the ship's room there. Only calm road counts: a
@@ -236,7 +250,7 @@ function checkSeed(seed) {
 
   for (let gi = 0; gi < groups.length; gi++) {
     const g = groups[gi];
-    const v = topSpeed(g.s1);
+    const v = topSpeed(g.s1, T);
     const inAir = g.items.some((o) => o.mover), failsBefore = out.fails.length;
     if (inAir) out.airGroups++;
     g.tally = () => { if (out.fails.length > failsBefore) { if (inAir) out.airFails++; else out.shipFails++; } };
@@ -255,6 +269,8 @@ function checkSeed(seed) {
     // closing speed: on a sweeper, the inside rail's (see winning()); on a straight, v itself
     const road = bendOver(T, straightStart(T, g.s0), g.s1);
     const vs = v / (1 - road.k * road.lim);
+    // sight and room only count from where the ship is down to this group's speed
+    seen = Math.max(seen, speedStart(T, g.s0, v));
     const sightT = (g.s0 - seen) / vs;
     out.minSight = Math.min(out.minSight, sightT);
     if (sightT < RULE.MIN_SIGHT) out.fails.push(`seed ${seed} s=${g.s0.toFixed(0)}: in sight for only ${sightT.toFixed(2)} s at top speed`);
@@ -317,12 +333,17 @@ function checkSeed(seed) {
         gate: (g, bonus) => { clock = clockAfterGate(clock, bonus); },
       };
       const dt = 1 / 120;
+      let over = 0, overAt = 0;
       while (p.s < L && t < 2000) {
         p.step(dt, bot.control(p, t)); C2.update(p, hooks, t); t += dt; clock -= dt;
+        // never faster than the top speed the course is laid out for here (matters where a brake field has to do its job)
+        const ex = p.v / topSpeed(p.s, T2) - 1;
+        if (ex > over) { over = ex; overAt = p.s; }
         if (clock < st.minClock) st.minClock = clock;
         if (clock <= 0 && st.outOfTime === null) st.outOfTime = p.s;
       }
-      st.time = t; st.avg = L / t;
+      st.time = t; st.avg = L / t; st.over = over;
+      if (over > 0.03) out.fails.push(`seed ${seed} ${mode} bot: ${(over * 100).toFixed(1)}% faster than the course is laid out for at s=${overAt.toFixed(0)}`);
       out[mode] = st;
     }
   }
@@ -339,7 +360,7 @@ for (let seed = FROM; seed < FROM + SEEDS; seed++) {
   if (VERBOSE) console.log(`seed ${seed}: ${r.groups} groups, min sight ${r.minSight.toFixed(2)} s, min opening ${r.minOpen.toFixed(1)} m` + (r.pace ? `, pace bot ${r.pace.avg.toFixed(1)} m/s clock>=${r.pace.minClock.toFixed(1)} s, grip bot ${r.grip.avg.toFixed(1)} m/s` : '') + (r.fails.length ? `  ** ${r.fails.length} FAIL` : ''));
 }
 const sum = (f) => all.reduce((a, r) => a + f(r), 0), min = (f) => all.reduce((a, r) => Math.min(a, f(r)), Infinity);
-console.log(`\nPassability check, ${MAPS[MAP].label} map, ${MODE_NAME.toUpperCase()} mode${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
+console.log(`\nPassability check, ${MAPS[MAP].label} map, ${MODE_NAME.toUpperCase()} mode${TEST.speed !== 1 ? `, SPEED x${TEST.speed}` : ''}${AIR !== 1 ? `, open air at ${AIR}x the ships' speed` : ''}: ${SEEDS} seeds (${FROM}..${FROM + SEEDS - 1}), ${KM} km each = ${(SEEDS * KM).toLocaleString('en-US')} km of course`);
 console.log(`  obstacles ${sum((r) => r.obstacles)} in ${sum((r) => r.groups)} groups (${(sum((r) => r.groups) / (SEEDS * KM)).toFixed(1)} per km)`);
 if (MAP === 'skyway') console.log(`  of those, movers in open air: ${sum((r) => r.movers)} (${(sum((r) => r.movers) / (SEEDS * KM)).toFixed(2)} per km), each proved to stay inside the envelope treated as solid`);
 console.log(`  shortest time in sight at top speed: ${min((r) => r.minSight).toFixed(2)} s (rule: >= ${RULE.MIN_SIGHT})`);
@@ -351,6 +372,7 @@ if (BOTS) {
   console.log(`  flat-out bot: obstacle hits ${P('crash')}, hard wall hits ${P('wall')}, grazes ${P('graze')}, drifts banked ${P('drifts')} (none/spark/flare/nova ${all.reduce((a, r) => a.map((v, i) => v + r.pace.tiers[i]), [0, 0, 0, 0]).join('/')}), lost ${P('lost')}, avg ${(sum((r) => r.pace.avg) / SEEDS).toFixed(1)} m/s; ${clockOut('pace')}`);
   console.log(`  no-drift bot: obstacle hits ${G('crash')}, hard wall hits ${G('wall')}, grazes ${G('graze')}, avg ${(sum((r) => r.grip.avg) / SEEDS).toFixed(1)} m/s; ${clockOut('grip')}`);
 }
+if (BOTS && AIR !== 1) console.log(`  speed: the bots were at most ${(100 * Math.max(...all.map((r) => Math.max(r.pace.over, r.grip.over)))).toFixed(1)}% over the top speed the course is laid out for (rule: <= 3%)`);
 console.log(`  ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 if (SELF_TEST) {
   const caught = all.filter((r) => r.fails.length).length;
