@@ -163,6 +163,19 @@ His words: "make the base movement speed a lot faster like twice as fast, I just
 - On the branch only, not on `main`.
 - Status: complete, waiting for how it feels to him.
 
+### Phase 19: Fast open air, normal ships (Adrian, 2026-11-18, after playing `?speed=2`)
+His words: "the map is already nicely scaled for that speed specifically for the open air parts, but the station
+parts are not, make it so when you start approaching the station parts it slows you down back to our previous
+speed, and when you're exiting the station it speeds you up".
+- SKYWAY in HARD: open air at 2x the ships' speed (`SHIP.AIR_SPEED` in core/Maps.js). The road brakes the ship
+  over the run-in to a mouth and launches it over the run-out (`Track.F`, `Pace.airFactor` / `airRamp`,
+  `SKYWAY.SLOW` / `LAUNCH`). Amber bars on the deck for the brake field, running chevrons for the launch.
+- EASY and the classic map: unchanged, proved (fingerprints; verify output identical).
+- Course and proof use the speed of the stretch a thing stands on; the bots are held to the laid-out speed.
+- On the branch only, not on `main`.
+- Open: at this speed almost no movers can be placed fairly in open air (one per 20 km). His call.
+- Status: complete, waiting for how it feels to him.
+
 ## Next Step
 Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
 His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the

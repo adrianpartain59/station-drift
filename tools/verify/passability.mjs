@@ -55,7 +55,9 @@ const SEEDS = arg('seeds', 200), FROM = arg('from', 1), KM = arg('km', 12), VERB
 // Movers stand on long calm sweepers with more room in hand than a station's rows have (the layout's own bar for
 // them is well above this check's), so the self-test shoves them further: far enough to put them back in, or
 // right up against, the bend before. It then has to catch them on every seed, in their own right.
-const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), SHOVE_AIR = arg('shove-air', 130), BOTS = !flag('no-bots') && !SELF_TEST;
+// (Where open air runs faster than the ships, the movers' shove grows with it: the same time on the road.)
+const SELF_TEST = flag('self-test'), SHOVE = arg('shove', 45), BOTS = !flag('no-bots') && !SELF_TEST;
+let SHOVE_AIR = arg('shove-air', 130);
 const L = KM * 1000;
 const Track = function (seed) { return makeTrack(MAP, seed); };   // `new Track(seed)` below builds the chosen map
 
@@ -66,6 +68,7 @@ TEST.speed = arg('speed', 1);          // test hook: everything in metres per se
 TEST.air = arg('air', 0);              // test hook: how many times the ships' speed open air runs at (SKYWAY)
 const MODE_NAME = applyGame(strArg('mode', 'easy'), MAP);
 const AIR = (MAP === 'skyway' && SHIP.AIR_SPEED) || 1;
+if (!process.argv.includes('--shove-air')) SHOVE_AIR *= AIR;
 if (process.env.PACE) CLOCK.PACE = JSON.parse(process.env.PACE);   // tuning aid: try a par-pace table without editing the map
 const RULE = {
   easy: {

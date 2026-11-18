@@ -53,8 +53,18 @@ different in three ways, and the check is stricter for each:
   layout, the bots and the search treat the whole envelope as solid, so the proof never relies on timing; and
   the check samples every mover's real motion for 45 s and fails if any part ever leaves its envelope.
 
+- **Speed zones.** In HARD, SKYWAY's open air runs at twice the ships' speed (`SHIP.AIR_SPEED`, set per map and
+  mode in `core/Maps.js`). The road brakes the ship over the last 198 m before a ship's mouth and launches it
+  over the 170 m after the exit (`Track.F`, `Pace.airFactor`). Each group is searched at the top speed of the
+  stretch it stands on, and neither sight nor room is counted from further back than the point where the ship
+  is down to that speed. The bots are held to it as well: the check fails if either is ever more than 3% over
+  the top speed the course is laid out for at that point (it prints the most they were). `--air N` tries
+  another factor (`--air 1` is one speed everywhere); `?air=N` does the same in the game.
+
 The self-test shoves station rows 45 m and movers 130 m (they stand with more room in hand, so 45 m does not
 make them unfair), and on SKYWAY it only passes if the movers are caught on every seed in their own right.
+Where open air runs faster than the ships the movers' shove grows by the same factor (260 m at 2x): the
+same time on the road.
 
 ## The shape of the map
 

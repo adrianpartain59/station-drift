@@ -355,3 +355,58 @@ Not verified
 - If he likes the speed: the map has to grow with it (bend radii and lengths, calm sweepers, ship corners all
   about twice the size) for bends to last as long, ships to be drivable and obstacles to come back. Not done.
 
+## Fast open air, normal ships (2026-11-18, Adrian, after playing `?speed=2`)
+His words: "the map is already nicely scaled for that speed specifically for the open air parts, but the station
+parts are not, make it so when you start approaching the station parts it slows you down back to our previous
+speed, and when you're exiting the station it speeds you up".
+- That is his hands against my scripted players (who clear fewer open-air bends at 2x): his hands decide how it
+  feels. No change to the map's open air.
+- Built: speed is per zone on SKYWAY in HARD. Open air runs at 2x the ships' speed (`SHIP.AIR_SPEED: 2`, set
+  in core/Maps.js). `Track.F` marks the zones; `Pace.airFactor` turns them into speed.
+  - Brake field: the last 198 m before a ship's mouth (the funnel and the end of the bend before it), done 12 m
+    before the mouth. A steady 18 m/s^2 early in a run, 31 late (92 -> 46 m/s, later 120 -> 60).
+  - Launch: from 10 m past the exit, over 170 m. A steady 20-34 m/s^2.
+  - The road does it: in a zone the ship is taken to the zone's speed as hard as the zone asks, whatever the
+    engine would do. Steering, the slide, the brake key and the clock rules are untouched.
+  - On the deck: amber bars across the brake field, closing up toward the mouth; running chevrons down the
+    launch. BRAKE FIELD and LAUNCH come up on the HUD.
+- EASY is unchanged (one speed everywhere), and so is the classic map: both fingerprints match; `passability`
+  output is identical line for line on 16 seeds for classic easy, classic hard, SKYWAY easy, and SKYWAY hard
+  with the factor set back to 1 (`--air 1`).
+- `?air=N` in the game and `--air N` in the tools try another factor (`?air=1` is the old single speed).
+  `?speed=N` still multiplies everything.
+
+Fairness with fast open air (`npm run verify:skyway:hard`), run on 9b8e079: 410 seeds, 5,200 km: PASS on every seed
+- 3,382 groups, 78 million start states, shortest time in sight 1.23 s, narrowest opening 5.44 m.
+- Judged (no-drift) bot: 0 obstacle hits, 1 hard wall hit. Sliding bot (reported): 0 obstacle hits, 916 hard wall
+  hits (0.18 per km; 0.14 before).
+- New rule, and it passes: neither bot is ever more than 3% over the top speed the course is laid out for at
+  that point. The most either was: 0.4%. So the brake field delivers the ship to a mouth at the ships' speed.
+- Each group is searched at the top speed of the stretch it stands on, and sight and room are only counted
+  from where the ship is down to that speed (in the layout and, separately, in the check).
+- Self-test: fails on 60 of 60 seeds; movers caught on every seed that has any (43 of 43 groups). The movers'
+  shove now grows with the open-air factor (260 m here): 130 m is under a second of road at this speed.
+- SKYWAY easy, 60 seeds: PASS, same numbers as before.
+
+What it does to play, measured (hard)
+| | one speed (before) | fast open air (now) |
+|---|---|---|
+| cruise in open air / in a ship | 46-60 / 46-60 m/s | 92-120 / 46-60 m/s |
+| the bots' average speed over 12 km | 58 m/s | 84 m/s |
+| time in the median open-air bend | 2.3 s | 1.2 s |
+| open-air bends an eased slide clears (R 70-90 / 90-105 / 105-120 / hairpins) | 100 / 100 / 100 / 100% | 57 / 78 / 83 / 53% |
+| slide held, average | 2.3-2.9 s | 1.3-1.5 s; hairpins 2.0 s |
+| open-air bends plain steering clears | 100% | 91 / 97 / 100%; hairpins 69% |
+| ship corners an eased slide clears (R < 45 / R >= 45) | 79 / 100% | 79 / 100% |
+| station rows per km | 0.85 | 0.59 |
+| movers per km | 0.37 | 0.064 (one in about 16 km) |
+| drifting bot's / no-drift bot's median run | 10.1 / 4.2 km | 10.5-11.0 / 5.1 km |
+- The clock needed no retune.
+- Movers are all but gone from open air in hard. The layout only places one where the ship has provably had
+  time to see it and get round it, and at 110-144 m/s a 200-270 m calm sweeper is under two seconds long.
+  Bringing them back means calm stretches about twice as long, which changes the open air he likes. His call.
+- Station rows are a little fewer because sight is no longer counted from out in the brake field.
+- Stepped frame cost is unchanged (median 1.9 ms, 99th percentile 4.9 ms). Real-Chrome frame times were not
+  re-measured at the new speed: the measuring tab was not in front.
+- Not on `main`: the live site still has one speed everywhere.
+
