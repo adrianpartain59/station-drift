@@ -80,3 +80,12 @@
   cross). Bot fault, not layout. Fix not applied yet: saving Autopilot.js reloads the page Adrian is playing.
 - Sliding bot (reported, not judged): 4 obstacle hits, 4 hard wall hits, 45 grazes.
 - Hard self-test: 349 problems on 30 of 30 seeds. Easy, 100 seeds: PASS, both bots clean.
+
+## Drift exit fix (2026-11-17)
+- Before (R 62 m bend, 0.9 s slide, keys released): nose 43.5 degrees inside travel at release; travel swung to
+  +26 degrees inward of the corridor within 0.3 s; ship moved 8.4 m toward the inside wall in 0.5 s.
+- After: travel stays on its line (-3.6 -> -4.9 -> -7.5 degrees, i.e. no inward swing; the corridor is still
+  turning away under a ship with no keys held); nose unwinds 43 -> 15 -> 4 -> 1 degrees in 0.3 s. With the steer
+  key still held through the release, the ship comes back onto the bend smoothly over about 0.4 s, no overshoot.
+- Bot fix: seeds 5124 and 5168 now pass. Hard 24 seeds PASS (grip bot 0 obstacle hits, 0 hard wall hits).
+  Easy fingerprint unchanged.

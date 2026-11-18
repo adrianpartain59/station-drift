@@ -80,8 +80,18 @@ the drift still does not slide outward enough.
 - Bots brake for bends the turn rate cannot make and only slide where a slide can live.
 - Status: complete, pending Adrian's hands and the final verification run.
 
+### Phase 10: Drift exit (Adrian's fourth playtest, 2026-11-17)
+His note: the slide is perfect now, but coming out of it he always ends up at too strong an angle and hits the
+inside wall, though it did not feel that way during the slide.
+- Cause (measured): in the slide the nose is 25-45 degrees inside the direction of travel; on release grip came
+  back and pulled the travel round to the nose (26 degrees inward within 0.3 s after a 0.9 s slide).
+- Fix: for 0.32 s after letting go the nose swings back to the line of travel (EXIT_RATE) and grip returns as it
+  gets there (EXIT_PULL). The ship leaves the slide going the way it was going. Slide itself untouched.
+- Test bot: commits to a clear lane when an obstacle is close; judges a crossing with more room; finer look-ahead.
+- Status: complete, pending Adrian's hands.
+
 ## Next Step
-Adrian plays hard again; adjust TURN_RATE / SLIDE_RADIUS / SLIDE_GRIP in src/core/Modes.js from what he says.
+Adrian plays hard again. Then: merge `hard-mode` into `main` when he is happy with it.
 
 ## Decisions Made
 | Decision | Why |

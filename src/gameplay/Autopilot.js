@@ -123,8 +123,12 @@ export class Autopilot {
     const obs = this.visible(ship);
     const coins = this.course.coins;
     const keys = { steer: 0, drift: false, brake: false };
-    const steps = Math.round(o.horizon / o.dt), lagSteps = Math.round(o.latency / o.dt);
-    let best = this.target, bestCost = Infinity, stayCost = Infinity;
+    const dt0 = SHIP.MANUAL ? 1 / 60 : o.dt;
+    const steps = Math.round(o.horizon / dt0), lagSteps = Math.round(o.latency / dt0);
+    let best = this.target, bestCost = Infinity, stayCost = Infinity, stayHits = false;
+    // Manual handling is less forgiving of a look-ahead that is slightly off, so a line has to clear an
+    // obstacle by more before it counts as clear, and the look-ahead is stepped finer.
+    const manual = !!SHIP.MANUAL, room = manual ? 0.75 : 0.15, dtSim = manual ? 1 / 60 : o.dt;
     for (let li = 0; li < o.lanes; li++) {
       const cand = li === 0 ? this.target : -lim * 0.92 + (2 * lim * 0.92 * (li - 1)) / (o.lanes - 2);
       sim.copy(ship);
@@ -133,15 +137,15 @@ export class Autopilot {
       let cost = Math.abs(cand - this.target) * (obs.length ? 0.7 : 0.25) + cand * cand * 0.01, ci = this.course.ci, got = 0, minClear = 9;
       for (let n = 0; n < steps; n++) {
         this.keys(sim, n < lagSteps ? this.target : cand, keys);
-        sim.step(o.dt, keys);
+        sim.step(dtSim, keys);
         let hit = false;
         for (const ob of obs) {
           if (Math.abs(ob.s - sim.s) > 14) continue;
           const c = clearance(ob, sim.s, sim.x) - SHIP.RADIUS;
-          if (c < 0.15) { hit = true; break; }
+          if (c < room) { hit = true; break; }
           if (c < minClear) minClear = c;
         }
-        if (hit) { cost += 4000 * (1.5 - n / steps); break; }
+        if (hit) { cost += 4000 * (1.5 - n / steps); if (li === 0) stayHits = true; break; }
         if (o.coins) {
           while (ci < coins.length && coins[ci].s < sim.s - 2.3) ci++;
           if (ci < coins.length && Math.abs(coins[ci].s - sim.s) < 2.3 && Math.abs(coins[ci].x - sim.x) < 2.2 && !coins[ci].taken) { got++; ci++; }
@@ -154,6 +158,9 @@ export class Autopilot {
     }
     // commit: leave the lane you are in only for a clear gain (no dithering between two ways round)
     if (best !== this.target && bestCost > stayCost - 2.5) best = this.target;
+    // and with manual handling, never leave a lane that is clear while there is an obstacle close ahead:
+    // the way through has been made, crossing in front of it now is how it gets hit
+    if (manual && !stayHits && obs.some((ob) => ob.s - ship.s < ship.v * 1.3)) best = this.target;
     return best;
   }
 }

@@ -162,17 +162,24 @@ export class ShipPhysics {
       // the tail steps out the way the ship is being steered
       this.kick = Math.abs(raw) > 0.3 ? Math.sign(raw) * M.KICK : 0; this.kickT = this.kick ? M.KICK_TIME : 0;
       this.emit('driftStart', { dir: 0, switched: false });
-    } else if (this.drift && !want) this.endDrift();
+    } else if (this.drift && !want) { this.endDrift(); this.exitT = M.EXIT_TIME; }
     this.gripNow += ((this.drift ? M.SLIDE_GRIP : M.GRIP_RATE) - this.gripNow) * ease(this.drift ? M.LET_GO : M.HOOK_UP, dt);
+    // Coming out of a slide the nose is turned well inside the way the ship is actually going. If grip
+    // simply came back, the ship would be yanked round to the nose and dive at the inside wall. So for a
+    // moment the nose swings back out to the line of travel instead, and grip returns as it gets there:
+    // the ship leaves the slide going the way it was going.
+    const exiting = !this.drift && this.exitT > 0;
+    const out = exiting ? 1 - this.exitT / M.EXIT_TIME : 1;   // 0 at the moment of letting go .. 1 when it is over
 
     // ---- nose and travel, both measured against the corridor, which turns under the ship at k * sdot ----
     this.psi += (om + k * sdot) * dt;
     if (this.kickT > 0) { const h = Math.min(dt, this.kickT); this.psi += (this.kick / M.KICK_TIME) * h; this.kickT -= h; }
+    if (exiting) { this.psi += (this.theta - this.psi) * ease(M.EXIT_RATE, dt); this.exitT -= dt; }
     let slip = this.psi - this.theta;
     // How fast the direction of travel comes round to the nose. Sliding, that is slower, and it tops out:
     // the ship cannot travel an arc tighter than SLIDE_RADIUS however far in the nose is turned, so in a
     // tighter bend it runs wide for as long as the slide is held.
-    let pull = slip * this.gripNow;
+    let pull = slip * (exiting ? lerp(M.EXIT_PULL, this.gripNow, out * out) : this.gripNow);
     if (this.drift) { const top = v / M.SLIDE_RADIUS; pull = clamp(pull, -top, top); }
     this.theta += (pull + k * sdot) * dt;
     // on a straight with the keys up, a nose within a degree or two of dead ahead settles dead ahead

@@ -39,6 +39,11 @@ export const MODES = {
           MAX_SLIP: 0.95,        // rad: the most the nose can be turned in from the direction of travel (no spin-outs)
           KICK: 0.14,            // rad the tail steps out when the button goes down with a steer key held
           KICK_TIME: 0.12,
+          // --- coming out of the slide: the nose swings back to the line of travel, the ship keeps its line ---
+          EXIT_TIME: 0.32,       // s that takes
+          EXIT_RATE: 11,         // 1/s: how fast the nose swings back
+          EXIT_PULL: 1.0,        // 1/s: how much the ship is still pulled toward the nose at the moment of letting go
+                                 //      (the rest of its grip comes back over EXIT_TIME). Higher = more of a tuck-in.
           LET_GO: 14,            // 1/s: how fast grip goes when the button goes down
           HOOK_UP: 6,            // 1/s: ...and comes back when it is let go
           SLIDE_DRAG: 5,         // m/s^2 lost per radian of slip while sliding
