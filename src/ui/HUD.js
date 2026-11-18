@@ -1,5 +1,7 @@
 import { GameState } from '../core/GameState.js';
 import { DRIFT, CLOCK } from '../core/Constants.js';
+import { DEFAULT_MODE } from '../core/Modes.js';
+import { DEFAULT_MAP } from '../core/Maps.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toLocaleString('en-US');
@@ -19,35 +21,34 @@ export class HUD {
     $('tick1').style.left = (DRIFT.TIERS[0].at / top()) * 100 + '%';
     $('tick2').style.left = (DRIFT.TIERS[1].at / top()) * 100 + '%';
     this.bannerT = 0; this.hintText = ''; this.linger = 0;
+    this.tests = [];            // test hooks that are on, named next to the score
     this.tone = (c) => c;       // the look maps every colour the game hands the HUD onto the run's colour (systems/Look.js)
   }
 
   show(id, on) { this.el[id].classList.toggle('hidden', !on); }
 
-  /** Mark the chosen mode on every mode chip, fill in the blurbs, tag the HUD. */
+  /**
+   * The game is HARD on SKYWAY and the page offers nothing else, so that game goes unnamed. A mode or a map reached
+   * by a test hook (?mode=easy, ?map=classic) is named next to the score and on the title's best line.
+   */
   setMode(name, modes) {
-    for (const b of document.querySelectorAll('.mode')) {
-      b.classList.toggle('sel', b.dataset.mode === name);
-      b.querySelector('span').textContent = modes[b.dataset.mode].blurb;
-    }
-    $('modeTag').textContent = name === 'easy' ? '' : modes[name].label;
-    this.modeLabel = modes[name].label;
-    if (!this.el.title.classList.contains('hidden')) this.phase('title');
+    this.modeLabel = name === DEFAULT_MODE ? '' : modes[name].label;
+    this.tag();
   }
 
-  /** A test hook is on (?speed=): say so next to the score, after the mode. */
-  testTag(text) {
-    const t = $('modeTag');
-    t.textContent = (t.textContent ? t.textContent + '  \u00b7  ' : '') + text;
-  }
-
-  /** Mark the chosen map on every map chip and fill in the blurbs. */
   setMap(name, maps) {
-    for (const b of document.querySelectorAll('.map')) {
-      b.classList.toggle('sel', b.dataset.map === name);
-      b.querySelector('span').textContent = maps[b.dataset.map].blurb;
-    }
-    this.mapLabel = maps[name].label;
+    this.mapLabel = name === DEFAULT_MAP ? '' : maps[name].label;
+    this.tag();
+  }
+
+  /** A test hook is on (?speed=, ?air=): say so next to the score, after the game. */
+  testTag(text) {
+    if (!this.tests.includes(text)) this.tests.push(text);
+    this.tag();
+  }
+
+  tag() {
+    $('modeTag').textContent = [this.mapLabel, this.modeLabel, ...this.tests].filter(Boolean).join('  \u00b7  ');
     if (!this.el.title.classList.contains('hidden')) this.phase('title');
   }
 
@@ -56,7 +57,7 @@ export class HUD {
     this.show('pause', p === 'paused');
     this.show('over', p === 'over');
     this.show('hud', p === 'playing' || p === 'paused');
-    if (p === 'title') this.el.best.textContent = GameState.best ? `${this.mapLabel || ''} ${this.modeLabel || ''} BEST ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
+    if (p === 'title') this.el.best.textContent = GameState.best ? `${[this.mapLabel, this.modeLabel, 'BEST'].filter(Boolean).join(' ')} ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
   }
 
   /** v: { speed (shown units), drifting, charge, tier, points, mult, boost 0..1, boostTier, gateDist, gateFrac } */

@@ -14,10 +14,12 @@ function save(key, value) {
 
 class State {
   constructor() {
-    const saved = load('sd.mode', DEFAULT_MODE);   // easy | hard (core/Modes.js); hard unless the player chose easy
-    this.mode = MODES[saved] ? saved : DEFAULT_MODE;
-    const map = load('sd.map', DEFAULT_MAP);        // skyway | classic (core/Maps.js)
-    this.map = MAPS[map] ? map : DEFAULT_MAP;
+    // The game is one map in one mode: SKYWAY, HARD (Adrian, 2026-11-18). EASY and the CLASSIC map are still
+    // built and still checked by the tools, but nothing in the page picks them and an old saved pick is not
+    // read, so nobody is left in a game they have no way out of. `?mode=easy` / `?map=classic` reach them for
+    // one page load (core/Game.js).
+    this.mode = DEFAULT_MODE;
+    this.map = DEFAULT_MAP;
     this.bests = {};
     for (const [m, keys] of Object.entries(BEST_KEY)) this.bests[m] = { easy: load(keys.easy, 0), hard: load(keys.hard, 0) };
     this.bank = load('sd.bank', 0);
@@ -62,8 +64,8 @@ class State {
     save('sd.bank', this.bank);
     save('sd.learned', this.learned);
   }
-  setMode(v) { this.mode = v; save('sd.mode', v); }
-  setMap(v) { this.map = v; save('sd.map', v); }
+  setMode(v) { if (MODES[v]) this.mode = v; }   // for this page load only: see the constructor
+  setMap(v) { if (MAPS[v]) this.map = v; }
   setMuted(v) { this.muted = v; save('sd.muted', v); }
   setCam(v) { this.camMode = v; save('sd.cam', v); }
   setQuality(v) { this.quality = v; save('sd.quality', v); }

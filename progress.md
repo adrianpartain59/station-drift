@@ -490,3 +490,27 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
 - Not verified: his eyes on it in motion; low quality (Q);
   a phone or a slower machine; whether haze ever sits over an obstacle thickly enough to matter (the densest
   roadside bank lets at least half of what is behind it through, by its numbers, not by a test).
+
+## One game: HARD on SKYWAY, and a simpler start screen (2026-11-18)
+- Adrian liked the dark look and said to merge it. In the same message: SKYWAY the only map and HARD the only
+  mode in the page, both others kept in the code, then straight to `main`.
+- Changed: `index.html` (the four picker rows and their styles gone from the title and game-over screens; "TAB
+  easy / hard" gone from the key list), `core/GameState.js` (always starts HARD on SKYWAY; a saved pick is not
+  read and nothing saves one), `core/Game.js` (no picker listeners, no TAB / E / H switch; `?mode=` and `?map=`
+  are test hooks for one page load), `ui/HUD.js` (the one game goes unnamed; a hooked one is named),
+  `tools/verify/README.md`.
+- Not touched: anything under `gameplay/` or `level/`, `core/Constants.js`, `core/Modes.js`, `core/Maps.js`,
+  `systems/Input.js`. `npm run fingerprint`: EASY and HARD both unchanged. `npm run build` passes.
+- Checked in the browser (no console errors):
+  - with an old pick of EASY and CLASSIC planted in storage, the game still opens as HARD on SKYWAY (manual
+    handling, open air at twice ship speed), nothing next to the score, title line reads "BEST ... · BANK ...";
+  - TAB, E and H on the title screen change nothing;
+  - a run starts, ends, and the game-over screen shows the stats and RUN IT BACK with no pickers;
+  - `?mode=easy&map=classic&speed=1.5` plays the classic track with assisted handling and reads
+    "CLASSIC · EASY · SPEED x1.5" next to the score; `?map=classic` alone reads "CLASSIC"; a plain reload
+    afterwards is HARD on SKYWAY again.
+  - at phone width (375 px) the title screen fits with no sideways scroll.
+- `npm run verify:skyway:hard` (the one game the page now offers), 200 seeds, 2,400 km: PASS. Flat-out bot 0
+  obstacle hits, no-drift bot 0 obstacle hits; shortest time in sight 1.24 s (rule 0.9); narrowest opening 5.46 m
+  (rule 5).
+- Not verified: his hands on the live site after the deploy.

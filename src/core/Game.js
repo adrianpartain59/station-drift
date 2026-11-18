@@ -95,8 +95,6 @@ export class Game {
     document.getElementById('playBtn').addEventListener('click', () => this.start());
     document.getElementById('againBtn').addEventListener('click', () => this.start());
     document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
-    for (const b of document.querySelectorAll('.mode')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
-    for (const b of document.querySelectorAll('.map')) b.addEventListener('click', () => this.setMap(b.dataset.map));
 
     // Test hook: ?speed=2 runs everything twice as fast (core/Maps.js TEST). Not saved, and no best is kept.
     const speed = Number(params.get('speed'));
@@ -104,9 +102,10 @@ export class Game {
     // Test hook: ?air=1.5 sets how many times the ships' speed the open air runs at on SKYWAY (1 = all one speed).
     const air = Number(params.get('air'));
     if (air >= 1 && air <= 3) { TEST.air = air; GameState.test = true; }
-    // which game: EASY or HARD, on which map (?mode= and ?map= win over the saved choices)
-    if (MODES[params.get('mode')]) GameState.setMode(params.get('mode'));
-    if (MAPS[params.get('map')]) GameState.setMap(params.get('map'));
+    // which game: HARD on SKYWAY, always. Test hooks: ?mode=easy and ?map=classic play the other two for this page
+    // load; they are named next to the score and keep their own bests.
+    GameState.setMode(params.get('mode'));
+    GameState.setMap(params.get('map'));
     this.hud.setMode(applyGame(GameState.mode, GameState.map), MODES);
     this.hud.setMap(GameState.map, MAPS);
     if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
@@ -237,14 +236,16 @@ export class Game {
     this.audio.whoosh();
   }
 
-  /** Switch between EASY and HARD. Only between runs: the course and the handling are built for one or the other. */
+  /**
+   * Switch between EASY and HARD. Only between runs: the course and the handling are built for one or the other.
+   * Nothing in the page calls this or setMap since the game became HARD on SKYWAY only (2026-11-18); they are kept
+   * so a picker can be put back by wiring a control to them.
+   */
   setMode(name) {
     const g = GameState;
     if (!MODES[name] || name === g.mode || g.phase === 'playing' || g.phase === 'paused') return;
     g.setMode(name);
     this.hud.setMode(applyGame(name, g.map), MODES);
-    if (TEST.speed !== 1) this.hud.testTag(`SPEED x${TEST.speed}`);
-    if (TEST.air) this.hud.testTag(`OPEN AIR x${TEST.air}`);
     this.audio.ui();
     if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
   }
@@ -442,7 +443,6 @@ export class Game {
       this.rig.setMode(m); g.setCam(m); this.ship.setFirstPerson(m === 'cockpit'); this.hud.camLabel(m); this.audio.ui();
     }
     if (inp.tap('KeyQ')) { g.setQuality(g.quality === 'high' ? 'low' : 'high'); this.applyQuality(); }
-    if ((g.phase === 'title' || g.phase === 'over') && inp.tap('Tab', 'KeyE', 'KeyH')) this.setMode(inp.tap('KeyE') ? 'easy' : inp.tap('KeyH') ? 'hard' : g.mode === 'easy' ? 'hard' : 'easy');
     if (g.phase === 'title' && inp.tap('Enter', 'Space', 'PadStart')) this.start();
     else if (g.phase === 'over' && this.overTimer > 1.0 && inp.tap('Enter', 'Space', 'KeyR', 'PadStart')) this.start();
     else if ((g.phase === 'playing' || g.phase === 'paused') && inp.tap('Escape', 'KeyP')) this.togglePause();

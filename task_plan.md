@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 22 (the dark look, built; waiting on Adrian's eyes), branch `claude/new-map-414ab7`
+Phase 23 (one game: HARD on SKYWAY; the dark look and this are on `main`), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -211,18 +211,34 @@ violet haze, but they shouldnt' be too distracting"; make a reference image firs
   fog) and a grade pass (brightness onto a ramp of one colour; scanlines, grain, vignette). Ten colours; a new one
   each run. Backdrop turned down, not removed. HUD and menus take the colour through CSS variables.
 - `?look=classic` is the old look, untouched. Gameplay code untouched: both fingerprints match.
-- Status: built, pushed to the branch, not on `main`. Waiting for him to look at it.
+- Status: complete. He looked and said "merge to main I like the new dark mode design" (2026-11-18).
+
+### Phase 23: One game, a simpler start screen (Adrian, 2026-11-18)
+His words: "make skyline the only track type, we can get rid of classic, keep it in the code but don't show it in
+the UI, and also make hard mode the only option and get rid of easy mode in the UI, that way our starting screen
+can be more simple, push to main immediately after making those changes". ("skyline" read as SKYWAY: it is the
+only other map.)
+- The title and game-over screens lose the map and mode pickers; the key list loses "TAB easy / hard".
+- TAB, E and H no longer switch mode (they did, on the title and game-over screens). No key gained a meaning.
+- The game always starts as HARD on SKYWAY. A map or mode saved by an earlier visit is no longer read, so
+  nobody is left in a game the page gives no way out of. Bests are kept where they were, per map and mode.
+- EASY and CLASSIC are still built and still checked by the tools. `?mode=easy` / `?map=classic` reach them for
+  one page load; such a game is named next to the score ("CLASSIC", "EASY") and on the title's best line.
+- The "HARD" tag next to the score is gone: with one game there is nothing to tell apart.
+- Gameplay code untouched: both fingerprints match.
+- Status: complete, merged into `main` with the dark look on his word.
 
 ## Next Step
-Adrian looks at the dark look on the branch (dev server, not the live site) and says what to change or "merge".
-Knobs are the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
-Before that, still true: Adrian plays SKYWAY (live on `main` since 2026-11-18; `?map=classic` or the chip for the old map).
-His calls, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the
-ships' corners are (SKYWAY.SHIP_R / SHIP_A); the clock on this map (PACE_SKYWAY_* in core/Maps.js); which end of a
-ship you fly in by (`flip` in TrackSkyway.buildShip). Measure any change with `npm run mapcheck`, `npm run feel:skyway`
-and both `verify:skyway` runs; `npm run fingerprint` must still pass.
-Still open from before, not touched: the test bot's lane scoring (Phase 12; seeds 5147 and 139, the latter still the
-one bot hit in classic hard); SLIDE_ANGLE 0.45 -> 0.37 if a tap alone still feels sharp. Neither without his word.
+Adrian plays the live game (HARD on SKYWAY, the dark look) and says what to change. Nothing is waiting on a branch.
+Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
+His calls on SKYWAY, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the ships' corners
+are (SKYWAY.SHIP_R / SHIP_A); the clock (PACE_SKYWAY_HARD in core/Maps.js); which end of a ship you fly in by
+(`flip` in TrackSkyway.buildShip). Measure any change with `npm run mapcheck`, `npm run feel:skyway` and
+`npm run verify:skyway:hard`; `npm run fingerprint` must still pass.
+EASY and the CLASSIC map are out of the page but in the code (`?mode=easy`, `?map=classic`): keep them passing
+their checks, do not put a picker back without his word.
+Still open from before, not touched: the test bot's lane scoring (Phase 12; seeds 5147 and 139); SLIDE_ANGLE
+0.45 -> 0.37 if a tap alone still feels sharp. Neither without his word.
 THE REPO IS PUBLIC: every push to `main` goes live. Further changes go on a branch and wait for his word before `main`.
 Keep secrets, private paths and other projects out of commits and out of these notes.
 
@@ -245,6 +261,7 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
 | Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
+| The game is one map in one mode (HARD on SKYWAY); the others stay in the code behind `?mode=` / `?map=` | Adrian's call, 2026-11-18: a simpler start screen. A saved pick is not read, so no visitor is stuck in a game the page cannot leave |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

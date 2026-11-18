@@ -17,6 +17,11 @@ There are two maps and two modes, and a script for each pair:
 Options: `--map skyway|classic`, `--mode easy|hard`, `--seeds N`, `--from N` (first seed), `--km N`, `--no-bots`,
 `--verbose`. Exit code 1 on any failure.
 
+The game itself offers one of the four: HARD on SKYWAY. The page has no picker for the map or the mode, and no key
+switches them. The other three are still built and still checked by these scripts. In the browser they are reached
+with `?mode=easy` and `?map=classic` (either or both), for that page load only; the game is then named next to the
+score and keeps its own best.
+
 Each mode is held to its own stated contract (the `RULE` table at the top of the script):
 
 | | steering the search may use | reaction | margin round the hull | state the ship may already be in | narrowest opening |
