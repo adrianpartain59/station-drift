@@ -211,3 +211,28 @@
 - Checked in the browser: nothing saved -> HARD; chose easy earlier -> EASY; saved nonsense -> HARD. No console
   errors. Easy fingerprint unchanged; easy 20 seeds PASS, hard 20 seeds PASS; build passes.
 - The verify tools keep their own defaults (`npm run verify` = easy, `npm run verify:hard` = hard).
+
+## Public repo and GitHub Pages (2026-11-18, Adrian: "get it on github pages and make the repo public, make sure nothing is at risk")
+- Audit before publishing, over every version of every file in all 25 commits on all 3 branches (main,
+  hard-mode, movement-redesign):
+  - Keys, tokens, private keys, bearer strings (pattern scan): none.
+  - Email addresses inside files: none. In commit messages: only the co-author line's no-reply address.
+  - Commit author email: his own, on every commit. It is the same address already shown on his GitHub
+    profile, so publishing adds no new exposure.
+  - Other projects, client names, private local paths: none. One old note mentions the project folder's path
+    relative to the home folder.
+  - Tracked binaries: four game screenshots in docs/. No large files anywhere in history.
+  - The game makes no network calls of its own; the page loads two fonts from Google Fonts.
+  - GitHub side: no repo secrets, variables, deploy keys, webhooks, forks, issues, pull requests or releases;
+    one collaborator (him).
+  - Dependencies: one advisory (picomatch pattern-matching slowdown) inside the build tool only; it is not in
+    the published game and has no clean fix available yet.
+  - What a visitor can read besides code: these three notes files, with his first name and his playtest
+    comments quoted. No licence file, so the code stays all rights reserved.
+- Repo made public. Pages switched on, built by `.github/workflows/pages.yml` (official actions, current
+  major versions; the publishing job has no access to the code, the build job cannot publish).
+- A clean clone, clean install and build were run locally first: works. The build already uses relative paths.
+- First deploy: build and deploy jobs both succeeded. Live at https://adrianpartain59.github.io/station-drift/
+  (HTTP 200, same script file as the local build). Opened in a browser: title screen renders, HARD is selected
+  for a first-time visitor, a run starts and plays, no console errors.
+- Repo homepage set to the live address.

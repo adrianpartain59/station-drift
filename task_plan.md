@@ -134,10 +134,19 @@ His note: much better, almost perfect, a little sharp; regular steering may be t
 ### Phase 15: Hard is the default mode (Adrian, 2026-11-17)
 - A new player starts in HARD; a saved pick of EASY is kept. Status: complete.
 
+### Phase 16: Public repo and GitHub Pages (Adrian, 2026-11-18)
+- Audit before publishing (all 25 commits, 3 branches): no secrets, no emails in files, no other-project names.
+  Commit email is the one already public on his GitHub profile. Details in progress.md.
+- Repo made public. `.github/workflows/pages.yml` builds and publishes on every push to `main`.
+- Live at https://adrianpartain59.github.io/station-drift/
+- Status: complete.
+
 ## Next Step
 Adrian plays hard. If a tap of the arrow alone still feels sharp: SLIDE_ANGLE 0.45 -> 0.37 (measured candidate).
 Regular steering (TURN_RATE 1.35 -> 1.2) only as its own round, on his say. Still open: test bot's lane scoring
 (Phase 12; seeds 5147 and 139). Measure any change with `npm run feel` first. Merge `hard-mode` only when he says.
+THE REPO IS PUBLIC NOW: everything committed is readable by anyone, and every push to `main` goes live on Pages.
+Keep secrets, private paths and other projects out of commits and out of these notes.
 
 ## Decisions Made
 | Decision | Why |
