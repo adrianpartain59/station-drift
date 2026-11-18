@@ -61,3 +61,12 @@
   nose 48 degrees with or without the drift button, slip 10 degrees on grip and 25 degrees in a slide.
 - Easy fingerprint unchanged. Hard 24 seeds: search PASS on 1,387 groups (4.8/km); grip bot 0 obstacle hits,
   0 hard wall hits; sliding bot 0 obstacle hits, 4 hard wall hits, 12 grazes in 288 km. Easy 24 seeds: PASS.
+
+## Retune after the third playtest (2026-11-17)
+- Steering halved back toward the assisted feel: holding LEFT now turns the nose 7 / 22 / 39 degrees at
+  0.2 / 0.4 / 0.6 s (first manual version: 13 / 36 / 61; assisted: about 11.5 at most). A 0.1 s tap: 4 degrees.
+- Slide runs wide: same R 62 m bend, same inside key held for 1 s at 46 m/s. On grip the ship is 1.4 m out at
+  0.4 s and 3.9 m to the inside by 1.0 s. In a slide it is 0.5 / 1.2 / 1.9 / 2.6 / 3.2 m out at 0.2 .. 1.0 s and
+  still going out, nose turned in 50 degrees.
+- Easy fingerprint unchanged. Hard 24 seeds: search PASS on 1,205 groups (4.2/km); grip bot 0 obstacle hits,
+  0 hard wall hits; sliding bot 1 obstacle hit, 1 hard wall hit in 288 km (reported, not judged).

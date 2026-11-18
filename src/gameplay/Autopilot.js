@@ -76,9 +76,16 @@ export class Autopilot {
     const soon = p.psi + (p.steer * M.TURN_RATE + at(v * 0.05) * v) * 0.09;
     const e = nose - soon;
     out.steer = e > 0.03 ? 1 : e < -0.03 ? -1 : 0;
-    // slide only while there is bend left to slide round: let go a touch early so grip is back for the way out
-    out.drift = this.o.drift && this.bend(p.s, Math.max(4, v * 0.1)) !== 0 && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K;
-    out.brake = false;
+    // the tightest bend in the next second: if the nose cannot be turned that fast at this speed, brake for it
+    let kMax = 0, kSign = 0;
+    for (let u = 0; u <= v * 0.9; u += 4) { const kk = at(u); if (Math.abs(kk) > kMax) { kMax = Math.abs(kk); kSign = kk > 0 ? -1 : 1; } }
+    out.brake = v * kMax > M.TURN_RATE * 0.92;
+    // Slide only where a slide can live: bend left to slide round, the ship able to travel that arc while
+    // sliding, and room on the outside for it to run wide. Let go a touch early so grip is back for the way out.
+    const here = at(0), dir = here > 0 ? -1 : 1, gapOut = p.lim + dir * p.x;
+    out.drift = this.o.drift && !out.brake && Math.abs(here) >= DRIFT.ARM_K && Math.abs(at(v * 0.16)) >= DRIFT.ARM_K
+      && Math.abs(here) < 1.08 / M.SLIDE_RADIUS && gapOut > 3;
+    void kSign;
     return out;
   }
 

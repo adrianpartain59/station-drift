@@ -70,8 +70,18 @@ same sensitivity, but it slides outward more round corners.
   Fenced bends only ever shut the inside lane. Verifier's search step now lands exactly on the top sideways speed.
 - Status: complete, pending the final verification run and Adrian's hands.
 
+### Phase 9: Retune after Adrian's third playtest (2026-11-17)
+His notes: steering now too sensitive, wants the middle between the assisted feel and the first manual one;
+the drift still does not slide outward enough.
+- TURN_RATE 2.3 -> 1.5 rad/s (assisted was about 0.7), winding up to 2.0 if a key is held past 0.4 s.
+- Slide: grip while sliding 3.5 -> 2.4 /s, and the ship cannot travel an arc tighter than SLIDE_RADIUS (60 m)
+  while sliding, so in a tighter bend it runs wide for as long as the slide is held. Tail kick of 8 degrees when
+  the button goes down with a steer key held; nose capped 54 degrees in from travel (no spin-out).
+- Bots brake for bends the turn rate cannot make and only slide where a slide can live.
+- Status: complete, pending Adrian's hands and the final verification run.
+
 ## Next Step
-Final hard verification in the background; Adrian plays hard with the manual handling.
+Adrian plays hard again; adjust TURN_RATE / SLIDE_RADIUS / SLIDE_GRIP in src/core/Modes.js from what he says.
 
 ## Decisions Made
 | Decision | Why |
