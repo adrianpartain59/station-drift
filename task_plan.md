@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 28 complete and merged: the loop-based soundtrack is on `main` and live (2026-11-18), branch `claude/new-map-414ab7`
+Phase 29 built on branch `claude/new-map-414ab7`, not merged: headlights and lit lamps, waiting on Adrian's play test (2026-11-18)
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -318,7 +318,40 @@ right now, it could be a lot louder."
   it, he chose to publish it. The filtered loop is now in the repository (`public/audio/break.wav`) and the
   whole soundtrack is on `main`.
 
+### Phase 29: Light that lands on things: headlights and lamps (Adrian, 2026-11-18)
+His words: "Right now, it looks pretty cheap, and I'm wondering if we could get some higher-quality lighting,
+hopefully without making it that much harder to render. What I really want is for it to look more like the
+photos we generated, where the car has headlights that are illuminating the path in front of them and lights on
+the sides of the track that are kind of illuminating things (which we have right now already), but I want to
+make them actually properly luminescent." Then: "Yes, build it". Then, while frame times were being measured:
+"Just let me test it".
+- Headlights: drawn by the haze pass, not by a light. Every pixel's place in the world is known there, so the
+  pass works out how far into the beams it is and brightens it: a fan of lit road in front of the nose, the
+  walls and floor of a ship ahead, whatever stands in the way. Only what was dark is lit; nothing is given more
+  than a set ceiling, so a wall a metre off the nose does not burn out.
+- A wash on the road behind the ship from the tail lights, the same way.
+- Lamps: four real point lights, handed from row to row so they are always on the two rows nearest the ship
+  (open-air lamp posts; the ribs inside a ship). They are what slides over the ship's paint.
+- Every other lamp: a painted pool of light on the deck under it, and a wash on the floor, wall and ceiling
+  along the neon strips inside a ship. One draw each kind, no light.
+- No shadows. The number of lights never changes while playing. Low quality (Q) drops the four lamp lights and
+  keeps the headlights and the paint.
+- `?lights=off` is the game without any of it, for comparing.
+- Status: built and tuned in stepped frames (open air, curves, inside a ship, cockpit view). Build passes, both
+  fingerprints unchanged. Frame times: one clean 20 s run in real Chrome with the lights on, 117.1 fps,
+  99th-percentile frame 13.8 ms, worst 22 ms (the dark look before this work: 118.2 fps, 12.1 ms, 17 ms). A
+  same-sitting run with the lights off was not clean (Chrome was not in front) and is not a result.
+  Not verified: how it looks at full size in play (his to judge); frame times on low quality.
+
 ## Next Step
+Adrian is play testing the lighting on the branch (dev server). Not on `main`: merge only on his word.
+His to steer, all in the `LIGHTS` table at the top of `src/systems/Lighting.js`: how wide, long and strong the
+headlights are (`HEAD`: `edge`, `core`, `half`, `reach`, `lift`, `gain`, `cap`), the tail wash (`TAIL`), the
+real lamp lights (`LAMP`, `RIB`: `power`). The painted pools' strength is where they are laid, in
+`src/level/WorldBuilder.js` (`m.pool(...)`, `m.spill(...)`). Tune live from the console with
+`__game.lighting.cfg`. If he wants a cleaner cost figure: `?perf=20&seed=42&bot&autostart&mute&look=toxic`
+against the same with `&lights=off`, Chrome in front for the whole run.
+Before this, still true:
 Adrian plays the live game with the new soundtrack and says what to change. Nothing is waiting on a branch.
 The transcribed notes are the block at the top of `src/systems/Music.js` marked as the transcription. His to
 steer: the arrangement (`FORM`, one line per four bars), the loop's level and top (`breakBus`, the shelf beside

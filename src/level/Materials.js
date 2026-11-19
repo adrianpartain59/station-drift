@@ -284,6 +284,21 @@ export class Materials {
     this.launch = new THREE.MeshBasicMaterial({ map: this.pad.map, color: new THREE.Color(0.14, 0.9, 1.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     this.floorGlow = floorGlowTexture();
     this.glowTex = glowSprite();
+    // painted light (see spill() and pool() below): a fade across, and a pool that is brightest near one edge
+    this.spillTex = canvas(64, 4, (g, w, h) => {
+      const grad = g.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, '#fff'); grad.addColorStop(0.12, '#9a9a9a'); grad.addColorStop(0.4, '#333'); grad.addColorStop(1, '#000');
+      g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    });
+    this.spillTex.wrapS = THREE.ClampToEdgeWrapping;
+    this.poolTex = canvas(128, 128, (g, w, h) => {
+      g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+      g.translate(0, h / 2); g.scale(1, 0.56);
+      const grad = g.createRadialGradient(w * 0.84, 0, 0, w * 0.84, 0, w * 0.82);
+      grad.addColorStop(0, '#fff'); grad.addColorStop(0.16, '#8c8c8c'); grad.addColorStop(0.45, '#2c2c2c'); grad.addColorStop(1, '#000');
+      g.fillStyle = grad; g.fillRect(0, -h, w, 2 * h);
+    });
+    this.poolTex.wrapS = this.poolTex.wrapT = THREE.ClampToEdgeWrapping;
 
     this.neonCache = new Map();
     this.floorCache = new Map();
@@ -294,6 +309,23 @@ export class Materials {
       this.signsV.push(new THREE.MeshBasicMaterial({ map: signTexture(i + 5, true), color: new THREE.Color(1.7, 1.7, 1.7), transparent: true, side: THREE.DoubleSide }));
     }
   }
+
+  // Light that has landed on a surface, painted there: the lamps and the neon are unlit geometry, and a real light
+  // on each is far more than the renderer can pay for (systems/Lighting.js). Added to what is under it, a hair above
+  // the surface. `spill` fades across its width from its first edge; `pool` is brightest near one edge.
+  painted(kind, hex, amt) {
+    const key = kind + ':' + hex + ':' + amt;
+    if (!this.neonCache.has(key)) {
+      this.neonCache.set(key, new THREE.MeshBasicMaterial({
+        map: kind === 'pool' ? this.poolTex : this.spillTex, color: new THREE.Color(hex).multiplyScalar(amt),
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+      }));
+    }
+    return this.neonCache.get(key);
+  }
+  spill(hex, amt) { return this.painted('spill', hex, amt); }
+  pool(hex, amt) { return this.painted('pool', hex, amt); }
 
   // HDR neon strip material (values above 1 feed the bloom).
   neon(hex, intensity = 3) {

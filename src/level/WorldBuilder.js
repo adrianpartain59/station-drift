@@ -35,7 +35,8 @@ export { Bucket };
 
 export class WorldBuilder {
   /** `rocks` (0..1): how much of the asteroid scenery is kept. 1 is the original; the dark look keeps under half. */
-  constructor(track, mats, rocks = 1) {
+  constructor(track, mats, rocks = 1, lit = true) {
+    this.lit = lit;   // paint the light the lamps and neon throw (see pool() and Materials.painted)
     this.track = track;
     this.m = mats;
     this.rocks = rocks;
@@ -128,6 +129,20 @@ export class WorldBuilder {
   }
 
   // A quad in the track frame facing along -T (toward the approaching ship) or sideways.
+  // A patch lying on the road, `w` across and `l` along, centred on sample i at `lx` across: it is cut where the
+  // road's own plating is cut, so it rises and turns with it. `near`: which edge (+1 right, -1 left) is u = 1.
+  pool(B, i, lx, ly, w, l, near = 1) {
+    const T = this.track, st = TRACK.MESH_STEP, k = Math.max(st, Math.round(l / 2 / st) * st);
+    const a = Math.max(0, i - k), b = Math.min(T.len - 1, i + k), n = [0, 1, 0];
+    const x0 = lx - (near * w) / 2, x1 = lx + (near * w) / 2;   // u runs from x0 to x1
+    for (let j = a; j < b; j += st) {
+      const j1 = Math.min(j + st, b), v0 = (j - a) / (b - a), v1 = (j1 - a) / (b - a);
+      const A0 = this.P(j, x0, ly), B0 = this.P(j, x1, ly), A1 = this.P(j1, x0, ly), B1 = this.P(j1, x1, ly);
+      B.tri(A0, B0, A1, n, n, n, [0, v0], [1, v0], [0, v1]);
+      B.tri(B0, B1, A1, n, n, n, [1, v0], [1, v1], [0, v1]);
+    }
+  }
+
   quad(B, i, lx, ly, along, w, h, facing = 'back', nudge = 0) {
     const T = this.track, hh = T.H[i];
     const R = [-Math.cos(hh), 0, Math.sin(hh)], Tg = [Math.sin(hh), 0, Math.cos(hh)];
@@ -222,6 +237,16 @@ export class WorldBuilder {
     this.sweep(n3, i0, i1, (i) => [W(i) - 0.95, 0.03], (i) => [W(i) - 0.7, 0.03], { when: st });
     this.sweep(n2, i0, i1, (i) => [W(i) - 0.04, WIN_LO - 0.12], (i) => [W(i) - 0.04, WIN_LO + 0.02], { when: win(WIN_R) });
     this.sweep(n2, i0, i1, (i) => [-W(i) + 0.04, WIN_LO + 0.02], (i) => [-W(i) + 0.04, WIN_LO - 0.12], { when: win(WIN_L) });
+
+    if (this.lit) {
+      // what the strips light: the floor in front of each wall strip, the wall above it, the ceiling beside its spine
+      const w1 = get('spill1', m.spill(p0[0], 0.2)), w2 = get('spill2', m.spill(p0[1], 0.14));
+      for (const side of [-1, 1]) {
+        this.sweep(w1, i0, i1, (i) => [side * (W(i) - 0.5), 0.05], (i) => [side * (W(i) - 7), 0.05], { when: st, normalizeU: true });
+        this.sweep(w1, i0, i1, (i) => [side * (W(i) - 0.05), 0.72], (i) => [side * (W(i) - 0.05), 1.66], { when: st, normalizeU: true });
+        this.sweep(w2, i0, i1, (i) => [side * 0.5, H - 0.05], (i) => [side * 5.5, H - 0.05], { when: noWin(SKY), normalizeU: true });
+      }
+    }
 
     // ribs every 12 m, with light bars
     for (let i = Math.ceil(i0 / 12) * 12; i < i1; i += 12) {
@@ -397,12 +422,23 @@ export class WorldBuilder {
         this.box(alt ? bA : bB, i, side * (w + 0.6), 2.55, 0, 0.6, 0.3, 0.6);
       }
     }
+    if (this.lit) {
+      // the pool each lamp throws on the road beside it, in the lamp's own colour
+      const pA = get('poolA', m.pool(0x37e6ff, 0.16)), pB = get('poolB', m.pool(0xff3fb4, 0.16));
+      for (let i = Math.ceil(i0 / 16) * 16; i < i1; i += 16) {
+        if (!sp(i)) continue;
+        for (const side of [-1, 1]) this.pool((i / 16) % 2 === 0 ? pA : pB, i, side * (W(i) - 4.7), 0.09, 9.8, 16, side);
+      }
+    }
     // runway lights before a station entrance
     for (let i = Math.ceil(i0 / 6) * 6; i < i1; i += 6) {
       if (!sp(i)) continue;
       const next = T.sections[T.SEC[i] + 1];
       if (!next || next.s0 - i > 110) continue;
-      for (const side of [-1, 1]) this.box(get('runway', m.neon(0xffe7a8, 4)), i, side * (W(i) - 0.6), 0.15, 0, 0.5, 0.25, 1.4);
+      for (const side of [-1, 1]) {
+        this.box(get('runway', m.neon(0xffe7a8, 4)), i, side * (W(i) - 0.6), 0.15, 0, 0.5, 0.25, 1.4);
+        if (this.lit) this.pool(get('poolRun', m.pool(0xffe7a8, 0.18)), i, side * (W(i) - 2.3), 0.09, 4.6, 6, side);
+      }
     }
     // asteroid scenery on both sides, and a few drifting near the lane
     const rockB = get('rock', m.rock);

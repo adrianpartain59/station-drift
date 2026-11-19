@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LIGHTS } from './Lighting.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 // The look: black and one colour, picked afresh for every run, with haze in the air.
@@ -117,6 +118,13 @@ class HazePass extends Pass {
         vInv: { value: Array.from({ length: NV }, () => new THREE.Vector4()) },      // 1 / radii, glow
         haze: { value: new THREE.Vector3(...LOOK.HAZE) }, fog: { value: LOOK.FOG }, fogCap: { value: LOOK.FOG_CAP },
         clearD: { value: LOOK.CLEAR }, glow: { value: LOOK.GLOW }, drift: { value: new THREE.Vector3() },
+        // The ship's own lights (systems/Lighting.js), all from the camera's position:
+        // hA, hD, hR: the headlights' place, their aim, and the way from the middle to each lamp
+        // hP: cos of the beam's edge, cos of its bright middle, reach, half distance;  hL: gain, lift, toe, the most any surface is given
+        // tA, tD: the tail lights' place and aim;  tP: as hP;  tL: gain, lift
+        hA: { value: new THREE.Vector3() }, hD: { value: new THREE.Vector3(0, 0, 1) }, hR: { value: new THREE.Vector3(1, 0, 0) },
+        hP: { value: new THREE.Vector4(0.95, 0.99, 100, 40) }, hL: { value: new THREE.Vector4(0, 0, 0.1, 0) },
+        tA: { value: new THREE.Vector3() }, tD: { value: new THREE.Vector3(0, 0, -1) }, tP: { value: new THREE.Vector4(0.5, 0.9, 30, 10) }, tL: { value: new THREE.Vector2(0, 0) },
       },
       vertexShader: /* glsl */`
         uniform mat4 projInv, camWorld; varying vec2 vUv; varying vec3 vRay;
@@ -133,6 +141,12 @@ class HazePass extends Pass {
         uniform sampler2D tDiffuse, tDepth; uniform highp sampler3D tNoise;
         uniform float near, far, fog, fogCap, clearD, glow; uniform vec3 haze, drift;
         uniform vec4 vPos[NV]; uniform vec4 vInv[NV];
+        uniform vec3 hA, hD, hR, tA, tD; uniform vec4 hP, hL, tP; uniform vec2 tL;
+        // how far into a lamp's beam a point is: p from the lamp, ax the beam's aim, c = (cos edge, cos middle, reach, half distance)
+        float beamAt(vec3 p, vec3 ax, vec4 c){
+          float r = length(p), along = dot(p, ax);
+          return smoothstep(c.x, c.y, along / max(r, 0.001)) * smoothstep(0.3, 4.0, along) * (1.0 - smoothstep(c.z * 0.55, c.z, r)) / (1.0 + r * r / (c.w * c.w));
+        }
         varying vec2 vUv; varying vec3 vRay;
         void main(){
           vec4 src = texture2D(tDiffuse, vUv);
@@ -165,7 +179,22 @@ class HazePass extends Pass {
           }
           float T = exp(-tau);
           vec3 light = haze * (1.0 + glow * lit / max(tau, 1.0e-4));
-          gl_FragColor = vec4(src.rgb * T + light * (1.0 - T), src.a);
+          // The ship's lights. This pixel's surface is at a known place, so how far into each lamp's beam it is can
+          // be worked out here, and the surface brightened by that much: no light in the scene, nothing to burn out,
+          // and it lands on the road, the walls and whatever is standing in the way alike. What already glows (neon,
+          // lamps, signs) is left as it is: only what was dark is lit.
+          vec3 surf = src.rgb;
+          if (dist < 1.0e5 && hL.w > 0.0) {
+            vec3 at = rd * dist;
+            float dark = 1.0 - smoothstep(0.12, 0.7, max(src.r, max(src.g, src.b)));
+            float k = 0.5 * (beamAt(at - hA - hR, normalize(hD + hR * hL.z), hP) + beamAt(at - hA + hR, normalize(hD - hR * hL.z), hP));
+            float kt = beamAt(at - tA, tD, tP);
+            vec3 add = ((src.rgb * hL.x + haze * hL.y) * k + (src.rgb * tL.x + haze * tL.y) * kt) * dark;
+            // however near the surface and however squarely the beam meets it, it is never given more than hL.w:
+            // a wall a metre off the nose is lit, not burnt out
+            surf += add * (hL.w / (hL.w + max(add.r, max(add.g, add.b))));
+          }
+          gl_FragColor = vec4(surf * T + light * (1.0 - T), src.a);
         }`,
     });
     this.fsQuad = new FullScreenQuad(this.material);
@@ -310,6 +339,12 @@ export class Look {
    * Where the haze is, this frame: the banks round the ships in range, and the drifting banks along the road.
    * `s` is how far along the track the ship is.
    */
+  /** Where the ship's lights are and where they point (world space): `L` is the Lighting. */
+  beam(L) {
+    if (!this.on) return;
+    this.beamPos = L.headPos; this.beamDir = L.headDir; this.beamRight = L.headRight; this.tailPos = L.tailPos; this.tailDir = L.tailDir;
+  }
+
   update(time, camera, track, s) {
     if (!this.on) return;
     this.grade.material.uniforms.time.value = time;
@@ -357,6 +392,13 @@ export class Look {
     }
     V.sort((a, b) => a[8] - b[8]);
     const u = this.haze.material.uniforms, c = camera.position;
+    if (this.beamPos) {
+      const H = LIGHTS.HEAD, Tl = LIGHTS.TAIL;
+      u.hA.value.copy(this.beamPos).sub(c); u.hD.value.copy(this.beamDir); u.hR.value.copy(this.beamRight).multiplyScalar(H.gap);
+      u.hP.value.set(H.edge, H.core, H.reach, H.half); u.hL.value.set(H.gain, H.lift, H.toe / H.gap, H.cap);
+      u.tA.value.copy(this.tailPos).sub(c); u.tD.value.copy(this.tailDir);
+      u.tP.value.set(Tl.edge, Tl.core, Tl.reach, Tl.half); u.tL.value.set(Tl.gain, Tl.lift);
+    }
     for (let i = 0; i < NV; i++) {
       const v = V[i];
       if (!v) { u.vPos.value[i].set(0, 0, 0, 0); continue; }

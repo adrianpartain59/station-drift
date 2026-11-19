@@ -350,3 +350,23 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
 - Building the game's real audio object on an offline context needs one trick: hand it the offline context in
   place of `window.AudioContext` for the length of its constructor, then stop its scheduling timer.
 - AAC encoding overshoots: a file whose peak was -1 dB before encoding read 0.0 dB after. Leave 2 dB.
+
+## Lighting: what building it confirmed (2026-11-18)
+- The chase camera sits about 13 m behind the ship and 2 m up, with a wide field of view at speed. From there
+  the whole road ahead of the nose, from 5 m to 80 m, is about 7% of the screen's height. Headlights can only
+  show as a fan of lit road in that strip and on whatever stands up in it; the big area of road on screen is
+  behind the ship. So the beam is wide (about 33 degrees to its edge) and strong, and it fades by 110 m.
+- A real spotlight is the wrong tool for it. The beam meets the road at a grazing angle, so the road gets
+  almost nothing, while anything facing the ship (a hull, a wall, the ship's own nose) gets all of it. No
+  setting lit the road without burning those out.
+- The haze pass already rebuilds every pixel's place in the world from depth. Lighting from there costs a few
+  sums per pixel in a pass that runs anyway, lands on road, walls and obstacles alike, and can be told to light
+  only what was dark (so neon is left alone) and to stop at a ceiling.
+- A light that is added in proportion to the surface's own colour does nothing on a black road. Most of the
+  headlight is light added outright (`lift`); the proportional part (`gain`) only brings out detail.
+- Looking down a beam from behind, a shaft of light in haze is a disc, not a beam. It either cannot be seen or
+  it sits as glare over the road ahead. Taken out.
+- A point light next to near-mirror glass (roughness 0.04) shows as a ball of glare in the pane, bloomed. At
+  roughness 0.7 it is a faint sheen.
+- Frame times can only be compared from runs where the browser was in front for the whole run. One run with
+  another app in front read slower with the lights off than with them on.

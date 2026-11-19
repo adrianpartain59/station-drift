@@ -148,6 +148,12 @@ Open the game from the dev server with `?perf=<seconds>` (and `?bot&autostart&mu
 frame times for that long, then freezes and reports them: in the page title, in `window.__perf`, and in the dev
 server's log (`[perf] ...`). The tab has to be in front: a hidden tab is throttled by the browser.
 
+## The lights
+
+Headlights, the wash behind the ship, real light from the lamps nearest the ship, and painted pools of light
+under the rest (`src/systems/Lighting.js`: every number is in the `LIGHTS` table; `__game.lighting.cfg` is the
+same table, live). `?lights=off` draws the game without any of it. Drawing only: the fingerprints do not move.
+
 ## The look
 
 The game draws in black and one colour, picked afresh for each run (`src/systems/Look.js`: every number is in the

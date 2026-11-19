@@ -668,3 +668,23 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   licence is royalty free and non-transferable; uploaders, not the site, vouch that a loop contains nothing
   sampled from someone else's record. An amen break is by its nature a sample of an old record; that risk was
   put to Adrian in the question and is his.
+
+## Headlights and lit lamps, on the branch (2026-11-18)
+- Adrian asked for better lighting without much more to render: headlights that light the path, and roadside
+  lights that really light things. He said "Yes, build it"; later "Just let me test it".
+- New: `src/systems/Lighting.js` (the `LIGHTS` table, the four lamp lights). Changed: `src/systems/Look.js`
+  (the headlights and tail wash, in the haze pass), `src/level/Materials.js` (two painted-light textures),
+  `src/level/WorldBuilder.js` (pools under lamps, washes along neon), `src/core/Game.js` (wiring, `?lights=off`).
+- Tried and dropped: a real spotlight for the headlights (left the road dark, burnt out whatever stood up in
+  front of it); shafts of light in the haze (invisible or a ball of glare from behind the ship).
+- Fixed on the way: a ball of glare in the ship's windows from each lamp light (the glass was near mirror
+  smooth; it is rougher while the lights are on); the headlights burning out near walls (a ceiling on what any
+  surface is given).
+- Checked in stepped frames: open air straight and curve, drifting, inside a ship, cockpit view, with
+  `?lights=off` beside it. No console errors. Build passes. Fingerprints unchanged (EASY 4c21b329..., HARD
+  7df664ce...).
+- Frame times, real Chrome, 2419x1323, seed 42, 20 s, lights on: fps=117.1 ms50=8.3 ms95=10.1 ms99=13.8 max=22.
+  Earlier figure for the dark look without this work: fps=118.2 ms99=12.1 max=17.
+- Not a result: a lights-off run in the same sitting read 91.7 fps, slower than lights on, with another app in
+  front of Chrome. Thrown away.
+- Not verified: the look at full size in play; low quality frame times; a wider set of seeds and looks.

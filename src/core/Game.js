@@ -24,6 +24,7 @@ import { Audio } from '../systems/Audio.js';
 import { Input } from '../systems/Input.js';
 import { HUD } from '../ui/HUD.js';
 import { Look, LOOK } from '../systems/Look.js';
+import { Lighting, LIGHTS } from '../systems/Lighting.js';
 
 const params = new URLSearchParams(location.search);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -90,6 +91,10 @@ export class Game {
     this.dust = new Dust(this.scene, this.look.on ? LOOK.DUST : 1);
     this.ship = new ShipModel();
     this.scene.add(this.ship.group);
+    // Headlights, and real light from the lamps nearest the ship (systems/Lighting.js). ?lights=off is the game
+    // as it was lit before, for comparing pictures and frame times.
+    this.lit = params.get('lights') !== 'off';
+    if (this.lit) { this.lighting = new Lighting(this.scene, this.ship); this.lighting.setQuality(GameState.quality === 'high'); this.mats.glass.roughness = LIGHTS.GLASS; }
 
     window.addEventListener('resize', () => this.resize());
     document.getElementById('playBtn').addEventListener('click', () => this.start());
@@ -125,6 +130,7 @@ export class Game {
   applyQuality() {
     const high = GameState.quality === 'high';
     this.bloom.enabled = high;
+    this.lighting?.setQuality(high);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, high ? RENDER.MAX_DPR : 1));
     this.composer.setPixelRatio?.(Math.min(window.devicePixelRatio, high ? RENDER.MAX_DPR : 1));
   }
@@ -148,7 +154,7 @@ export class Game {
     this.track = makeTrack(GameState.map, seed);
     this.track.ensure(TRACK.VIEW_AHEAD + 400);
     this.course = new Course(this.track, seed);
-    this.builder = new WorldBuilder(this.track, this.mats, this.look.on ? LOOK.ROCKS : 1);
+    this.builder = new WorldBuilder(this.track, this.mats, this.look.on ? LOOK.ROCKS : 1, this.lit);
     this.view = new CourseView(this.scene, this.track, this.course, this.mats, this.builder.rockGeos);
     this.sky = new Sky(this.scene, seed, this.look.on ? LOOK : null);
     this.sun.position.copy(this.sky.sunDir).multiplyScalar(100);
@@ -549,6 +555,7 @@ export class Game {
     this.audio.setIntensity(playing ? 0.35 + rev * 0.65 : 0.4);
     this.audio.update({ rev, boost: ph.boosting, slide: ph.slide, drifting: ph.drift, scrape: ph.touch > 0 && ph.zone === 0, tier: ph.tier + 1, zone: ph.zone, playing, brake: ph.braking });
 
+    if (this.lighting) { this.lighting.update(this.track, ph.s); this.look.beam(this.lighting); }
     this.look.update(g.time, this.camera, this.track, ph.s);
     this.composer.render();
   }
