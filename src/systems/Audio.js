@@ -1,5 +1,6 @@
-// Everything you hear is synthesized: engine, the hiss of a slide, impacts, pickups, and a night-drive
-// synthwave track (city-pop chords, punchy drums, arpeggios) that opens up in open space.
+// Everything you hear is synthesized: engine, the hiss of a slide, impacts, pickups, and the soundtrack
+// (systems/Music.js), which is half-time inside a ship and opens up in open air.
+import { Music, SONG } from './Music.js';
 
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -20,17 +21,6 @@ export class Audio {
     this.master.connect(comp).connect(ctx.destination);
 
     this.sfx = ctx.createGain(); this.sfx.gain.value = 0.9; this.sfx.connect(this.master);
-    this.musicBus = ctx.createGain(); this.musicBus.gain.value = 0.42;
-    this.musicFilter = ctx.createBiquadFilter(); this.musicFilter.type = 'lowpass'; this.musicFilter.frequency.value = 3200; this.musicFilter.Q.value = 0.7;
-    this.musicBus.connect(this.musicFilter).connect(this.master);
-
-    // simple stereo-ish echo for the music
-    this.delay = ctx.createDelay(1.0); this.delay.delayTime.value = 0.38;
-    const fb = ctx.createGain(); fb.gain.value = 0.32;
-    const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2200;
-    this.delay.connect(dl).connect(fb).connect(this.delay);
-    const wet = ctx.createGain(); wet.gain.value = 0.35;
-    this.delay.connect(wet).connect(this.musicFilter);
 
     this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
@@ -103,8 +93,8 @@ export class Audio {
     this.whG.gain.setTargetAtTime(drifting ? (0.014 + tier * 0.013) * live : 0, t, 0.06);
     this.whine.frequency.setTargetAtTime(640 + tier * 300 + slide * 260, t, 0.08);
     this.scrG.gain.setTargetAtTime(scrape ? 0.2 : 0, t, 0.03);
-    // music opens up in open space, closes a little inside stations
-    this.musicFilter.frequency.setTargetAtTime(zone === 1 ? 9000 : 3600, t, 0.8);
+    // the track is half-time and muffled inside a ship, whole in open air, and idles between runs
+    this.music.set({ open: zone === 1, playing: !!playing, intensity: this.intensity }, t);
   }
 
   // ---------- one-shots ----------
@@ -160,87 +150,24 @@ export class Audio {
 
   // ---------- music ----------
   startMusic() {
-    this.bpm = 112;
+    this.music = new Music(this.ctx, this.master, this.noiseBuf);
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.1;
-    // Fmaj9 - Em7 - Dm9 - Cmaj7/G : night-drive city pop
-    this.chords = [[53, 57, 60, 64, 67], [52, 55, 59, 62, 66], [50, 53, 57, 60, 64], [48, 55, 59, 62, 64]];
-    this.bassRoots = [41, 40, 38, 43];
     this.intensity = 0.5;
     this.timer = setInterval(() => this.schedule(), 25);
   }
 
   setIntensity(v) { this.intensity = v; }
 
+  /** Hand the track its next sixteenths a little ahead of time, so the timing is the audio clock's, not the timer's. */
   schedule() {
     if (!this.ctx || this.ctx.state !== 'running') return;
-    const spb = 60 / this.bpm / 4; // 16ths
+    // a tab that was in the background wakes far behind: pick the beat up from now instead of playing catch-up
+    if (this.nextTime < this.ctx.currentTime - 0.25) this.nextTime = this.ctx.currentTime + 0.05;
     while (this.nextTime < this.ctx.currentTime + 0.12) {
-      this.playStep(this.step, this.nextTime);
-      this.nextTime += spb;
-      this.step = (this.step + 1) % 256;
-    }
-  }
-
-  playStep(step, t) {
-    const ctx = this.ctx, bus = this.musicBus;
-    const bar = Math.floor(step / 16) % 4, s16 = step % 16;
-    const chord = this.chords[bar], root = this.bassRoots[bar];
-    const hi = this.intensity;
-    const v = (g, peak, a, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
-
-    // kick on the beat
-    if (s16 % 4 === 0) {
-      const o = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
-      const g = ctx.createGain(); v(g, 0.9, 0.002, 0.28);
-      o.connect(g).connect(bus); o.start(t); o.stop(t + 0.35);
-    }
-    // snare on 2 and 4
-    if (s16 === 4 || s16 === 12) {
-      const n = this.noise(false); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.8;
-      const g = ctx.createGain(); v(g, 0.45, 0.002, 0.2);
-      n.connect(f).connect(g).connect(bus); n.connect(f); n.start(t, Math.random()); n.stop(t + 0.3);
-      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 190;
-      const g2 = ctx.createGain(); v(g2, 0.25, 0.002, 0.09); o.connect(g2).connect(bus); o.start(t); o.stop(t + 0.15);
-      const send = ctx.createGain(); send.gain.value = 0.25; g.connect(send).connect(this.delay);
-    }
-    // hats
-    if (s16 % 2 === 1 || (hi > 0.6 && s16 % 2 === 0 && s16 % 4 !== 0)) {
-      const n = this.noise(false); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7500;
-      const g = ctx.createGain(); v(g, s16 % 4 === 2 ? 0.16 : 0.09, 0.001, 0.04);
-      n.connect(f).connect(g).connect(bus); n.start(t, Math.random()); n.stop(t + 0.08);
-    }
-    // bass: driving 8ths with an octave pop
-    if (s16 % 2 === 0) {
-      const note = root + (s16 % 8 === 6 ? 12 : 0);
-      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = NOTE(note);
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 6;
-      f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(180, t + 0.18);
-      const g = ctx.createGain(); v(g, 0.22, 0.004, 0.2);
-      o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + 0.25);
-    }
-    // pad: chord swell at the top of each bar
-    if (s16 === 0) {
-      const dur = (60 / this.bpm) * 4;
-      for (const n of chord) {
-        for (const det of [-6, 6]) {
-          const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = NOTE(n + 12); o.detune.value = det;
-          const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1100 + hi * 900;
-          const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 0.35); g.gain.setValueAtTime(0.022, t + dur - 0.4); g.gain.linearRampToValueAtTime(0.0001, t + dur);
-          o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + dur + 0.05);
-        }
-      }
-    }
-    // arp: rises with intensity
-    if (hi > 0.35) {
-      const pattern = [0, 2, 4, 1, 3, 4, 2, 0, 4, 3, 1, 2, 4, 1, 3, 2];
-      const n = chord[pattern[s16] % chord.length] + 24 + (s16 >= 8 && hi > 0.7 ? 12 : 0);
-      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = NOTE(n);
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
-      const g = ctx.createGain(); v(g, 0.035 * Math.min(1, hi * 1.3), 0.002, 0.12);
-      o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + 0.16);
-      const send = ctx.createGain(); send.gain.value = 0.5; g.connect(send).connect(this.delay);
+      this.music.step(this.step, this.nextTime);
+      this.nextTime += SONG.STEP;
+      this.step = (this.step + 1) % SONG.STEPS;
     }
   }
 }

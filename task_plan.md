@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 23 (one game: HARD on SKYWAY; the dark look and this are on `main`), branch `claude/new-map-414ab7`
+Phase 24 (a new soundtrack on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -228,8 +228,24 @@ only other map.)
 - Gameplay code untouched: both fingerprints match.
 - Status: complete, merged into `main` with the dark look on his word.
 
+### Phase 24: A new soundtrack (Adrian, 2026-11-18)
+His words, with a beat of his attached: "Make a new soundtrack for the game inspired by the chords from this beat,
+basically copy the chords but make your own beat that fits the game".
+- The beat, measured (not guessed): 136.00 BPM; a two-bar loop in D; D add9 for five beats, then F6 for three (the
+  change falls on beat two of the second bar); the bass goes D2 down to F1; some pairs of bars lean on the
+  sevenths (D7, then F7).
+- Built in `src/systems/Music.js`: those chords and that placement, and around them this game's own drums, bass
+  line, cowbell melody, arpeggio and sounds, all synthesized. Three states that follow the run: idle between runs,
+  half-time inside a ship, the whole beat in open air. A 32-bar form.
+- `tools/audio/render.html` renders the track offline through the game's master chain and reports its levels.
+- The beat itself is not in the repo and nothing was sampled from it.
+- Status: built and pushed to the branch, NOT on `main`. Waiting for him to hear it.
+
 ## Next Step
-Adrian plays the live game (HARD on SKYWAY, the dark look) and says what to change. Nothing is waiting on a branch.
+Adrian listens to the new soundtrack on the branch (dev server, not the live site) and says what to change or
+"merge". Knobs: the chord table, the `LEAD` melody, the drum and bass tables and `SONG.LEVEL` at the top of
+`src/systems/Music.js`; each voice's level is in its own method. Re-render with `tools/audio/render.html`.
+Before that, still true: the live game is HARD on SKYWAY with the dark look.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
 His calls on SKYWAY, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the ships' corners
 are (SKYWAY.SHIP_R / SHIP_A); the clock (PACE_SKYWAY_HARD in core/Maps.js); which end of a ship you fly in by
@@ -261,6 +277,8 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
 | Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
+| The soundtrack keeps a reference beat's chords, tempo and chord placement and nothing else | Adrian's brief: "copy the chords but make your own beat". Chords are measured from the beat; every sound is synthesized here |
+| The track's level is set by measurement against the old track, not by ear | Nobody in the session can hear it. A-weighted, it sits about 6 dB over the old one in open air |
 | The game is one map in one mode (HARD on SKYWAY); the others stay in the code behind `?mode=` / `?map=` | Adrian's call, 2026-11-18: a simpler start screen. A saved pick is not read, so no visitor is stuck in a game the page cannot leave |
 
 ## Errors Encountered

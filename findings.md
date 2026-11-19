@@ -274,3 +274,21 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   metal is what it was.
 - Real Chrome, 20 s, same seed, 2419x1323 at 120 Hz: old look 119.2 fps (99th percentile 10.3 ms, worst 13 ms);
   new look 118.2 fps (99th percentile 12.1 ms, worst 17 ms). No frame over 20 ms in either.
+
+## The soundtrack: what the reference beat is, and what building on it confirmed (2026-11-18)
+- The beat: 136.00 BPM (onset envelope against a pulse; 135.99 and 136.01 both score lower). 119 bars. Tuned 3
+  cents flat of A440.
+- Its harmony is a two-bar loop in D: D add9 (D, A, E, F#; bass D2 with D1 under it) for five beats, then F6
+  (F, A, C, D; bass F1) for three. The change is on beat two of the second bar, not on the bar line. In some
+  bars C replaces E over the D (D7) and Eb appears over the F (F7). The last bar of eight walks the bass up
+  through F#.
+- Its sound: sub-heavy (20 to 60 Hz is its loudest band), eighth-note hats, a busy low end.
+- What the new track keeps: those chords, the tempo, where the change falls, and the bass dropping from D2 to
+  F1. What it does not keep: any sound, the drum pattern, the bass rhythm or a melody.
+- Rendering Web Audio offline: scheduling every voice of a 58 s track before `startRendering()` left thousands
+  of idle nodes in the graph and the render did not finish in a minute. Feeding the steps a second ahead from
+  `ctx.suspend(t)` callbacks, as the live game does from a timer, renders the same 58 s in a few seconds.
+- Peaks said the first mix matched the old track (-4 dB both). RMS said it was 13 dB louder: the old track is a
+  loud kick over a quiet body, the new one has a sustained bass. Level was set from RMS and A-weighted RMS.
+- The in-app browser pane cannot be used to hear anything; a render posted to a local receiver and analysed with
+  the same script as the reference is how the chords were checked.

@@ -514,3 +514,24 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   obstacle hits, no-drift bot 0 obstacle hits; shortest time in sight 1.24 s (rule 0.9); narrowest opening 5.46 m
   (rule 5).
 - Not verified: his hands on the live site after the deploy.
+
+## A new soundtrack (2026-11-18)
+- Adrian gave a beat and asked for a new soundtrack on its chords with a beat of the game's own.
+- Measured the beat with plain FFT analysis (no audio library): tempo 136.00 BPM from the onset envelope; chord
+  tones and bass notes per beat, then averaged over the eight-bar cycle. Result in findings.md.
+- New: `src/systems/Music.js` (the whole track), `tools/audio/render.html` (offline render and levels).
+  Changed: `src/systems/Audio.js` (the old track and its bus removed; the scheduler hands steps to Music; a tab
+  that wakes far behind picks the beat up from now).
+- Not touched: anything under `gameplay/`, `level/`, `core/`. Fingerprints unchanged. Build passes.
+- Checked, by measurement:
+  - the pad alone, analysed the same way as the beat: D add9 (D E F# A) for beats 1 to 5, F6 (F A C D) for beats
+    6 to 8; D7 (D F# A C) and F7 (F A C Eb) in the second half of each eight bars; bass D2 then F1. Same chords,
+    same placement as the beat.
+  - level: open air RMS -19.8 dB, peak -9.1 dB, no sample at full scale over 32 bars. The old track: RMS -24.3,
+    peak -4.1. A-weighted the new one is 5.8 dB over the old in open air, 4.4 dB inside a ship, about level
+    with it between runs.
+  - tone balance from 250 Hz to 4 kHz is within 3 dB of the beat's, band by band.
+- Checked in the browser: a real click starts the audio and the steps advance at 0.11 s each; with the scripted
+  driver the track goes drive at the start, station at 830 m (first ship), drive at 1,297 m, idle at game
+  over, drive again on restart. No console errors.
+- Not verified: how it sounds. Nobody in this session can hear it. Phone or laptop speakers. Firefox and Safari.

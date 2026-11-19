@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Station Drift: render the soundtrack</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; background: #0b0b10; color: #dcdce6; margin: 24px; max-width: 760px; }
+  code, pre { font: 13px ui-monospace, monospace; color: #9fe8a8; }
+  a { color: #9fe8a8; }
+</style>
+<h1>Render the soundtrack</h1>
+<p>Renders <code>src/systems/Music.js</code> offline, through the same master chain as the game, and reports its
+levels. Open it from the dev server: <code>/tools/audio/render.html?mode=drive&amp;bars=32</code></p>
+<p><code>mode</code> idle | station | drive | tour (four bars idle, eight in a ship, then open air) &middot; <code>intensity</code> 0..1 &middot; <code>bars</code> &middot;
+<code>from</code> first bar &middot; <code>off</code> layers to leave out, comma separated (drums, bass, pad, lead, arp, fx)</p>
+<audio id="player" controls></audio> <a id="save" download>save the WAV</a>
+<pre id="out">rendering...</pre>
+<script type="module">
+import { Music, SONG } from '/src/systems/Music.js';
+
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') || 'drive', intensity = Number(q.get('intensity') ?? 0.9);
+const bars = Number(q.get('bars') || 32), from = Number(q.get('from') || 0), rate = 44100;
+const steps = bars * 16, dur = steps * SONG.STEP + 1.5;
+
+const ctx = new OfflineAudioContext(2, Math.ceil(dur * rate), rate);
+// the game's master chain (systems/Audio.js)
+const master = ctx.createGain(); master.gain.value = 0.85;
+const comp = ctx.createDynamicsCompressor();
+comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18;
+master.connect(comp).connect(ctx.destination);
+// noise that is the same on every render
+const noiseBuf = ctx.createBuffer(1, rate * 2, rate);
+{ const d = noiseBuf.getChannelData(0); let s = 12345; for (let i = 0; i < d.length; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; d[i] = s / 2147483648 - 1; } }
+
+const m = new Music(ctx, master, noiseBuf);
+for (const layer of (q.get('off') || '').split(',').filter(Boolean)) m.off.add(layer);
+m.set({ open: mode === 'drive', playing: mode === 'drive' || mode === 'station', intensity: mode === 'tour' ? 0.4 : intensity }, 0);
+m.filter.frequency.cancelScheduledValues(0); m.filter.frequency.value = m.cut;   // no opening sweep in a render
+m.level.gain.cancelScheduledValues(0); m.level.gain.value = SONG.LEVEL * (mode === 'idle' || mode === 'tour' ? 0.6 : 1);
+// Hand the track its steps a second ahead, as the game does, pausing the render every half second to do it.
+// Scheduling all of them up front works but leaves thousands of idle voices in the graph, and the render crawls.
+let next = 0;
+const at = (i) => 0.05 + i * SONG.STEP;
+const feed = (upTo) => {
+  for (; next < steps && at(next) < upTo; next++) {
+    if (mode === 'tour' && next % 16 === 0) { const bar = next / 16; m.set({ open: bar >= 12, playing: bar >= 4, intensity: bar < 4 ? 0.4 : bar < 12 ? 0.7 : intensity }, at(next)); }
+    m.step((from * 16 + next) % SONG.STEPS, at(next));
+  }
+};
+feed(1);
+for (let ts = 0.5; ts < dur; ts += 0.5) ctx.suspend(ts).then(() => { feed(ts + 1); ctx.resume(); });
+
+const buf = await ctx.startRendering();
+const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+let peak = 0, sum = 0, over = 0;
+for (let i = 0; i < n; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a > peak) peak = a; if (a >= 1) over++; sum += L[i] * L[i]; }
+const db = (v) => (20 * Math.log10(Math.max(1e-9, v))).toFixed(1);
+// 16-bit WAV
+const wav = new DataView(new ArrayBuffer(44 + n * 4));
+const str = (o, s) => { for (let i = 0; i < s.length; i++) wav.setUint8(o + i, s.charCodeAt(i)); };
+str(0, 'RIFF'); wav.setUint32(4, 36 + n * 4, true); str(8, 'WAVEfmt '); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 2, true);
+wav.setUint32(24, rate, true); wav.setUint32(28, rate * 4, true); wav.setUint16(32, 4, true); wav.setUint16(34, 16, true); str(36, 'data'); wav.setUint32(40, n * 4, true);
+for (let i = 0; i < n; i++) { wav.setInt16(44 + i * 4, Math.max(-1, Math.min(1, L[i])) * 32767, true); wav.setInt16(46 + i * 4, Math.max(-1, Math.min(1, R[i])) * 32767, true); }
+const blob = new Blob([wav], { type: 'audio/wav' });
+const url = URL.createObjectURL(blob);
+document.getElementById('player').src = url;
+const save = document.getElementById('save'); save.href = url; save.download = `station-drift-${mode}.wav`;
+const report = { mode, intensity, bars, from, seconds: Number((n / rate).toFixed(2)), peak_dB: db(peak), rms_dB: db(Math.sqrt(sum / n)), samples_at_full_scale: over };
+document.getElementById('out').textContent = JSON.stringify(report, null, 2);
+window.__wav = blob; window.__report = report;
+</script>
