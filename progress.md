@@ -748,3 +748,9 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   console errors. Build passes. Fingerprints unchanged.
 - Not verified: how it looks in motion at full size (fine relief can sparkle under a moving highlight); the
   other colours; low quality frame times.
+
+## The bench, the trimmed look and the grain merged into main (2026-11-18)
+- Adrian said yes to adding reflections, stopped it before anything was started, then: "Actually just merge to
+  main for now". Nothing had been changed for reflections.
+- Fast-forward of three commits; `main` had not moved. The changes were searched for private paths, keys and
+  other projects' names before pushing: nothing found.

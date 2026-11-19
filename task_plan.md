@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 32 built on branch `claude/new-map-414ab7`, not merged: one grain on every lit surface (2026-11-18). Phase 31 (the trimmed look) is on the same branch, also unmerged
+Phases 30 to 32 complete and merged: the lighting bench, the trimmed look and the grain are on `main` and live (2026-11-18), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -359,7 +359,7 @@ screen put a bunch of controls for the lighting, then let me manually tune those
   table (`SUN`, `PAINT`), with the same values as before.
 - Status: built and checked in the browser (freeze by key and by button, a slider moving the picture while
   held, step, hide, save, reset, values kept across a reload, no console errors). Build passes, fingerprints
-  unchanged. On the branch only. Waiting on his numbers; then they are written into the tables.
+  unchanged. He saved his numbers (Phase 31). Merged with Phases 31 and 32 on his word, 2026-11-18.
 
 ### Phase 31: His bench tuning, trimmed and balanced (Adrian, 2026-11-18)
 His words: "Ok I saved it, but I ended up tweaking a lot of values, could you help me correct this so we tweak
@@ -382,7 +382,7 @@ only the things that are important and so our lighting is still balanced".
 - The bench opens with a START HERE group of the seven sliders that carry the look; the rest are folded away.
 - Status: built. The result is within half a point of brightness (out of 100) of his saved picture on all six
   frames. Road-level brightness inside a ship against the open road: 0.90 before, 1.08 now. Looked at in two
-  colours. Build passes, fingerprints unchanged. On the branch only; waiting on his eyes.
+  colours. Build passes, fingerprints unchanged. Merged on his word ("Actually just merge to main for now").
 
 ### Phase 32: One grain on every surface, against the plastic look (Adrian, 2026-11-18)
 His words: "is there anything we can do to make all the surfaces in the game feel less plasticy?", then "Is
@@ -398,9 +398,14 @@ there something simple we can do that we can apply to all surfaces", then "Yes, 
 - Not done, on purpose (he asked for the one simple thing): reflections of the neon, metal-or-not for each
   material, seams and rivets that stand out, wear painted into the colour textures.
 - Status: built and looked at inside a ship, on the open road, in the cockpit view and in two colours. No
-  console errors. Build passes, fingerprints unchanged. On the branch only; waiting on his eyes.
+  console errors. Build passes, fingerprints unchanged. Merged on his word, 2026-11-18. He first said yes to
+  adding reflections of the neon, then stopped that and asked for the merge instead: reflections are not built.
 
 ## Next Step
+Everything is on `main` and live: the lights, the look he tuned, the grain, and the bench (`?tune` works on
+the live site too; SAVE there only copies to the clipboard). Adrian plays it and says what to change.
+Offered and set aside by him for now, not built: reflections of the neon and lamps on every surface.
+Before this, still true (the branch notes below are history):
 Adrian looks at the surfaces on the branch (dev server; `?tune` has the three SURFACES sliders, `?grain=off`
 is without). If metal still reads dull, the next single change that reaches every surface is reflections: put
 the neon and lamps in the environment the materials reflect and turn it up.
