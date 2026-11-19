@@ -1,57 +1,59 @@
-// The soundtrack: a slow, dark phonk beat, synthesized as it plays. No samples, no audio files.
+// The soundtrack: a dark breakbeat track. A drum loop under a synthesized kick, a reese bass, chords and a bell.
 //
-// The chords and the bass are a transcription of a reference beat Adrian supplied, note for note:
-//   136 BPM, felt in half time. One pattern, two bars (32 sixteenths) long:
-//   bass    D1 from step 0, sliding up to F1 at step 20 (beat two of the second bar), sliding back at the top
-//   chords  D4 A4 E5 (a D with no third, stacked in fifths) from step 2, swelling in;
-//           D4 F4 A4 C5 (D minor seventh, over the F in the bass) from step 20, held two steps past the bar line
-// Everything else is this game's own: the drums, the bell line, and every sound.
+// The notes of the chords and the bass are a transcription of a reference beat Adrian supplied:
+//   bass    D, then F (D1 and F1; the reese sounds an octave above its sub)
+//   chords  D4 A4 E5 (a D with no third, stacked in fifths), then D4 F4 A4 C5 (D minor seventh, over the F)
+// Their rhythm is this game's own, fitted to the drum loop he chose: 160 BPM, the loop's own tempo, the harmony
+// two bars long (D for five beats, F for three, as on the reference).
+//
+// The drum loop is a file (SONG.LOOP), four bars long, already filtered: its lows are cut so the kick and the bass
+// here own them. If the file is not there, the track plays a plain synthesized kit in its place.
 //
 // The track follows the run, one sixteenth at a time:
 //   idle     not in a run: chords, bass and the bell, quiet and muffled. No drums.
-//   station  inside a ship: kick, snare and a sparse hat, muffled.
-//   drive    open air: the whole kit.
-// `intensity` (how hard the engine is working, 0..1) opens the chords a little and adds hat ghosts.
-// The song is 32 bars: eight without the bell, eight with it, eight with the bass chopped, eight with everything.
+//   station  inside a ship: the whole beat, muffled.
+//   drive    open air: the whole beat.
+// `intensity` (how hard the engine is working, 0..1) opens the bass and the chords a little.
+// The song is 32 bars: eight without the bell, then the bell, with its second phrase every fourth time round.
 
-const BPM = 136;
+const BPM = 160;
 const STEP = 60 / BPM / 4;
 /** Numbers a tool needs to render the track on its own (tools/audio/render.html). */
-export const SONG = { BPM, STEP, STEPS: 512, LEVEL: 0.27 };
+export const SONG = { BPM, STEP, STEPS: 512, LEVEL: 0.23, LOOP: 'audio/break.wav', LOOP_BARS: 4 };
 
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // the same numbers every time a step is played, so a render is repeatable (no Math.random in here)
 const hash = (n) => { let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
 
-// ---- the transcription: do not change these without the reference in front of you ----
+// ---- the transcription: do not change these notes without the reference in front of you ----
 const D1 = 26, F1 = 29;
 const CHORD_A = [62, 69, 76];        // D4 A4 E5
 const CHORD_B = [62, 65, 69, 72];    // D4 F4 A4 C5
-const CHANGE = 20;                   // the step where the bass and the chord move to the F
-const CHORD_A_AT = 2, CHORD_A_SWELL = 0.2;   // the first chord blooms in just after the downbeat
-// bass: [step, length in steps, note, the note it slides to as it ends]. The slide is over by the time the next note
-// starts, as on the reference. The second line is the reference's own variation: the D cut short and struck again.
-const BASS = [[0, 20, D1, F1], [CHANGE, 12, F1, D1]];
-const BASS_CHOP = [[0, 8, D1, 0], [12, 8, D1, F1], [CHANGE, 12, F1, D1]];
+const CHANGE = 20;                   // the step, of 32, where the bass and the chord move to the F
 
-// ---- this game's own ----
-// The bell: [step, note], chord tones only. A5 E5 over the first chord; F5 D5 over the second (E to F is the dark step).
+// ---- the rhythm: this game's own, fitted to the loop (kick on 1 and the "and" of 3, snare on 2 and 4) ----
+const CHORD_A_AT = 2, CHORD_A_SWELL = 0.16;   // the first chord blooms in just after the downbeat
+// bass: [step, length in steps, note, the note it slides to as it ends]. It is struck again with each of the
+// loop's kicks and with the snare the harmony changes on.
+const BASS = [[0, 10, D1, 0], [10, 6, D1, 0], [16, 4, D1, F1], [CHANGE, 6, F1, 0], [26, 6, F1, D1]];
+// the kick, per bar: under the loop's own two
+const KICK = [0, 10];
+// The bell: [step, note, how hard]. Chord tones only, each said twice, on the loop's accents (snare, ghost, kick, ghost).
+// A5 E5 over the first chord, F5 D5 over the second (E to F is the dark step); the second phrase climbs D E F and falls to C.
 const BELL = [
-  [[4, 81], [12, 76], [20, 77], [28, 74]],
-  [[4, 74], [12, 76], [20, 77], [28, 72]],
+  [[4, 81, 1], [7, 81, 0.55], [10, 76, 0.9], [14, 76, 0.5], [20, 77, 1], [23, 77, 0.55], [26, 74, 0.9], [30, 74, 0.5]],
+  [[4, 74, 1], [7, 74, 0.55], [10, 76, 0.9], [14, 76, 0.5], [20, 77, 1], [23, 77, 0.55], [26, 72, 0.9], [30, 72, 0.5]],
 ];
-// Half time: the snare is on three of each bar (steps 8 and 24). The kick is with the bass on 0 and 20, and wanders.
-const KICK = [[0, 6, 20, 27], [0, 11, 20, 22, 30]];
-const SNARE = [8, 24];
-const LATE = 0.011;    // the snare sits a hair behind the beat
-const SWING = 0.16;    // and so does every second hat, by this much of a step
+// the stand-in kit, used only when the loop file is missing: a snare on 2 and 4, a hat on every eighth
+const SNARE = [4, 12];
 
 export class Music {
   /** `out`: where the music goes. `noiseBuf`: two seconds of white noise, shared with the game's effects. */
   constructor(ctx, out, noiseBuf) {
     this.ctx = ctx; this.noiseBuf = noiseBuf;
     this.open = true; this.playing = false; this.intensity = 0.5;
-    this.off = new Set();   // a tool can leave layers out: 'drums' 'bass' 'pad' 'lead'
+    this.off = new Set();   // a tool can leave layers out: 'drums' (the loop or its stand-in) 'kick' 'bass' 'pad' 'lead'
+    this.loop = null;       // the drum loop, once it has been fetched and decoded (setLoop)
 
     // everything -> the filter that closes inside a ship -> out. Nothing in the path distorts.
     this.level = ctx.createGain(); this.level.gain.value = SONG.LEVEL;
@@ -74,18 +76,29 @@ export class Music {
     const wet = ctx.createGain(); wet.gain.value = 0.9;
     this.room.connect(wet).connect(this.bus);
 
-    // the bass: the reference rolls off under about 40 Hz, so its D1 is carried by its harmonics and its F1 by the sub itself
+    // the drum loop: its level, its top turned down so the cymbals sit behind the snare, a little of it into the room
+    // so it sits with the rest, and a gate that is shut between runs
+    this.breakBus = ctx.createGain(); this.breakBus.gain.value = 1.6;
+    const top = ctx.createBiquadFilter(); top.type = 'highshelf'; top.frequency.value = 5000; top.gain.value = -4.5;
+    this.gate = ctx.createGain(); this.gate.gain.value = 0;
+    this.breakBus.connect(top).connect(this.gate).connect(this.bus);
+    const breakRoom = ctx.createGain(); breakRoom.gain.value = 0.07;
+    this.gate.connect(breakRoom).connect(this.room);
+
+    // the bass: the reference rolls off under about 40 Hz, and so does this
     this.bassBus = ctx.createBiquadFilter(); this.bassBus.type = 'highpass'; this.bassBus.frequency.value = 42; this.bassBus.Q.value = 1;
     this.bassBus.connect(this.bus);
-    // what makes a 36 Hz note audible on small speakers: its octave, twelfth and the next few, as measured on the reference
-    this.bassWave = ctx.createPeriodicWave(new Float32Array(9), new Float32Array([0, 0, 1, 0.8, 0.55, 0.22, 0.2, 0.12, 0.1]));
+    // the reese's slow movement: its filter breathes
+    const breathe = ctx.createOscillator(); breathe.frequency.value = 0.21;
+    this.growl = ctx.createGain(); this.growl.gain.value = 70;
+    breathe.connect(this.growl); breathe.start();
 
     // tape: a slow drift in pitch on the chords and the bell, a few cents
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.37;
     this.wow = ctx.createGain(); this.wow.gain.value = 5;
     lfo.connect(this.wow); lfo.start();
 
-    // hats: six square waves at the old drum machine's frequencies, summed once into a buffer
+    // the stand-in hats: six square waves at the old drum machine's frequencies, summed once into a buffer
     const metal = ctx.createBuffer(1, Math.floor(rate * 0.6), rate), m = metal.getChannelData(0);
     for (const f of [205.3, 304.4, 369.6, 522.7, 540, 800]) {
       const k = (2 * Math.PI * f * 1.45) / rate;
@@ -93,6 +106,9 @@ export class Music {
     }
     this.metal = metal;
   }
+
+  /** Hand over the decoded drum loop. It must be SONG.LOOP_BARS bars long at SONG.BPM, starting on the downbeat. */
+  setLoop(buffer) { this.loop = buffer; }
 
   /** What the run is doing. `t`: when (defaults to now). */
   set({ open, playing, intensity }, t = this.ctx.currentTime) {
@@ -102,6 +118,8 @@ export class Music {
       this.cut = cut;
       this.filter.frequency.setTargetAtTime(cut, t, open && playing ? 0.18 : 0.5);
       this.level.gain.setTargetAtTime(SONG.LEVEL * (playing ? 1 : 0.6), t, 0.4);   // between runs the track sits back
+      // the loop runs all the time, in step with the song; a run opens the gate on it
+      this.gate.gain.setTargetAtTime(playing ? 1 : 0, t, playing ? 0.015 : 0.12);
     }
   }
 
@@ -111,18 +129,25 @@ export class Music {
     return n;
   }
 
-  // ---------- drums: clean, heavy, nothing clipped ----------
+  // ---------- drums ----------
+  /** One bar of the loop, started exactly on the bar line. A bar is a whole number of samples at 44.1 and 48 kHz, so bars join cleanly. */
+  slice(t, bar) {
+    const n = this.ctx.createBufferSource(); n.buffer = this.loop;
+    n.connect(this.breakBus);
+    n.start(t, bar * 16 * STEP, 16 * STEP);
+  }
+
+  /** The kick: clean, short enough for this tempo, and the loudest thing in the track. It carries the lows the loop had cut. */
   kick(t, vel = 1) {
     const ctx = this.ctx;
     const o = ctx.createOscillator(); o.type = 'sine';
-    // a hard knock at the front, then a long low body
     o.frequency.setValueAtTime(330, t); o.frequency.exponentialRampToValueAtTime(118, t + 0.012);
-    o.frequency.exponentialRampToValueAtTime(54, t + 0.085); o.frequency.exponentialRampToValueAtTime(46, t + 0.4);
+    o.frequency.exponentialRampToValueAtTime(56, t + 0.08); o.frequency.exponentialRampToValueAtTime(48, t + 0.32);
     const g = ctx.createGain();
-    const p = 1.7 * vel;   // the loudest thing in the track
+    const p = 1.5 * vel;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(p, t + 0.0015);
-    g.gain.exponentialRampToValueAtTime(p * 0.5, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.44);
-    o.connect(g).connect(this.bus); o.start(t); o.stop(t + 0.48);
+    g.gain.exponentialRampToValueAtTime(p * 0.5, t + 0.09); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    o.connect(g).connect(this.bus); o.start(t); o.stop(t + 0.38);
     const n = this.noise(t, 0.02, Math.round(t * 311));
     const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 0.6;
     const c = ctx.createGain();
@@ -130,9 +155,9 @@ export class Music {
     n.connect(f).connect(c).connect(this.bus);
   }
 
+  // the stand-in snare and hat: only heard when the loop file is missing
   snare(t, v = 1) {
     const ctx = this.ctx, vel = v * 1.1;
-    // the body: two short tones
     for (const [f0, f1, lvl, dec] of [[196, 172, 0.55, 0.13], [338, 300, 0.26, 0.07]]) {
       const o = ctx.createOscillator(); o.type = 'triangle';
       o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dec);
@@ -140,7 +165,6 @@ export class Music {
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(lvl * vel, t + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
       o.connect(g).connect(this.bus); o.start(t); o.stop(t + dec + 0.03);
     }
-    // the wires
     const n = this.noise(t, 0.3, Math.round(t * 613));
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1100;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 9000;
@@ -148,56 +172,56 @@ export class Music {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.78 * vel, t + 0.001);
     g.gain.exponentialRampToValueAtTime(0.2 * vel, t + 0.07); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
     n.connect(hp).connect(lp).connect(g).connect(this.bus);
-    // the crack: a short burst where the ear is sharpest, so it cuts without being turned up
     const n3 = this.noise(t, 0.08, Math.round(t * 449));
     const cr = ctx.createBiquadFilter(); cr.type = 'bandpass'; cr.frequency.value = 3100; cr.Q.value = 0.8;
     const cg = ctx.createGain();
     cg.gain.setValueAtTime(0.0001, t); cg.gain.linearRampToValueAtTime(0.7 * vel, t + 0.0008); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
     n3.connect(cr).connect(cg).connect(this.bus);
-    // a clap laid over it
-    const n2 = this.noise(t, 0.2, Math.round(t * 829));
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1350; bp.Q.value = 1.2;
-    const c = ctx.createGain(), p = 0.34 * vel;
-    c.gain.setValueAtTime(0.0001, t);
-    for (const k of [0, 0.009, 0.018]) { c.gain.setValueAtTime(p, t + k); c.gain.exponentialRampToValueAtTime(p * 0.15, t + k + 0.008); }
-    c.gain.setValueAtTime(p, t + 0.027); c.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
-    n2.connect(bp).connect(c).connect(this.bus);
-    const send = ctx.createGain(); send.gain.value = 0.22;
-    g.connect(send); c.connect(send); send.connect(this.room);
+    const send = ctx.createGain(); send.gain.value = 0.22; g.connect(send).connect(this.room);
   }
 
-  hat(t, vel, open = false) {
-    const ctx = this.ctx, dur = open ? 0.3 : 0.05;
+  hat(t, vel) {
+    const ctx = this.ctx;
     const n = ctx.createBufferSource(); n.buffer = this.metal; n.loop = true;
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7200; hp.Q.value = 0.8;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel * 2.8, t + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel * 2.8, t + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
     const pan = ctx.createStereoPanner(); pan.pan.value = 0.25;
     n.connect(hp).connect(g).connect(pan).connect(this.bus);
-    n.start(t, hash(Math.round(t * 1409)) * 0.5); n.stop(t + dur + 0.02);
+    n.start(t, hash(Math.round(t * 1409)) * 0.5); n.stop(t + 0.07);
   }
 
-  // ---------- the transcribed parts ----------
-  /** One long bass note: a sine, and above it the harmonics that let a 36 Hz note be heard. `to`: the note it slides to at its end. */
+  // ---------- the transcribed notes ----------
+  /**
+   * One bass note, a reese: a sine at the note for the weight, and an octave above it two saws pulled a few cents
+   * apart, beating against each other through a low filter that opens when the note is struck and breathes slowly
+   * after. `to`: the note it slides to at its end.
+   */
   bass(t, note, len, vel, to) {
     const ctx = this.ctx, dur = len * STEP, f1 = NOTE(note);
-    // the notes never overlap: each one hands over to the next across 30 ms, so a slide is heard through the join
+    // each note hands over to the next across 30 ms, so a slide is heard through the join
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(vel * 0.6, t + dur); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.03);
-    const sub = ctx.createOscillator(); sub.type = 'sine';
-    const body = ctx.createOscillator(); body.setPeriodicWave(this.bassWave);
-    for (const o of [sub, body]) {
-      o.frequency.setValueAtTime(f1, t);
-      if (to) { o.frequency.setValueAtTime(f1, t + dur - 0.055); o.frequency.exponentialRampToValueAtTime(NOTE(to), t + dur + 0.005); }
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.01);
+    g.gain.setValueAtTime(vel, t + dur); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.03);
+    const tune = (o, mult) => {
+      o.frequency.setValueAtTime(f1 * mult, t);
+      if (to) { o.frequency.setValueAtTime(f1 * mult, t + dur - 0.055); o.frequency.exponentialRampToValueAtTime(NOTE(to) * mult, t + dur + 0.005); }
       o.start(t); o.stop(t + dur + 0.1);
+    };
+    const sub = ctx.createOscillator(); sub.type = 'sine'; tune(sub, 1);
+    const sg = ctx.createGain(); sg.gain.value = 0.3;
+    sub.connect(sg).connect(g);
+    const cut = 250 + 400 * this.intensity;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.1;
+    lp.frequency.setValueAtTime(cut * 2.6, t); lp.frequency.exponentialRampToValueAtTime(cut, t + 0.2);
+    this.growl.connect(lp.frequency);
+    const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass'; lp2.Q.value = 0.7; lp2.frequency.value = cut * 1.7;
+    for (const det of [-14, 14]) {
+      const s = ctx.createOscillator(); s.type = 'sawtooth'; s.detune.value = det; tune(s, 2);
+      s.connect(lp);
     }
-    // bright when struck, darker as it rings
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.7;
-    lp.frequency.setValueAtTime(950, t); lp.frequency.exponentialRampToValueAtTime(300, t + 0.55);
-    const sg = ctx.createGain(); sg.gain.value = 0.32;
-    const bg = ctx.createGain(); bg.gain.value = 0.22;
-    sub.connect(sg).connect(g); body.connect(lp).connect(bg).connect(g);
+    const rg = ctx.createGain(); rg.gain.value = 0.3;
+    lp.connect(lp2).connect(rg).connect(g);
     g.connect(this.bassBus);
   }
 
@@ -230,31 +254,31 @@ export class Music {
     const car = ctx.createOscillator(); car.type = 'sine'; car.frequency.value = fr;
     const mod = ctx.createOscillator(); mod.type = 'sine'; mod.frequency.value = fr * 2;
     const idx = ctx.createGain();
-    idx.gain.setValueAtTime(fr * 2.6, t); idx.gain.exponentialRampToValueAtTime(fr * 0.12, t + 0.45);
+    idx.gain.setValueAtTime(fr * 2.6, t); idx.gain.exponentialRampToValueAtTime(fr * 0.12, t + 0.35);
     mod.connect(idx).connect(car.frequency);
     this.wow.connect(car.detune);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2800;
     car.connect(lp).connect(g).connect(this.bus);
-    const send = ctx.createGain(); send.gain.value = 0.7; g.connect(send).connect(this.room);
-    car.start(t); mod.start(t); car.stop(t + 2); mod.stop(t + 2);
+    const send = ctx.createGain(); send.gain.value = 0.6; g.connect(send).connect(this.room);
+    car.start(t); mod.start(t); car.stop(t + 1.3); mod.stop(t + 1.3);
   }
 
   // ---------- the song ----------
   /** Play sixteenth `i` (0..SONG.STEPS-1) at time `t`. */
   step(i, t) {
-    const ls = i % 32, unit = i >> 5, barIn = (i >> 4) & 7, section = (i >> 7) & 3;
-    const off = this.off, hi = this.intensity;
+    const ls = i % 32, s16 = i % 16, bar = i >> 4, unit = i >> 5, section = (i >> 7) & 3;
+    const off = this.off;
     const mode = !this.playing ? 0 : this.open ? 2 : 1;   // idle, station, drive
 
-    // bass, as transcribed. The third eight bars use the reference's chopped D.
+    // bass: the transcribed notes, struck with the loop
     if (!off.has('bass')) {
-      const hit = (section === 2 ? BASS_CHOP : BASS).find((b) => b[0] === ls);
+      const hit = BASS.find((b) => b[0] === ls);
       if (hit) this.bass(t, hit[2], hit[1], mode === 0 ? 0.55 : 1, hit[3]);
     }
 
-    // chords, as transcribed
+    // chords: the transcribed notes
     if (!off.has('pad')) {
       const vel = mode === 0 ? 0.085 : 0.09;
       if (ls === CHORD_A_AT) this.pad(t, CHORD_A, CHANGE - CHORD_A_AT, CHORD_A_SWELL, vel);
@@ -263,24 +287,17 @@ export class Music {
 
     // the bell: not in the first eight bars of the song
     if (!off.has('lead') && (section > 0 || mode === 0)) {
-      const line = BELL[(unit & 3) === 2 ? 1 : 0];
-      const n = line.find((b) => b[0] === ls);
-      if (n) this.bell(t, n[1], mode === 2 ? 0.17 : mode === 1 ? 0.14 : 0.12);
+      const n = BELL[(unit & 3) === 3 ? 1 : 0].find((b) => b[0] === ls);
+      if (n) this.bell(t, n[1], n[2] * (mode === 2 ? 0.17 : mode === 1 ? 0.14 : 0.12));
     }
 
-    // drums
-    if (off.has('drums') || mode === 0) return;
-    if (KICK[unit & 1].includes(ls)) this.kick(t, ls === 0 || ls === CHANGE ? 1 : 0.82);
-    if (SNARE.includes(ls)) this.snare(t + LATE, 1);
-    if (mode === 1) {
-      if (ls % 4 === 0) this.hat(t, 0.16);
-      return;
-    }
-    // open air: a hat on every eighth, the off ones a little late, an open one before the turn, a roll every eight bars
-    const roll = barIn === 7 && ls >= 28;
-    if (roll) { this.hat(t, 0.16 + (ls - 28) * 0.04); this.hat(t + STEP / 2, 0.14 + (ls - 28) * 0.04); }
-    else if (ls === 30 && (unit & 1)) this.hat(t, 0.24, true);
-    else if (ls % 2 === 0) this.hat(t + (ls % 4 === 2 ? SWING * STEP : 0), (ls % 8 === 0 ? 0.27 : ls % 4 === 0 ? 0.21 : 0.15) * (0.9 + 0.2 * hash(i)));
-    else if (ls === 11 || ls === 27 || (hi > 0.72 && (ls === 3 || ls === 19))) this.hat(t, 0.1);
+    // drums. The loop is always running, bar by bar, behind its gate, so a run starting mid-bar joins it in time.
+    if (!off.has('drums') && this.loop && s16 === 0) this.slice(t, bar % SONG.LOOP_BARS);
+    if (mode === 0) return;
+    if (!off.has('kick') && KICK.includes(s16)) this.kick(t, s16 === 0 ? 1 : 0.9);
+    if (off.has('drums') || this.loop) return;
+    // no loop file: a plain kit in its place
+    if (SNARE.includes(s16)) this.snare(t, 1);
+    if (s16 % 2 === 0) this.hat(t, (s16 % 4 === 0 ? 0.2 : 0.14) * (0.9 + 0.2 * hash(i)));
   }
 }

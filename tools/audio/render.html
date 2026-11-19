@@ -10,7 +10,7 @@
 <p>Renders <code>src/systems/Music.js</code> offline, through the same master chain as the game, and reports its
 levels. Open it from the dev server: <code>/tools/audio/render.html?mode=drive&amp;bars=32</code></p>
 <p><code>mode</code> idle | station | drive | tour (four bars idle, eight in a ship, then open air) &middot; <code>intensity</code> 0..1 &middot; <code>bars</code> &middot;
-<code>from</code> first bar &middot; <code>off</code> layers to leave out, comma separated (drums, bass, pad, lead)</p>
+<code>from</code> first bar &middot; <code>off</code> layers to leave out, comma separated (drums, kick, bass, pad, lead) &middot; <code>noloop</code> to hear the stand-in kit</p>
 <audio id="player" controls></audio> <a id="save" download>save the WAV</a>
 <pre id="out">rendering...</pre>
 <script type="module">
@@ -32,10 +32,21 @@ const noiseBuf = ctx.createBuffer(1, rate * 2, rate);
 { const d = noiseBuf.getChannelData(0); let s = 12345; for (let i = 0; i < d.length; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; d[i] = s / 2147483648 - 1; } }
 
 const m = new Music(ctx, master, noiseBuf);
+// the drum loop, as the game loads it; without the file (or with ?noloop) the stand-in kit plays
+let loopNote = 'not used';
+if (!q.has('noloop')) {
+  try {
+    const res = await fetch('/' + SONG.LOOP);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const loop = await ctx.decodeAudioData(await res.arrayBuffer());
+    m.setLoop(loop); loopNote = `${loop.duration.toFixed(4)} s, ${loop.numberOfChannels} ch`;
+  } catch (e) { loopNote = 'missing (' + e.message + '): stand-in kit'; }
+}
 for (const layer of (q.get('off') || '').split(',').filter(Boolean)) m.off.add(layer);
 m.set({ open: mode === 'drive', playing: mode === 'drive' || mode === 'station', intensity: mode === 'tour' ? 0.4 : intensity }, 0);
 m.filter.frequency.cancelScheduledValues(0); m.filter.frequency.value = m.cut;   // no opening sweep in a render
 m.level.gain.cancelScheduledValues(0); m.level.gain.value = SONG.LEVEL * (mode === 'idle' || mode === 'tour' ? 0.6 : 1);
+m.gate.gain.cancelScheduledValues(0); m.gate.gain.value = mode === 'idle' || mode === 'tour' ? 0 : 1;
 // Hand the track its steps a second ahead, as the game does, pausing the render every half second to do it.
 // Scheduling all of them up front works but leaves thousands of idle voices in the graph, and the render crawls.
 let next = 0;
@@ -64,7 +75,7 @@ const blob = new Blob([wav], { type: 'audio/wav' });
 const url = URL.createObjectURL(blob);
 document.getElementById('player').src = url;
 const save = document.getElementById('save'); save.href = url; save.download = `station-drift-${mode}.wav`;
-const report = { mode, intensity, bars, from, seconds: Number((n / rate).toFixed(2)), peak_dB: db(peak), rms_dB: db(Math.sqrt(sum / n)), samples_at_full_scale: over };
+const report = { mode, intensity, bars, from, loop: loopNote, seconds: Number((n / rate).toFixed(2)), peak_dB: db(peak), rms_dB: db(Math.sqrt(sum / n)), samples_at_full_scale: over };
 document.getElementById('out').textContent = JSON.stringify(report, null, 2);
 window.__wav = blob; window.__report = report;
 </script>

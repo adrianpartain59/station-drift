@@ -570,3 +570,34 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   fingerprints unchanged.
 - Not verified: how it sounds. Nobody in this session can hear it. A check by a model that can listen was
   prepared and not run (not permitted in this session).
+
+## The soundtrack rebuilt round a drum loop (2026-11-18)
+- Adrian put a drum loop in his downloads and asked for the beat to be remade round it: filtered, with a kick and
+  a reese bass added, the same notes, the rhythm and the melody free to fit the loop.
+- Measured the loop first: 264,600 samples at 44.1 kHz = 6.000 s = four bars at 160.00 BPM; its hits fall within
+  1 ms of the sixteenth grid. Per bar: low hits on steps 0 and 10, snare on 4 and 12, ghosts on 6, 9 and 14.
+- Filtering, done once with ffmpeg in floating point (the first two tries clipped inside the filter chain,
+  which runs in 16-bit unless told otherwise): two 150 Hz high-passes and an 11 kHz low-pass. Against the
+  original: 20 to 60 Hz down 32 dB, 60 to 120 Hz down 16 dB, 120 to 250 Hz down 6 dB, the rest within 1 to 3 dB.
+  Peak set to -1 dB from the measured peak; no sample at full scale.
+- Changed: `src/systems/Music.js` (160 BPM; the loop played a bar at a time behind a gate; kick; reese bass;
+  the bell's rhythm; the old kit kept only as a stand-in), `src/systems/Audio.js` (fetches and decodes the
+  loop; silent fallback), `tools/audio/render.html` (loads the loop; `&noloop`; a `kick` layer).
+- Checked on renders:
+  - notes: the bass reads D on steps 0 to 19 and F on 20 to 31 on the 160 BPM grid; the chords in the stereo
+    sides are D4 A4 E5 and D4 F4 A4 C5.
+  - the loop's bars join without a click: the jump at each join is 0.3 to 2.1 times the typical jump around it,
+    the same range as the original file at its own bar lines.
+  - sync: the loop and the kick are both started on the bar line by the same clock; the loop's own hits sit
+    on the grid in the file.
+  - balance: with the loop in, every band from 20 Hz to 1 kHz is within 2 dB of the reference beat's share,
+    and 1 to 8 kHz within 4 dB.
+  - level: open air RMS -17.1 dB, peak -3.2 dB; in a ship -17.2 / -3.3; between runs -27.8 / -14.8. No sample
+    at full scale in 44 bars. A-weighted, open air is 8.7 dB over the old synthwave track and 2.7 dB over the
+    version before this one: the break is bright.
+  - drums after the master chain: kick with the loop -6.1 and -5.4 dB peak, the loop's snares -10.2 and -8.9.
+  - without the loop file (`&noloop`): the stand-in kit plays, no errors.
+- In the browser, muted: the loop loads (6 s, stereo), the track follows the run (open air, in a ship at 834 m,
+  open air at 1,301 m, idle at game over), 128 live steps scheduled without an error. Build passes. Both
+  fingerprints unchanged.
+- Not verified: how it sounds. Whether the loop may be published.

@@ -311,3 +311,17 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   with a high-pass at 42 Hz.
 - Peak level is a poor guide to how hard a drum hits: the snare measured 3.4 dB over the kick while the kick
   carried far more energy. Both were set from per-hit peaks after the master chain.
+
+## The soundtrack with a drum loop: what it needed (2026-11-18)
+- ffmpeg runs audio filters in the input's sample format. A 16-bit file through two high-pass filters clipped
+  inside the chain (469 samples at full scale) even with the output turned down afterwards: a high-pass makes a
+  drum loop peakier, here 1.93 times full scale. Putting `aformat=sample_fmts=fltp` first, measuring the true
+  peak, then setting the gain, fixed it.
+- A bar at 160 BPM is 1.5 s: a whole number of samples at 44.1 kHz (66,150) and at 48 kHz (72,000). Playing the
+  loop one bar at a time therefore joins cleanly at either rate, and lets the loop run all the time behind a
+  gate, so a run that starts mid-bar hears the break at once and in time.
+- Chrome's compressor node delays everything by about 6 ms. It showed up as every onset in a render sitting
+  6.4 ms after the grid; it is the same for every voice, so nothing is out of step.
+- The loop cut under 150 Hz has a crest factor near 18 dB: very peaky. Its snares measure 4 dB under the added
+  kick while it already carries most of the track's energy above 2 kHz. Loop level trades snare weight against
+  cymbal brightness; a shelf on its top is the other knob.

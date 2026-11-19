@@ -161,9 +161,12 @@ From the browser console, `__game.look.cfg` is the live `LOOK` table and `__game
 The track is `src/systems/Music.js`: every number that shapes it is in the tables at the top. To hear or measure
 it without playing, open `/tools/audio/render.html` on the dev server. It renders the track offline through the
 game's master chain, plays it, offers the WAV, and prints peak and RMS level. `?mode=idle|station|drive|tour`,
-`&intensity=0..1`, `&bars=N`, `&from=N` (first bar), `&off=drums,bass,pad,lead` to leave layers out (the chords
-and the bass alone are how they were checked against the reference). The page makes no sound until you press
-play on it.
+`&intensity=0..1`, `&bars=N`, `&from=N` (first bar), `&off=drums,kick,bass,pad,lead` to leave layers out (the
+chords and the bass alone are how they were checked against the reference), `&noloop` for the stand-in kit. The
+page makes no sound until you press play on it.
+
+The drum loop is `public/audio/break.wav`: four bars at the track's tempo, starting on the downbeat, already
+filtered. If the file is absent the game and this page fall back to a synthesized kit.
 
 ## Trying another speed
 

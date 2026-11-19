@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 25 (the soundtrack remade on an exact transcription, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
+Phase 26 (the soundtrack rebuilt round a drum loop Adrian chose, on the branch, waiting on his ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -259,12 +259,35 @@ the actual notes line up exactly".
   sixteenth-note arpeggio, the saturation on the whole mix, the kick ducking the chords, the risers.
 - Status: built and pushed to the branch, NOT on `main`. Waiting for him to hear it.
 
+### Phase 26: The soundtrack round a drum loop (Adrian, 2026-11-18)
+His words: "remake the beat aroudn that drum loop, make sure to filter it so it can fit in with other drum sounds,
+but add a kick and bass to it, and this time use a reese bass. Keep the notes for the chords and bass the same
+but feel free to adjsut the rhythm to better fit the drum loop. I like the melody but also feel free to tweak it
+to fit the drum loop, it could definitely be a little more rhthmic but you have the right idea with the notes".
+- The loop he supplied, measured: an amen break, 6.000 s, exactly four bars at 160 BPM, every hit on the grid.
+  Kick on 1 and the "and" of 3, snare on 2 and 4, ghost notes between, a ride on the eighths.
+- The track moved to the loop's tempo (160 BPM) so the loop plays untouched in time. The notes did not move:
+  chords D4 A4 E5 and D4 F4 A4 C5, bass D then F, the change still on step 20 of 32 (the loop's snare).
+- The loop is filtered before the game sees it: everything under 150 Hz cut hard, so the added kick and the bass
+  own the lows; a little off the very top. In the game its cymbals are turned down a further 4.5 dB.
+- Added: a kick under the loop's own two kicks in every bar. A reese bass: a sine at the note, and an octave above
+  it two saws 28 cents apart through a low filter that opens on each strike and breathes slowly. The bass is
+  struck again with each kick and with the snare the harmony changes on.
+- The bell keeps its notes (A E, F D; D E F C the fourth time round) and says each one twice, on the loop's
+  accents.
+- The loop is the first sound in the game that is a file. It is NOT in the repository: it came from a free loop
+  library and whether it can sit in a public repository is Adrian's call. Without the file the track plays a
+  plain synthesized kit in its place, so the pushed branch still runs.
+- Status: built; the code is pushed to the branch, the loop file is local only. NOT on `main`.
+
 ## Next Step
-Adrian listens to the remade soundtrack on the branch (dev server, not the live site) and says what to change or
-"merge". The transcribed notes are the block at the top of `src/systems/Music.js` marked as the transcription:
-leave them alone unless the reference is re-measured. His to steer: the kit (`KICK`, `SNARE`, `LATE`, `SWING` and
-the three drum voices), the bell line (`BELL`), each voice's level, and `SONG.LEVEL`. Re-render with
-`tools/audio/render.html`. Test pages are loaded with `?mute` and closed afterwards.
+Adrian listens to the loop-based soundtrack (a preview is in his Downloads; the dev server plays it in the game)
+and says what to change, and whether the loop file may be published. Until he says yes, `public/audio/break.wav`
+stays out of git (it is in this checkout's local ignore list) and nothing merges to `main`: without the file the
+live game would play the stand-in kit. The transcribed notes are the block at the top of `src/systems/Music.js`
+marked as the transcription. His to steer: the loop's level and top (`breakBus`, the shelf beside it), the kick,
+the reese (`bass`), the bell line (`BELL`), `SONG.LEVEL`. Re-render with `tools/audio/render.html`. Test pages
+are loaded with `?mute` and closed afterwards; audio for him goes to his Downloads as an .m4a.
 Before that, still true: the live game is HARD on SKYWAY with the dark look.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
 His calls on SKYWAY, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the ships' corners
@@ -297,6 +320,8 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
 | Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
+| The track runs at the drum loop's tempo (160 BPM); the loop is never stretched | Adrian asked for the beat to be built round the loop and freed the rhythm; stretching a break to 136 would smear it |
+| The drum loop file stays out of the public repository until Adrian says it may go in | It is a third-party loop; publishing it as a file is his decision, and hard to undo in git history |
 | Chords and bass are transcribed from exact pitches (peak frequency to the cent, stereo centre and sides apart), never from pitch classes | A bass note's fifth and seventh harmonics read as a major third and a minor seventh; Phase 24 built D add9, D7 and F7 out of them |
 | The soundtrack keeps a reference beat's chords, tempo and chord placement and nothing else | Adrian's brief: "copy the chords but make your own beat". Chords are measured from the beat; every sound is synthesized here |
 | The track's level is set by measurement against the old track, not by ear | Nobody in the session can hear it. A-weighted, it sits about 6 dB over the old one in open air |

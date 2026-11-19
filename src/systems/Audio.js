@@ -151,6 +151,13 @@ export class Audio {
   // ---------- music ----------
   startMusic() {
     this.music = new Music(this.ctx, this.master, this.noiseBuf);
+    // the drum loop is the one sound in the game that is a file. Until it has loaded, or if it is not there at
+    // all, the track plays its own plain kit instead.
+    fetch(SONG.LOOP)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('no drum loop'))))
+      .then((data) => this.ctx.decodeAudioData(data))
+      .then((buffer) => this.music.setLoop(buffer))
+      .catch(() => {});
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.1;
     this.intensity = 0.5;
