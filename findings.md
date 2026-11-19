@@ -325,3 +325,16 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
 - The loop cut under 150 Hz has a crest factor near 18 dB: very peaky. Its snares measure 4 dB under the added
   kick while it already carries most of the track's energy above 2 kHz. Loop level trades snare weight against
   cymbal brightness; a shelf on its top is the other knob.
+
+## The soundtrack as an arrangement (2026-11-18)
+- A reese needs oscillators that keep running. Starting fresh oscillators on every strike puts all of them in
+  phase each time, so the slow beating that gives the sound its movement never gets going. Here the eight
+  oscillators are built once; a strike moves their pitch, opens two gates and kicks the filter.
+- Width and weight are separate jobs: the wide saws are high-passed at 90 Hz and panned; everything under that
+  (the sine and two centred saws at the note) is mono.
+- Two events on one audio parameter at the same instant take effect in the order they were scheduled. A note's
+  closing gate and the next note's opening gate land together, and the opening wins: legato with no extra code.
+- With the song as a table of blocks, checking the arrangement is a table too: energy per block in five bands
+  (sub, low, chords, melody, cymbals) shows every drop, cut and breakdown at a glance.
+- Rendering 193 s offline took about 80 s of wall time here; the browser tool's 45 s limit on one script call
+  means waiting for it in two calls.

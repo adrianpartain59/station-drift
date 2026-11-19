@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 26 (the soundtrack rebuilt round a drum loop Adrian chose, on the branch, waiting on his ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
+Phase 27 (the loop-based soundtrack grown into a three-minute arrangement, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -280,13 +280,35 @@ to fit the drum loop, it could definitely be a little more rhthmic but you have 
   plain synthesized kit in its place, so the pushed branch still runs.
 - Status: built; the code is pushed to the branch, the loop file is local only. NOT on `main`.
 
+### Phase 27: A long arrangement, a real reese, a harder kick, more melodies (Adrian, 2026-11-18)
+His words: "make the drum loop a bit quieter, and make the reese bass wider like more unison and a bit deeper
+soudning like a real reese bass would sound, and make the kicks hit a little harder with a high end click and a
+strong low end, and make the beat much longer and add variance like sections where instruments get cut out,
+breakdowns, bass/drum drops, etc. Also add another melody or two that we can alternate between or layer to
+create a more interesting track. Make sure to add in subtle transitions as well".
+- Loop: 2.5 dB quieter against the rest.
+- Reese: eight oscillators that never stop, so the beating between them carries on from note to note: a sine
+  sub; two saws at the note for depth; five saws an octave up, 48 cents wide and spread hard left to hard
+  right, with their lows removed so the width stays above the sub. It was two saws restarted on every strike.
+- Kick: a body that settles at 50 Hz and holds, a click of bright noise, and a short high tick.
+- Two more melodies, chord tones only: the keys (a falling line that answers itself) and the whistle (long
+  notes over everything). With the bell they alternate, trade bars and layer.
+- The song is now 128 bars, 3 minutes 12, written as a table of 32 four-bar blocks (`FORM`): intro, drop,
+  bell, bell and whistle, breakdown on the keys, build, second drop, bell and keys trading, a stretch with no
+  bass, one with no drums, everything, one with no chords, a second breakdown, build, last drop, way out.
+- Transitions, kept quiet: the loop swept in and out through a filter; the loop's own fill bar at the ends of
+  sections; a rising hiss; two beats of nothing before a drop; a low boom and a wash on the drop.
+- The notes of the chords and the bass did not change.
+- Status: built; code pushed to the branch; the loop file still local only. NOT on `main`.
+
 ## Next Step
 Adrian listens to the loop-based soundtrack (a preview is in his Downloads; the dev server plays it in the game)
 and says what to change, and whether the loop file may be published. Until he says yes, `public/audio/break.wav`
 stays out of git (it is in this checkout's local ignore list) and nothing merges to `main`: without the file the
 live game would play the stand-in kit. The transcribed notes are the block at the top of `src/systems/Music.js`
-marked as the transcription. His to steer: the loop's level and top (`breakBus`, the shelf beside it), the kick,
-the reese (`bass`), the bell line (`BELL`), `SONG.LEVEL`. Re-render with `tools/audio/render.html`. Test pages
+marked as the transcription. His to steer: the arrangement (`FORM`, one line per four bars), the loop's level and
+top (`breakBus`, the shelf beside it), the kick, the reese (built in the constructor), the three melodies
+(`BELL`, `KEYS`, `WHISTLE`), `SONG.LEVEL`. Re-render with `tools/audio/render.html`. Test pages
 are loaded with `?mute` and closed afterwards; audio for him goes to his Downloads as an .m4a.
 Before that, still true: the live game is HARD on SKYWAY with the dark look.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.

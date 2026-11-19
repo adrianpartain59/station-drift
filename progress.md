@@ -601,3 +601,30 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   open air at 1,301 m, idle at game over), 128 live steps scheduled without an error. Build passes. Both
   fingerprints unchanged.
 - Not verified: how it sounds. Whether the loop may be published.
+
+## The loop-based track, grown (2026-11-18)
+- Adrian asked for a quieter loop, a wider, deeper reese with more unison, a harder kick with a click and a
+  strong low end, a much longer beat with sections dropping in and out, one or two more melodies, and subtle
+  transitions.
+- Changed: `src/systems/Music.js` only. The arrangement is a table; the reese's oscillators are built once and
+  run for the life of the page; three melody voices; two transition sounds.
+- Checked on renders, against the version before:
+  - reese: it was mono; above 120 Hz its sides are now 6.6 dB under its middle (measured before its low octave
+    was raised a little). Its sub band is unchanged; its top (1 to 2 kHz) is 6 dB darker.
+  - kick: 5.6 dB more between 35 and 70 Hz, 10.4 dB more between 3 and 10 kHz in its first 12 ms.
+  - loop: 3.4 dB lower on its own render (2.5 dB from its own level, the rest from the track's).
+  - bass notes on the grid: D on steps 0 to 19, F on 20 to 31, as before.
+  - the arrangement, block by block on the full render: sub, low, chord, melody and cymbal bands rise and fall
+    where the table says. Intro: no sub, no cymbals. Breakdowns: no kick or reese, no loop. The stretch with no
+    bass: sub 4 dB down (the kick alone). No drums: cymbals 20 dB down. Second breakdown: nothing under 150 Hz.
+  - the two beats before each of the five drops are 11 to 16 dB under the two beats before them.
+  - melody notes in the breakdowns, where they are exposed: only notes of the chord under them.
+  - level, whole track: RMS -17.3 dB, peak -2.9 dB, no sample at full scale in 193 s. In a ship -16.3 / -3.7;
+    between runs -29.9 / -18.6. A-weighted the track is 3.3 dB quieter than the version before (the loop is
+    lower) and 5.4 dB over the old synthwave track.
+  - first drop: downbeat -4.8 dB peak, kick on the "and" of 3 -5.9, the loop's snares -9.5 and -10.2.
+  - without the loop file: the stand-in kit plays through the same arrangement, no errors.
+- In the browser, muted: the loop loads, the track follows the run, and all 2,048 steps of the song were
+  scheduled live without an error. Build passes. Both fingerprints unchanged.
+- Not verified: how it sounds. A run can now start during a breakdown, with no drums for up to twelve seconds:
+  not judged in play.
