@@ -382,3 +382,16 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   from 8 to 20 could not be measured.
 - Whole-frame brightness is a poor way to compare indoors with outdoors, because half of an outdoor frame is
   sky. On the lower half of the frame (the road) the two are within 10% of each other.
+
+## Surfaces: what building the grain confirmed (2026-11-18)
+- One shared texture can serve every surface if it is laid by position (object space, in metres) along the axis
+  the surface faces most, instead of by each model's texture coordinates. The join between two axes cannot be
+  seen in a texture that is noise.
+- The renderer's own bump mapping makes the pixel's footprint a unit length, so its relief gets weaker as the
+  camera comes close. Leaving the footprint in metres gives the relief a real height that holds at any distance.
+- Uneven shine has to average out to no change, or it brightens the picture: rough-and-polished patches reflect
+  more on the whole than an even surface of the same average only when the average itself has moved.
+- three.js: a material's `onBeforeCompile` runs when a shader is built for it, not when the material goes back
+  to a shader it already had; the uniforms it is drawn with are the ones from the latest build. A test that
+  flips a patch off and on again must force a new build each time (a new cache key), or it measures a shader
+  with stale uniforms.

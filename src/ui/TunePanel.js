@@ -2,6 +2,7 @@ import { LIGHTS } from '../systems/Lighting.js';
 import { LOOK } from '../systems/Look.js';
 import { RENDER } from '../core/Constants.js';
 import { GameState } from '../core/GameState.js';
+import { GRAIN, setGrain } from '../level/Grain.js';
 
 // The lighting bench: open the game with ?tune.
 //
@@ -106,7 +107,14 @@ function groups(G) {
     'in.expo': 'Brightness inside ships', 'head.lift': 'Headlight brightness', 'head.half': 'Headlight length (half as bright by)' };
   const first = [];
   for (const id in MAIN) for (const grp of all) { const i = grp[2].findIndex((c) => c.id === id); if (i >= 0) first.push({ ...grp[2].splice(i, 1)[0], label: MAIN[id] }); }
-  return [['START HERE', true, first], ...all];
+  // the grain every lit surface wears (level/Grain.js)
+  const grain = (id, label, k, min, max, step, unit) => ({ id, label, min, max, step, unit, get: () => GRAIN[k], set: (v) => { GRAIN[k] = v; setGrain(); } });
+  const surfaces = ['SURFACES', true, [
+    grain('grain.depth', 'Relief (how far from flat)', 'DEPTH', 0, 0.15, 0.002, ' m'),
+    grain('grain.shine', 'Uneven shine', 'SHINE', 0, 0.6, 0.01, ''),
+    grain('grain.tile', 'Grain size (one repeat)', 'TILE', 1, 24, 0.5, ' m'),
+  ]];
+  return [['START HERE', true, first], surfaces, ...all];
 }
 
 const CSS = `

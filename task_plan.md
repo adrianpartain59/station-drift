@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 31 built on branch `claude/new-map-414ab7`, not merged: Adrian's bench tuning trimmed, balanced and written into the tables (2026-11-18)
+Phase 32 built on branch `claude/new-map-414ab7`, not merged: one grain on every lit surface (2026-11-18). Phase 31 (the trimmed look) is on the same branch, also unmerged
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -384,7 +384,27 @@ only the things that are important and so our lighting is still balanced".
   frames. Road-level brightness inside a ship against the open road: 0.90 before, 1.08 now. Looked at in two
   colours. Build passes, fingerprints unchanged. On the branch only; waiting on his eyes.
 
+### Phase 32: One grain on every surface, against the plastic look (Adrian, 2026-11-18)
+His words: "is there anything we can do to make all the surfaces in the game feel less plasticy?", then "Is
+there something simple we can do that we can apply to all surfaces", then "Yes, build it".
+- Why they looked plastic (read from the code): every lit surface had one shine value across its whole face
+  and no relief; most sat halfway between metal and not; reflections were nearly off; the textures were clean.
+- Built, the simple cut he asked for: one texture made at load (a slow bow, dents, pits, scratches, smudges),
+  worn by every lit surface for both its relief and how even its shine is. Laid by where the surface is, in
+  metres, so it is the same size on walls, the ship and obstacles and needs nothing from each model.
+- It goes on through one hook on the renderer's standard material, so nothing has to ask for it. Glass and
+  anything see-through is left alone. `?grain=off` is the game without it.
+- Three sliders on the bench (SURFACES): relief, uneven shine, grain size. Set at 0.014 m, 0.2 and 8 m.
+- Not done, on purpose (he asked for the one simple thing): reflections of the neon, metal-or-not for each
+  material, seams and rivets that stand out, wear painted into the colour textures.
+- Status: built and looked at inside a ship, on the open road, in the cockpit view and in two colours. No
+  console errors. Build passes, fingerprints unchanged. On the branch only; waiting on his eyes.
+
 ## Next Step
+Adrian looks at the surfaces on the branch (dev server; `?tune` has the three SURFACES sliders, `?grain=off`
+is without). If metal still reads dull, the next single change that reaches every surface is reflections: put
+the neon and lamps in the environment the materials reflect and turn it up.
+Before this, still true:
 Adrian plays the branch (dev server) and says whether the trimmed look is right; the one judgment made for him
 is the headlights' strength (`LIGHTS.HEAD.lift` 1.9 and `cap` 1.2; what he had saved works out at 1.18 and 1).
 Merge to `main` only on his word. The bench (`?tune`) now starts from these values.

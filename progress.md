@@ -730,3 +730,21 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   No console errors. Build passes. Fingerprints unchanged.
 - Not verified: how it plays at full size (his to judge); colours other than TOXIC and NOIR; low quality, where
   the bloom is off altogether and the picture will be a little darker still.
+
+## One grain on every lit surface, on the branch (2026-11-18)
+- New: `src/level/Grain.js` (the texture, the shader hook, the `GRAIN` table). Changed: `src/core/Game.js`
+  (installs it; `?grain=off`), `src/ui/TunePanel.js` (SURFACES sliders).
+- First strength (relief 0.03 m) made every surface look beaten with a hammer; settled at 0.014 m.
+- Brightness: the shine half of the grain raised the picture's average by 2 to 5% until its texture was
+  centred on a half; now 0.1 to 0.6% on three frames. The darker look he tuned is unchanged by it.
+- Cost, graphics time per frame at 1920x1080 in the app's own browser, grain on and off in turn five times on
+  the same held frame: inside a ship 5.39 ms against 5.15; open curve 5.70 against 5.50. About 0.2 ms, 4%.
+  Not measured in real Chrome at his full size.
+- A wrong reading on the way, thrown out: an on/off test that swapped each material back to a shader it had
+  used before showed the grain making the open road 41% brighter. The renderer does not run the material's
+  hook again in that case, so the grain's own numbers were never sent and the shader read a stale texture.
+  The on/off test now forces a fresh shader each time, and checks that the grain is visibly on before timing.
+- Checked: the grain stays on across the quality switch (Q), which changes every material's shader. No
+  console errors. Build passes. Fingerprints unchanged.
+- Not verified: how it looks in motion at full size (fine relief can sparkle under a moving highlight); the
+  other colours; low quality frame times.

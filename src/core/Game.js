@@ -25,6 +25,7 @@ import { Input } from '../systems/Input.js';
 import { HUD } from '../ui/HUD.js';
 import { Look, LOOK } from '../systems/Look.js';
 import { Lighting, LIGHTS } from '../systems/Lighting.js';
+import { installGrain } from '../level/Grain.js';
 
 const params = new URLSearchParams(location.search);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -84,6 +85,8 @@ export class Game {
     this.sun = new THREE.DirectionalLight(0xffffff, 2.4);
     this.scene.add(this.sun); this.scene.add(this.sun.target);
 
+    // Every lit surface wears one shared grain, for relief and for an uneven shine (level/Grain.js). ?grain=off is without.
+    if (params.get('grain') !== 'off') installGrain();
     this.mats = new Materials();
     this.sparks = new Sparks(this.scene);
     this.trails = [new Trail(this.scene, 12, 0.05), new Trail(this.scene, 12, 0.05)];

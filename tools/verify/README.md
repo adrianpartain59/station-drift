@@ -160,6 +160,12 @@ follow the sliders while the game is held; STEP runs it on half a second. What i
 and applied only under `?tune`. SAVE copies the numbers and, on the dev server, prints them in its log
 (`[tune] ...`); they go into the tables by hand from there.
 
+## The surfaces
+
+Every lit surface wears one shared grain, for relief and for an uneven shine (`src/level/Grain.js`: the `GRAIN`
+table). `?grain=off` draws the game without it; the bench (`?tune`) has its three sliders under SURFACES.
+Drawing only: the fingerprints do not move.
+
 ## The look
 
 The game draws in black and one colour, picked afresh for each run (`src/systems/Look.js`: every number is in the
