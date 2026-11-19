@@ -338,3 +338,15 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   (sub, low, chords, melody, cymbals) shows every drop, cut and breakdown at a glance.
 - Rendering 193 s offline took about 80 s of wall time here; the browser tool's 45 s limit on one script call
   means waiting for it in two calls.
+
+## Why the music was buried, and what loudness needed (2026-11-18)
+- Measured alone, the music looked fine (RMS -17 dB, peaks near -3 dB). In the game it was buried because the
+  jets and the slide hiss are broadband noise between 1 and 8 kHz, which the ear weighs heavily, while the track's
+  energy sat under 250 Hz. Compare A-weighted levels, music and effects rendered through the same chain.
+- A track that peaks at the ceiling can only get louder by lowering its crest factor. The kick set the peak; a
+  soft saturation curve on the whole mix took the crest from about 13 dB to 8.7 dB, which is where most of the 6 dB came from.
+- Chrome's compressor node adds make-up gain on its own (about 6 dB at the game's settings), so levels into it
+  cannot be predicted by arithmetic; every level here was set from a render.
+- Building the game's real audio object on an offline context needs one trick: hand it the offline context in
+  place of `window.AudioContext` for the length of its constructor, then stop its scheduling timer.
+- AAC encoding overshoots: a file whose peak was -1 dB before encoding read 0.0 dB after. Leave 2 dB.

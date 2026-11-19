@@ -628,3 +628,31 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   scheduled live without an error. Build passes. Both fingerprints unchanged.
 - Not verified: how it sounds. A run can now start during a breakdown, with no drums for up to twelve seconds:
   not judged in play.
+
+## Mix, saturation, and a much louder track in the game (2026-11-18)
+- Adrian asked for a little distortion, a better mix with EQ, and the music turned up in the game: "you can
+  barely here it right now, it could be a lot louder".
+- `tools/audio/render.html` now builds the game's real `Audio` object on the offline context (so the master
+  chain cannot drift from the game's) and can run the game's engine, jet and slide sounds with the music
+  (`&game&rev=1.1&boost&drift`).
+- What that showed, A-weighted (roughly how loud it is to the ear), before any change:
+  music -27.0 dB; game sounds cruising -26.3 dB; game sounds boosting and sliding -17.0 dB.
+- Changed: `src/systems/Music.js` (EQ per instrument, saturation, levels, the sub ducked under the kick),
+  `src/systems/Audio.js` (a soft safety curve after the master compressor), `tools/audio/render.html`.
+- After:
+  - music alone, whole track: RMS -10.8 dB (was -17.3), A-weighted -19.2 dB (was -28.0), peak -2.3 dB (was
+    -2.9). No sample at full scale in 193 s.
+  - against the game: the music is now 7 dB over the cruising sounds (was level) and 2 dB under the sounds at
+    full boost and slide (was 10 dB under). With both at their loudest together: peak -1.6 dB, no sample at
+    full scale.
+  - in a ship: RMS -10.2, peak -2.2. Between runs: RMS -18.7, peak -7.3 (it was -29.9: the idle state rose
+    more than the rest, because quiet material gains most from the saturation curve).
+  - crest factor (peak over average) 8.7 dB, was about 13: the saturation at work on the peaks.
+  - distortion on a quiet passage (the whistle alone over the chords): third harmonic 54 dB under the note,
+    0.2%. The grit is on the loud peaks, not on quiet material.
+  - EQ, read off the instruments' own renders: the loop's share between 500 Hz and 1 kHz fell 2.7 dB and its 2
+    to 4.5 kHz share rose 1.6 dB; the reese's 60 to 200 Hz rose about 2 dB and its 300 to 450 Hz fell 2.1 dB.
+- In the browser, muted: the loop loads, the track follows the run, all 2,048 steps and three game effects were
+  scheduled without an error. Build passes. Both fingerprints unchanged.
+- Not verified: how it sounds; whether 8 dB is the "lot louder" he meant; the game's effects against the louder
+  music in play.

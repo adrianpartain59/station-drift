@@ -18,7 +18,16 @@ export class Audio {
     this.master = ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.85;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18;
-    this.master.connect(comp).connect(ctx.destination);
+    // After the compressor, a safety net: clean below about -3 dB, then bending over so nothing can reach full
+    // scale and clip harshly when the music, the jets and a crash all land together.
+    const half = ctx.createGain(); half.gain.value = 0.5;
+    const guard = ctx.createWaveShaper(), curve = new Float32Array(4097), T = 0.7;
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / 2048 - 1) * 2, a = Math.abs(x);
+      curve[i] = Math.sign(x) * (a <= T ? a : T + (1 - T) * Math.tanh((a - T) / (1 - T)));
+    }
+    guard.curve = curve; guard.oversample = '4x';
+    this.master.connect(comp).connect(half).connect(guard).connect(ctx.destination);
 
     this.sfx = ctx.createGain(); this.sfx.gain.value = 0.9; this.sfx.connect(this.master);
 

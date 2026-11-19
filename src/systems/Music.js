@@ -11,6 +11,8 @@
 // The drum loop is a file (SONG.LOOP), four bars long, already filtered: its lows are cut so the kick and the bass
 // here own them. If the file is not there, the track plays a plain synthesized kit in its place.
 //
+// The whole mix runs through a soft saturation (see the constructor) and each instrument has its own EQ.
+//
 // The arrangement is the FORM table: 32 blocks of four bars, each saying what plays. It has two breakdowns, a
 // stretch without the bass, one without the drums, one without the chords, and drops back in from each.
 //
@@ -103,8 +105,12 @@ const FORM = [
 ];
 const IDLE = { p: 1, b: 1, m: ['a', 'a'] };   // between runs
 
-/** Numbers a tool needs to render the track on its own (tools/audio/render.html). */
-export const SONG = { BPM, STEP, STEPS: FORM.length * BLOCK, LEVEL: 0.2, LOOP: 'audio/break.wav', LOOP_BARS: 4 };
+/**
+ * Numbers a tool needs to render the track on its own (tools/audio/render.html).
+ * DRIVE: how hard the mix is pushed into the saturation (more = dirtier and denser). LEVEL: how loud it leaves.
+ */
+export const SONG = { BPM, STEP, STEPS: FORM.length * BLOCK, DRIVE: 0.45, LEVEL: 0.88, LOOP: 'audio/break.wav', LOOP_BARS: 4 };
+const SAT_K = 1.4, SAT_SPAN = 1.6;   // the saturation curve's steepness, and the input range it is drawn over
 
 // the stand-in kit, used only when the loop file is missing: a snare on 2 and 4, a hat on every eighth
 const SNARE = [4, 12];
@@ -117,11 +123,26 @@ export class Music {
     this.off = new Set();   // a tool can leave layers out: 'drums' (the loop or its stand-in) 'kick' 'bass' 'pad' 'lead' 'fx'
     this.loop = null;       // the drum loop, once it has been fetched and decoded (setLoop)
 
-    // everything -> the filter that closes inside a ship -> out. Nothing in the path distorts.
+    // everything -> a little saturation -> the filter that closes inside a ship -> out.
+    // The saturation is a soft curve: quiet material passes almost clean, the loudest peaks (the kick) are rounded
+    // off by a few dB. That is the grit, and it is also what lets the whole track sit louder in the game.
     this.level = ctx.createGain(); this.level.gain.value = SONG.LEVEL;
     this.filter = ctx.createBiquadFilter(); this.filter.type = 'lowpass'; this.filter.frequency.value = 2400; this.filter.Q.value = 0.7;
-    this.bus = ctx.createGain();
-    this.bus.connect(this.filter).connect(this.level).connect(out);
+    this.bus = ctx.createGain(); this.bus.gain.value = SONG.DRIVE / SAT_SPAN;
+    const sat = ctx.createWaveShaper(), curve = new Float32Array(4097);
+    for (let i = 0; i < curve.length; i++) { const x = (i / 2048 - 1) * SAT_SPAN; curve[i] = Math.tanh(SAT_K * x) / Math.tanh(SAT_K); }
+    sat.curve = curve; sat.oversample = '4x';
+    this.bus.connect(sat).connect(this.filter).connect(this.level).connect(out);
+    const eq = (type, freq, gain, q = 0.9) => { const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.gain.value = gain; f.Q.value = q; return f; };
+    // the mix: each instrument gets its own band and gives up the ones the others need
+    //   chords     nothing under 190 Hz (that is the bass's and the kick's)
+    //   melodies   nothing under 330 Hz, a lift at 2 kHz so they read over the engine
+    //   drum loop  a dip at 700 Hz where the melodies sit, a lift at 3 kHz for the snare's crack
+    //   reese      a lift at 150 Hz for its body, a dip at 360 Hz where the chords' roots are
+    //   room       nothing under 240 Hz, so the echo never muddies the low end
+    this.padBus = eq('highpass', 190, 0, 0.7); this.padBus.connect(this.bus);
+    this.leadBus = eq('highpass', 330, 0, 0.7);
+    this.leadBus.connect(eq('peaking', 2000, 3)).connect(this.bus);
 
     // a dark room: decaying noise, low-passed, a different one for each ear
     const rate = ctx.sampleRate, len = Math.floor(rate * 2.6);
@@ -136,7 +157,7 @@ export class Music {
     }
     this.room = ctx.createConvolver(); this.room.buffer = ir;
     const wet = ctx.createGain(); wet.gain.value = 0.9;
-    this.room.connect(wet).connect(this.bus);
+    this.room.connect(eq('highpass', 240, 0, 0.7)).connect(wet).connect(this.bus);
 
     // the drum loop: its level; its top turned down so the cymbals sit behind the snare; a filter the arrangement
     // sweeps to bring it in and out; a little of it into the room; and a gate that is shut between runs
@@ -144,7 +165,7 @@ export class Music {
     const top = ctx.createBiquadFilter(); top.type = 'highshelf'; top.frequency.value = 5000; top.gain.value = -4.5;
     this.breakLP = ctx.createBiquadFilter(); this.breakLP.type = 'lowpass'; this.breakLP.frequency.value = 16000; this.breakLP.Q.value = 0.9;
     this.gate = ctx.createGain(); this.gate.gain.value = 0;
-    this.breakBus.connect(top).connect(this.breakLP).connect(this.gate).connect(this.bus);
+    this.breakBus.connect(eq('peaking', 700, -3)).connect(eq('peaking', 3000, 2, 1)).connect(top).connect(this.breakLP).connect(this.gate).connect(this.bus);
     const breakRoom = ctx.createGain(); breakRoom.gain.value = 0.07;
     this.gate.connect(breakRoom).connect(this.room);
 
@@ -164,7 +185,8 @@ export class Music {
     };
     this.subAmp = ctx.createGain(); this.subAmp.gain.value = 0;
     const subLevel = ctx.createGain(); subLevel.gain.value = 0.42;
-    osc('sine', 1, 0).connect(subLevel).connect(this.subAmp).connect(this.bassBus);
+    this.subDuck = ctx.createGain();   // the kick pushes the sub down for an instant, so the two never fight for the same lows
+    osc('sine', 1, 0).connect(subLevel).connect(this.subDuck).connect(this.subAmp).connect(this.bassBus);
     this.reeseAmp = ctx.createGain(); this.reeseAmp.gain.value = 0;
     this.reeseAmp.connect(this.bassBus);
     // the filter that opens when the bass is struck and breathes slowly after; two in a row for a steep edge
@@ -183,7 +205,7 @@ export class Music {
       osc('sawtooth', 2, det).connect(pan).connect(wide);
     });
     wide.connect(noLows).connect(this.reeseLP);
-    this.reeseLP.connect(this.reeseLP2).connect(this.reeseAmp);
+    this.reeseLP.connect(this.reeseLP2).connect(eq('peaking', 150, 2)).connect(eq('peaking', 360, -3.5, 1)).connect(this.reeseAmp);
 
     // tape: a slow drift in pitch on the chords and the melodies, a few cents
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.37;
@@ -247,6 +269,7 @@ export class Music {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(p, t + 0.0015);
     g.gain.exponentialRampToValueAtTime(p * 0.62, t + 0.11); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
     o.connect(g).connect(this.bus); o.start(t); o.stop(t + 0.46);
+    this.subDuck.gain.setValueAtTime(0.5, t); this.subDuck.gain.linearRampToValueAtTime(1, t + 0.08);
     const n = this.noise(t, 0.02, Math.round(t * 311));
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4500; hp.Q.value = 0.7;
     const c = ctx.createGain();
@@ -368,7 +391,7 @@ export class Music {
         o.connect(pan); o.start(t); o.stop(t + dur + 0.7);
       }
     }
-    f.connect(f2).connect(g).connect(this.bus);
+    f.connect(f2).connect(g).connect(this.padBus);
     const send = ctx.createGain(); send.gain.value = 0.4; g.connect(send).connect(this.room);
   }
 
@@ -384,9 +407,9 @@ export class Music {
     this.wow.connect(car.detune);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2800;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3600;
     const pan = ctx.createStereoPanner(); pan.pan.value = 0.22;
-    car.connect(lp).connect(g).connect(pan).connect(this.bus);
+    car.connect(lp).connect(g).connect(pan).connect(this.leadBus);
     const send = ctx.createGain(); send.gain.value = 0.6; g.connect(send).connect(this.room);
     car.start(t); mod.start(t); car.stop(t + 1.3); mod.stop(t + 1.3);
   }
@@ -408,7 +431,7 @@ export class Music {
       car.connect(lp); car.start(t); mod.start(t); car.stop(t + 1.1); mod.stop(t + 1.1);
     }
     const pan = ctx.createStereoPanner(); pan.pan.value = -0.25;
-    lp.connect(g).connect(pan).connect(this.bus);
+    lp.connect(g).connect(pan).connect(this.leadBus);
     const send = ctx.createGain(); send.gain.value = 0.5; g.connect(send).connect(this.room);
   }
 
@@ -428,7 +451,7 @@ export class Music {
     const air = ctx.createGain(); air.gain.value = 0.5;
     n.connect(bp).connect(air).connect(g);
     const pan = ctx.createStereoPanner(); pan.pan.value = -0.1;
-    g.connect(pan).connect(this.bus);
+    g.connect(pan).connect(this.leadBus);
     const send = ctx.createGain(); send.gain.value = 0.7; g.connect(send).connect(this.room);
   }
 
@@ -452,7 +475,7 @@ export class Music {
 
     // chords: the transcribed notes
     if (!off.has('pad') && F.p) {
-      const vel = mode === 0 ? 0.085 : 0.09;
+      const vel = mode === 0 ? 0.11 : 0.125;
       if (ls === CHORD_A_AT) this.pad(t, CHORD_A, CHANGE - CHORD_A_AT, CHORD_A_SWELL, vel);
       if (ls === CHANGE) this.pad(t, CHORD_B, 32 - CHANGE + CHORD_A_AT, 0.03, vel);
     }
@@ -464,13 +487,13 @@ export class Music {
         const soft = ch === ch.toLowerCase() ? 0.6 : 1, which = ch.toUpperCase();
         if (which === 'A') {
           const n = BELL[(unit & 3) === 3 ? 1 : 0].find((b) => b[0] === ls);
-          if (n) this.bell(t, n[1], n[2] * 0.17 * soft * amt);
+          if (n) this.bell(t, n[1], n[2] * 0.28 * soft * amt);
         } else if (which === 'B') {
           const n = KEYS[unit & 1].find((b) => b[0] === ls);
-          if (n) this.keys(t, n[1], n[2] * 0.15 * soft * amt);
+          if (n) this.keys(t, n[1], n[2] * 0.25 * soft * amt);
         } else if (which === 'C') {
           const n = WHISTLE[unit & 1].find((b) => b[0] === ls);
-          if (n) this.whistle(t, n[1], n[2], 0.05 * soft * amt);
+          if (n) this.whistle(t, n[1], n[2], 0.08 * soft * amt);
         }
       }
     }

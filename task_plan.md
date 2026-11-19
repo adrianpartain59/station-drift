@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 27 (the loop-based soundtrack grown into a three-minute arrangement, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
+Phase 28 (the soundtrack mixed, saturated and made much louder in the game, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -301,6 +301,21 @@ create a more interesting track. Make sure to add in subtle transitions as well"
 - The notes of the chords and the bass did not change.
 - Status: built; code pushed to the branch; the loop file still local only. NOT on `main`.
 
+### Phase 28: Mix, saturation, and the music's level in the game (Adrian, 2026-11-18)
+His words: "add some post processing to it like a little bit of distortion and also mix it a bit better like add
+some eq so the instruments fit better together. Also turn the music up a bit in the game, you can barely here it
+right now, it could be a lot louder."
+- Measured why it was buried: through the game's own audio chain, the music stood about level with the engine
+  when cruising, but the jets and the slide hiss at full boost were 10 dB louder to the ear than the music.
+- EQ, one job per instrument: chords cut under 190 Hz; melodies cut under 330 Hz and lifted at 2 kHz; the drum
+  loop dipped at 700 Hz and lifted at 3 kHz; the reese lifted at 150 Hz and dipped at 360 Hz; the room cut under
+  240 Hz; the sub ducked for 80 ms under each kick. Chords and melodies turned up.
+- Saturation on the whole mix: a soft curve that leaves quiet material almost clean and rounds the loudest peaks.
+- Level: the music is 6 dB louder on average and 8 dB louder to the ear, with the same peak ceiling.
+- The game's master chain gained a safety net after its compressor: clean below about -3 dB, bending over above
+  it, so nothing reaches full scale when music, jets and a crash land together.
+- Status: built; code pushed to the branch; the loop file still local only. NOT on `main`.
+
 ## Next Step
 Adrian listens to the loop-based soundtrack (a preview is in his Downloads; the dev server plays it in the game)
 and says what to change, and whether the loop file may be published. Until he says yes, `public/audio/break.wav`
@@ -308,7 +323,7 @@ stays out of git (it is in this checkout's local ignore list) and nothing merges
 live game would play the stand-in kit. The transcribed notes are the block at the top of `src/systems/Music.js`
 marked as the transcription. His to steer: the arrangement (`FORM`, one line per four bars), the loop's level and
 top (`breakBus`, the shelf beside it), the kick, the reese (built in the constructor), the three melodies
-(`BELL`, `KEYS`, `WHISTLE`), `SONG.LEVEL`. Re-render with `tools/audio/render.html`. Test pages
+(`BELL`, `KEYS`, `WHISTLE`), how loud it is in the game (`SONG.LEVEL`) and how dirty (`SONG.DRIVE`). Re-render with `tools/audio/render.html`. Test pages
 are loaded with `?mute` and closed afterwards; audio for him goes to his Downloads as an .m4a.
 Before that, still true: the live game is HARD on SKYWAY with the dark look.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
@@ -342,6 +357,7 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
 | Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
+| The music's level in the game is set against the game's own sounds, rendered together through the real audio object | "Barely hear it" was true only while boosting: measured alone, the music looked loud enough |
 | The track runs at the drum loop's tempo (160 BPM); the loop is never stretched | Adrian asked for the beat to be built round the loop and freed the rhythm; stretching a break to 136 would smear it |
 | The drum loop file stays out of the public repository until Adrian says it may go in | It is a third-party loop; publishing it as a file is his decision, and hard to undo in git history |
 | Chords and bass are transcribed from exact pitches (peak frequency to the cent, stereo centre and sides apart), never from pitch classes | A bass note's fifth and seventh harmonics read as a major third and a minor seventh; Phase 24 built D add9, D7 and F7 out of them |

@@ -162,7 +162,8 @@ The track is `src/systems/Music.js`: every number that shapes it is in the table
 it without playing, open `/tools/audio/render.html` on the dev server. It renders the track offline through the
 game's master chain, plays it, offers the WAV, and prints peak and RMS level. `?mode=idle|station|drive|tour`,
 `&intensity=0..1`, `&bars=N`, `&from=N` (first bar), `&off=drums,kick,bass,pad,lead,fx` to leave layers out (the
-chords and the bass alone are how they were checked against the reference), `&noloop` for the stand-in kit. The
+chords and the bass alone are how they were checked against the reference), `&noloop` for the stand-in kit, `&game` (with `&rev=0..1.3`, `&boost`, `&drift`) to add the game's own engine, jet
+and slide sounds, which is how the music's level in the game is judged. The
 whole song is `&bars=128` (it takes over a minute to render). The page makes no sound until you press play on it.
 
 The drum loop is `public/audio/break.wav`: four bars at the track's tempo, starting on the downbeat, already
