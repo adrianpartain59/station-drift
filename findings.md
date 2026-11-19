@@ -292,3 +292,22 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   loud kick over a quiet body, the new one has a sustained bass. Level was set from RMS and A-weighted RMS.
 - The in-app browser pane cannot be used to hear anything; a render posted to a local receiver and analysed with
   the same script as the reference is how the chords were checked.
+
+## The soundtrack: the first transcription was wrong, and why (2026-11-18)
+- Pitch classes cannot tell a chord tone from a bass harmonic. The reference's bass is a harmonically rich D1.
+  Its 3rd harmonic is an A, its 5th an F# (14 cents flat of the scale), its 7th a C (31 cents flat). Folded into
+  twelve pitch classes they looked like a major third and a minor seventh in the chord, and the F1's 7th
+  harmonic looked like an Eb. The chord instrument plays none of them.
+- What separates them: the frequency of each peak to the cent (a harmonic sits where the series puts it, a
+  played note sits on the scale), and the stereo image (the bass is centred, so L minus R removes it and its
+  harmonics, about 20 dB down, and leaves the chord instrument).
+- The reference, as now measured: 136.00 BPM; the music starts 0.1 s into the file. Chords D4 A4 E5 and
+  D4 F4 A4 C5, the second arriving on step 20 of 32 and ringing two steps past the bar line. Bass D1 then F1,
+  joined by slides. Its own drums: kick on steps 0, 14, 20, 30; snare on 8; a hat on every eighth.
+- The chord instrument has little above 1 kHz: its second harmonic is about 10 dB under the fundamental. Two
+  low-pass filters in a row at about 900 Hz were needed on detuned saws to get near it.
+- A bass note at 36.7 Hz is carried by its harmonics on any small speaker. The reference's D1 fundamental is 12 dB
+  under its F1 fundamental, so something in its chain rolls off under about 40 Hz; the game's bass does the same
+  with a high-pass at 42 Hz.
+- Peak level is a poor guide to how hard a drum hits: the snare measured 3.4 dB over the kick while the kick
+  carried far more energy. Both were set from per-hit peaks after the master chain.

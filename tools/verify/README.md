@@ -161,8 +161,9 @@ From the browser console, `__game.look.cfg` is the live `LOOK` table and `__game
 The track is `src/systems/Music.js`: every number that shapes it is in the tables at the top. To hear or measure
 it without playing, open `/tools/audio/render.html` on the dev server. It renders the track offline through the
 game's master chain, plays it, offers the WAV, and prints peak and RMS level. `?mode=idle|station|drive|tour`,
-`&intensity=0..1`, `&bars=N`, `&off=drums,bass,pad,lead,arp,fx` to leave layers out (the pad alone is how the
-chords were checked).
+`&intensity=0..1`, `&bars=N`, `&from=N` (first bar), `&off=drums,bass,pad,lead` to leave layers out (the chords
+and the bass alone are how they were checked against the reference). The page makes no sound until you press
+play on it.
 
 ## Trying another speed
 

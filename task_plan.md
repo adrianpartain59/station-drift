@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 24 (a new soundtrack on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
+Phase 25 (the soundtrack remade on an exact transcription, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -239,12 +239,32 @@ basically copy the chords but make your own beat that fits the game".
   half-time inside a ship, the whole beat in open air. A 32-bar form.
 - `tools/audio/render.html` renders the track offline through the game's master chain and reports its levels.
 - The beat itself is not in the repo and nothing was sampled from it.
+- Status: superseded by Phase 25. He heard it: the chords were not the reference's and it sounded 8-bit.
+
+### Phase 25: The soundtrack, remade (Adrian, 2026-11-18)
+His words: "copy the cords exactly, right now it doesn't sound quite like the original chords I can't tell if it's
+because some notes are different or because it's inverted"; "more like a typical phonk track instead of a 8 bit
+videogame style track"; "The melody on top of the chords should be much more simple and dark sounding and match
+the chords very well"; "Make the drums hit hard and make them loud, but not overly aggresive or distored, and do a
+laid back rap type beat with heavy drums rather than a edm type beat"; "Make sure the bass also matches the
+reference track I sent you exactly"; "Feel free to change the instruments a bit for the bass and chords but make
+the actual notes line up exactly".
+- He was right about the chords. Phase 24 read them from pitch classes, and three of the "chord tones" were the
+  bass's own harmonics. Transcribed again from exact pitches, with the centre and the sides of the stereo image
+  taken apart: the chords are D4 A4 E5 (no third) and D4 F4 A4 C5; the bass is D1 sliding up to F1, one octave
+  lower than Phase 24 had the D and moving the other way. There is no D7 or F7.
+- `src/systems/Music.js` rewritten: those notes and their timing held in one block marked as the transcription;
+  a clean heavy kit in half time (snare on three, a little late; swung hats; a roll every eight bars); a four-note
+  bell line made only of chord tones; a room reverb; a slow tape drift. Gone: the square-wave cowbell, the
+  sixteenth-note arpeggio, the saturation on the whole mix, the kick ducking the chords, the risers.
 - Status: built and pushed to the branch, NOT on `main`. Waiting for him to hear it.
 
 ## Next Step
-Adrian listens to the new soundtrack on the branch (dev server, not the live site) and says what to change or
-"merge". Knobs: the chord table, the `LEAD` melody, the drum and bass tables and `SONG.LEVEL` at the top of
-`src/systems/Music.js`; each voice's level is in its own method. Re-render with `tools/audio/render.html`.
+Adrian listens to the remade soundtrack on the branch (dev server, not the live site) and says what to change or
+"merge". The transcribed notes are the block at the top of `src/systems/Music.js` marked as the transcription:
+leave them alone unless the reference is re-measured. His to steer: the kit (`KICK`, `SNARE`, `LATE`, `SWING` and
+the three drum voices), the bell line (`BELL`), each voice's level, and `SONG.LEVEL`. Re-render with
+`tools/audio/render.html`. Test pages are loaded with `?mute` and closed afterwards.
 Before that, still true: the live game is HARD on SKYWAY with the dark look.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
 His calls on SKYWAY, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the ships' corners
@@ -277,6 +297,7 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Open-air obstacles stand on calm sweepers (R >= 400 m), not straights | Keeps the road bending; the proof gives away the turning the sweeper takes |
 | Clock pace is per map; nothing else in the rules differs | Long bends bank twice the clock time per km, so the classic pace never ran out |
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
+| Chords and bass are transcribed from exact pitches (peak frequency to the cent, stereo centre and sides apart), never from pitch classes | A bass note's fifth and seventh harmonics read as a major third and a minor seventh; Phase 24 built D add9, D7 and F7 out of them |
 | The soundtrack keeps a reference beat's chords, tempo and chord placement and nothing else | Adrian's brief: "copy the chords but make your own beat". Chords are measured from the beat; every sound is synthesized here |
 | The track's level is set by measurement against the old track, not by ear | Nobody in the session can hear it. A-weighted, it sits about 6 dB over the old one in open air |
 | The game is one map in one mode (HARD on SKYWAY); the others stay in the code behind `?mode=` / `?map=` | Adrian's call, 2026-11-18: a simpler start screen. A saved pick is not read, so no visitor is stuck in a game the page cannot leave |

@@ -535,3 +535,38 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   driver the track goes drive at the start, station at 830 m (first ship), drive at 1,297 m, idle at game
   over, drive again on restart. No console errors.
 - Not verified: how it sounds. Nobody in this session can hear it. Phone or laptop speakers. Firefox and Safari.
+
+## The soundtrack, remade on an exact transcription (2026-11-18)
+- Adrian heard the first version: chords not quite the reference's, an 8-bit sound, and he asked for exact chords
+  and bass, a simpler darker melody, and heavy laid-back rap drums.
+- Transcribed the reference again, this time from exact pitches:
+  - every spectral peak in each chord's span, to the cent, in the centre and in the sides of the stereo image.
+    The bass sits in the centre; the chord instrument is spread. In the sides the chords are D4 A4 E5, then
+    D4 F4 A4 C5, and nothing else.
+  - what Phase 24 called F#, C and Eb sit 8 to 31 cents flat of the scale: they are harmonics 5 and 7 of the
+    bass notes. No third in the first chord, no sevenths added.
+  - the bass, tracked per sixteenth with a harmonic comb: D1 (36.7 Hz) from step 0, F1 (43.7 Hz) from step 20,
+    over the whole track, each slide finished by the time the next note lands. In some passages the D stops at
+    step 8 and is struck again at 12.
+  - the drum hits fall within 10 ms of a grid that starts 0.1 s into the file, which is how everything above was
+    placed. The second chord and the F arrive together on step 20. The first chord swells in from about step 2.
+- Rewrote `src/systems/Music.js` (see task_plan.md, Phase 25). `tools/audio/render.html`: layer names updated.
+- Checked, by the same analysis run on the reference and on a render of the game's track:
+  - bass, step by step on the grid, two bars: mine `DDDD DDDD DDDD DDDD DDDd FFFF FFFF FFFF`, the reference
+    `DDDD DDDD DDDD DDDD DDDD FFFF FFFF FFFF` (lower case: more than 25 cents off, the start of the slide).
+    The chopped variation, read through each track's own kicks: D to step 8, nothing to step 12, D again, F at
+    step 20, in both.
+  - chords in the sides, notes within 12 dB of the loudest: first chord D4 A4 D5 E5 A5 in both (D5 and A5 are
+    overtones of D4 and A4); second chord D4 F4 A4 C5 in mine, D4 F4 A4 in the reference over the same span
+    with C5 present at its onset.
+  - each bass harmonic and chord note, relative to the passage's own level, was within about 5 dB of the
+    reference's range (measured two mix passes before the final one; the chords were made darker after it).
+  - level: open air RMS -17.6 dB, peak -3.6 dB; in a ship -17.6 / -3.6; between runs -28.5 / -15.3. No sample
+    at full scale in 44 bars. A-weighted, open air is 6.0 dB over the old synthwave track.
+  - drums after the master chain: kick -7.2 and -4.8 dB peak, snare -6.2 and -5.9, hats -29. Nothing in the
+    music's own path saturates.
+- In the browser, with the page muted: the track follows the run (open air, in a ship at 830 m, open air at
+  1,297 m, idle at game over); 64 live steps scheduled without an error; no console errors. Build passes. Both
+  fingerprints unchanged.
+- Not verified: how it sounds. Nobody in this session can hear it. A check by a model that can listen was
+  prepared and not run (not permitted in this session).
