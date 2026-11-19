@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 30 built on branch `claude/new-map-414ab7`, not merged: the lighting bench (`?tune`); Adrian is tuning the lights by hand (2026-11-18)
+Phase 31 built on branch `claude/new-map-414ab7`, not merged: Adrian's bench tuning trimmed, balanced and written into the tables (2026-11-18)
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -361,7 +361,34 @@ screen put a bunch of controls for the lighting, then let me manually tune those
   held, step, hide, save, reset, values kept across a reload, no console errors). Build passes, fingerprints
   unchanged. On the branch only. Waiting on his numbers; then they are written into the tables.
 
+### Phase 31: His bench tuning, trimmed and balanced (Adrian, 2026-11-18)
+His words: "Ok I saved it, but I ended up tweaking a lot of values, could you help me correct this so we tweak
+only the things that are important and so our lighting is still balanced".
+- What he saved (11 changes): headlight brightness 16 to 25, detail 8 to 20, ceiling 0.8 to 1, half distance 22
+  to 11; exposure inside ships 0.58 to 0.76; starlight outdoors 2.4 to 0.5; bloom strength 0.5 to 0.2, spread
+  0.3 to 0.7, start 1.0 to 0.5; haze brightness x0.4; contrast (gamma) 1.18 to 1.75.
+- Measured, on six held frames (open road, curve, drift, a ship ahead, inside straight and drifting): how far
+  the picture moves when each one change is taken back out of his set. Contrast, haze, starlight, the three
+  bloom numbers and the indoor exposure carry it. Headlight detail and ceiling move nothing that can be seen.
+- Found: the headlights' added light was a multiple of the haze's brightness, so turning the haze down to 0.4
+  turned his headlights and the tail wash down with it. His headlights ended about half as strong as before
+  while he was raising three sliders to brighten them. Untied in the shader: the two are separate now.
+- Written into the tables: contrast 1.75, haze x0.4, starlight 0.5, bloom 0.2 / 0.7 / 0.5, indoor exposure
+  0.76, headlight half distance 11 (all his). Headlight brightness back to what it was before the haze took it
+  down, with the ceiling at 1.2, which puts the headlights as strong in his darker picture as they were in the
+  merged one. Tail wash at the level he was seeing. Detail left at 8.
+- The dark look now has its own bloom and starlight numbers (`LOOK.BLOOM`, `LOOK.STARLIGHT`), so
+  `?look=classic` keeps the old ones.
+- The bench opens with a START HERE group of the seven sliders that carry the look; the rest are folded away.
+- Status: built. The result is within half a point of brightness (out of 100) of his saved picture on all six
+  frames. Road-level brightness inside a ship against the open road: 0.90 before, 1.08 now. Looked at in two
+  colours. Build passes, fingerprints unchanged. On the branch only; waiting on his eyes.
+
 ## Next Step
+Adrian plays the branch (dev server) and says whether the trimmed look is right; the one judgment made for him
+is the headlights' strength (`LIGHTS.HEAD.lift` 1.9 and `cap` 1.2; what he had saved works out at 1.18 and 1).
+Merge to `main` only on his word. The bench (`?tune`) now starts from these values.
+Before this, still true:
 Adrian tunes at the dev server's address with `?tune`, presses SAVE, and says so. Read his numbers from the dev
 server's log (the last `[tune]` line: `changed` is what he moved, `all` is everything), write them into the
 tables they came from (the ids are in `src/ui/TunePanel.js`, next to the table and key each one drives; angles

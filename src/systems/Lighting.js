@@ -23,14 +23,16 @@ export const LIGHTS = {
   // how far each lamp is from the middle; `toe`: how far each points outward. `edge` and `core`: the cosines of
   // the beam's edge and of its bright middle. `reach`: where the beam ends (m); `half`: the distance at which
   // it is down to half. `gain`: how many times brighter a dark surface in the middle of the beam gets; `lift`:
-  // light added even where the surface is black; `cap`: the most any surface is ever given, however near it is.
+  // light added even where the surface is black, in the picture's own units (it was once a multiple of the haze's
+  // brightness, which meant turning the haze down turned the headlights down with it); `cap`: the most any
+  // surface is ever given, however near it is.
   // The chase camera sees the road ahead of the ship almost edge on, as a thin strip, so the beam is wide and
   // strong: what shows is a fan of lit road in front of the nose, and whatever stands in it.
-  HEAD: { from: [0, 0.1, 2.6], dir: [0, -0.08, 1], gap: 0.6, toe: 0.12, edge: 0.84, core: 0.975, reach: 110, half: 22, gain: 8, lift: 16, cap: 0.8 },
+  HEAD: { from: [0, 0.1, 2.6], dir: [0, -0.08, 1], gap: 0.6, toe: 0.12, edge: 0.84, core: 0.975, reach: 110, half: 11, gain: 8, lift: 1.9, cap: 1.2 },
   // (Shafts of light in the haze were tried and taken out: the camera looks down the beams from behind, so they
   // were either invisible or a ball of glare over the road ahead, and they cost eight steps a pixel.)
   // the tail lights and the thrusters, on the road behind the ship: the same numbers as the headlights
-  TAIL: { from: [0, 0.25, -2.7], dir: [0, -0.32, -1], edge: 0.35, core: 0.93, reach: 26, half: 9, gain: 6, lift: 2.2 },
+  TAIL: { from: [0, 0.25, -2.7], dir: [0, -0.32, -1], edge: 0.35, core: 0.93, reach: 26, half: 9, gain: 6, lift: 0.1 },
   // a roadside lamp, open air: every `every` metres, `out` metres outside the road's edge, `up` metres high
   LAMP: { every: 16, out: 0.6, up: 2.55, power: 60, reach: 46, decay: 1.5, colors: [0x37e6ff, 0xff3fb4] },
   // a rib's light inside a station or a ship: every 12 m, 2.2 m in from the wall (nearer the ship than the light
@@ -39,8 +41,8 @@ export const LIGHTS = {
   // How rough the window glass is while these lights are on. As polished as it was (0.04), every lamp light showed
   // in it as a ball of glare hanging in the window; at this it is a faint sheen across the pane.
   GLASS: 0.7,
-  // The starlight (the one light with a direction): in the open, and inside a ship, where there are no shadows to
-  // keep it out and the glossy floor would throw it straight back at the camera.
+  // The starlight without the look (?look=classic): in the open, and inside a ship. With the look it is
+  // LOOK.STARLIGHT (systems/Look.js).
   SUN: [2.4, 0.15],
   // The painted light, as a share of the strength it is laid at in level/WorldBuilder.js: the pools under the
   // roadside lamps, and the wash along the neon inside ships.

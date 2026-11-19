@@ -73,6 +73,7 @@ export class Game {
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.composer.addPass(this.look.haze);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), RENDER.BLOOM_STRENGTH, RENDER.BLOOM_RADIUS, RENDER.BLOOM_THRESHOLD);
+    if (this.look.on) { [this.bloom.strength, this.bloom.radius, this.bloom.threshold] = LOOK.BLOOM; }
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.composer.addPass(this.look.grade);
@@ -277,12 +278,14 @@ export class Game {
    */
   lightNow(easing = false) {
     const indoors = this.phys.zone === 0, on = this.look.on, [expo, glow] = on && indoors ? LOOK.INDOORS : [1, 1];
+    const [strength, radius, threshold] = on ? LOOK.BLOOM : [RENDER.BLOOM_STRENGTH, RENDER.BLOOM_RADIUS, RENDER.BLOOM_THRESHOLD];
     this.hemi.intensity = 1.1 * (on ? LOOK.AMBIENT : 1);
     this.scene.environmentIntensity = 0.55 * (on ? LOOK.AMBIENT : 1);
-    this.bloom.threshold = RENDER.BLOOM_THRESHOLD; this.bloom.radius = RENDER.BLOOM_RADIUS;
+    this.bloom.threshold = threshold; this.bloom.radius = radius;
+    if (!on) this.bloom.strength = strength;
     if (easing) return;
-    this.sun.intensity = LIGHTS.SUN[indoors ? 1 : 0];
-    if (on) { this.renderer.toneMappingExposure = RENDER.EXPOSURE * expo; this.bloom.strength = RENDER.BLOOM_STRENGTH * glow; }
+    this.sun.intensity = (on ? LOOK.STARLIGHT : LIGHTS.SUN)[indoors ? 1 : 0];
+    if (on) { this.renderer.toneMappingExposure = RENDER.EXPOSURE * expo; this.bloom.strength = strength * glow; }
   }
 
   /** The bench's FREEZE and STEP buttons. A step runs the game for `frames` frames and holds it again. */
@@ -546,14 +549,14 @@ export class Game {
 
     // Starlight can't reach inside a station (there are no shadows to block it), so fade it out
     // indoors; otherwise the glossy floor throws a blinding specular hot spot at the camera.
-    const sunTarget = LIGHTS.SUN[ph.zone === 0 ? 1 : 0];
+    const sunTarget = (this.look.on ? LOOK.STARLIGHT : LIGHTS.SUN)[ph.zone === 0 ? 1 : 0];
     this.sun.intensity += (sunTarget - this.sun.intensity) * (1 - Math.exp(-3 * dt));
     // The dark look: inside a ship the neon is everywhere and it would all go to one bright wash,
     // so the exposure and the bloom come down indoors and back up in the open.
     if (this.look.on) {
       const k = 1 - Math.exp(-2.5 * dt), [expo, glow] = ph.zone === 0 ? LOOK.INDOORS : [1, 1];
       this.renderer.toneMappingExposure += (RENDER.EXPOSURE * expo - this.renderer.toneMappingExposure) * k;
-      this.bloom.strength += (RENDER.BLOOM_STRENGTH * glow - this.bloom.strength) * k;
+      this.bloom.strength += (LOOK.BLOOM[0] * glow - this.bloom.strength) * k;
     }
     if (this.tuning) this.lightNow(true);
 

@@ -370,3 +370,15 @@ unison.audio/what-is-phonk; madegooddesigns.com/album-cover-design; cover-art li
   roughness 0.7 it is a faint sheen.
 - Frame times can only be compared from runs where the browser was in front for the whole run. One run with
   another app in front read slower with the lights off than with them on.
+
+## Tuning by hand: what measuring his changes showed (2026-11-18)
+- A set of hand-made changes can be sorted by taking each one back out of the finished set and measuring how far
+  the held picture moves. It separates the changes that carry the look from the ones that do nothing, without
+  anyone having to remember why each slider was moved.
+- Sliders that seemed independent were not. The headlights' added light was written as a multiple of the haze's
+  brightness, so the haze slider was also a headlight slider. Any light the pass adds should be in its own
+  units.
+- Light added in proportion to a surface's own colour (`gain`) does nothing on a road that is black: raising it
+  from 8 to 20 could not be measured.
+- Whole-frame brightness is a poor way to compare indoors with outdoors, because half of an outdoor frame is
+  sky. On the lower half of the frame (the road) the two are within 10% of each other.

@@ -707,3 +707,26 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   again; HIDE HUD, HIDE PANEL and its tab; SAVE reached the dev log; RESET put everything back; the keyboard is
   never left on a slider. No console errors. Build passes, both fingerprints unchanged.
 - Not verified: the panel at his screen size; the sliders' ranges against what he will want.
+
+## His bench tuning trimmed and written in, on the branch (2026-11-18)
+- His save, as the dev server logged it (the old units): head.lift 25, head.gain 20, head.cap 1, head.half 11,
+  in.expo 0.76, sun.out 0.5, bloom.strength 0.2, bloom.radius 0.7, bloom.threshold 0.5, haze.light 0.4,
+  grade.gamma 1.75. Everything else untouched.
+- How much the picture moves when one change is taken out of his set (mean brightness difference over a 40x30
+  grid, points out of 100; range over six frames): contrast 4.2 to 7.0; bloom strength 2.5 to 10.5; haze 1.2 to
+  9.8; starlight 0 to 3.8 (0 indoors); indoor exposure 0 to 3.0 (0 outdoors); bloom start 1.1 to 2.7; bloom
+  spread 0.3 to 0.9; headlight half distance 0.3 to 0.8; headlight brightness 0.1 to 0.2; ceiling 0.05 to
+  0.17; detail 0.02 to 0.13.
+- Two of his bloom changes pull against each other (a lower start makes far more of the picture glow; a lower
+  strength takes it back), but the result is its own look (a faint wide glow), so all three are kept.
+- Headlights, how much of the picture they are (mean, and the strongest patch): merged game 0.6 to 1.7 and 52
+  to 75; his save 0.2 to 0.8 and 25 to 49; now 0.4 to 1.5 and 42 to 80.
+- Changed: `src/systems/Look.js` (the shader adds the headlights' own light, not a multiple of the haze; the
+  look's values; `BLOOM`, `STARLIGHT`), `src/systems/Lighting.js` (headlights, tail), `src/core/Game.js` (the
+  look's own bloom and starlight), `src/ui/TunePanel.js` (START HERE; new units; a new storage name, because
+  numbers kept under the old one are in the old units).
+- Checked: the untied shader reproduces both the merged picture and his saved picture (0.04 to 0.32 points).
+  The result against his save: 0.2 to 0.5 points. Mean, black share and hot share match his on every frame.
+  No console errors. Build passes. Fingerprints unchanged.
+- Not verified: how it plays at full size (his to judge); colours other than TOXIC and NOIR; low quality, where
+  the bloom is off altogether and the picture will be a little darker still.

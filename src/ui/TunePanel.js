@@ -15,7 +15,7 @@ import { GameState } from '../core/GameState.js';
 // them in its log ([tune] ...): that is how they get from the bench into the tables.
 // This file is only loaded by ?tune. Its style classes are all prefixed tn-: the page already has .bar, .row and .on.
 
-const KEY = 'sd.tune.lights';
+const KEY = 'sd.tune.lights.2';   // .2: the headlights' brightness changed units; what was kept under the old name no longer fits
 const deg = (c) => (Math.acos(Math.min(1, Math.max(-1, c))) * 180) / Math.PI;
 const cos = (d) => Math.cos((d * Math.PI) / 180);
 const round = (v) => +(+v).toPrecision(5);
@@ -32,10 +32,12 @@ const times = (id, label, max, read, write) => ({ id, label, min: 0, max, step: 
 /** Every control, in the order shown. `G` is the Game. The last flag: is the group open to begin with. */
 function groups(G) {
   const H = LIGHTS.HEAD, T = LIGHTS.TAIL, Lp = LIGHTS.LAMP, Rb = LIGHTS.RIB;
+  // with the look on, the bloom and the starlight are the look's own (LOOK.BLOOM, LOOK.STARLIGHT)
+  const look = G.look.on, bloom = look ? LOOK.BLOOM : RENDER, sun = look ? LOOK.STARLIGHT : LIGHTS.SUN;
   const fog0 = LOOK.FOG, haze0 = [...LOOK.HAZE], ship0 = LOOK.SHIP, bank0 = [...LOOK.BANK];
-  return [
-    ['HEADLIGHTS', true, [
-      num('head.lift', 'Brightness', H, 'lift', 0, 60, 0.5),
+  const all = [
+    ['HEADLIGHTS', false, [
+      num('head.lift', 'Brightness', H, 'lift', 0, 6, 0.05),
       num('head.gain', 'Detail it brings out', H, 'gain', 0, 30, 0.5),
       num('head.cap', 'Most a surface gets', H, 'cap', 0.05, 3, 0.05),
       ang('head.edge', 'Beam width', H, 'edge', 4, 75),
@@ -46,21 +48,21 @@ function groups(G) {
       num('head.toe', 'Splay apart', H, 'toe', 0, 0.6, 0.01),
       num('head.gap', 'Lamp spacing', H, 'gap', 0.05, 1.5, 0.05, ' m'),
     ]],
-    ['TAIL WASH', true, [
-      num('tail.lift', 'Brightness', T, 'lift', 0, 20, 0.1),
+    ['TAIL WASH', false, [
+      num('tail.lift', 'Brightness', T, 'lift', 0, 2, 0.01),
       num('tail.gain', 'Detail it brings out', T, 'gain', 0, 30, 0.5),
       ang('tail.edge', 'Width', T, 'edge', 10, 89),
       ang('tail.core', 'Bright middle', T, 'core', 1, 80),
       num('tail.reach', 'Reach', T, 'reach', 2, 80, 1, ' m'),
       num('tail.half', 'Half as bright by', T, 'half', 1, 40, 0.5, ' m'),
     ]],
-    ['ROADSIDE LAMPS', true, [
+    ['ROADSIDE LAMPS', false, [
       num('lamp.power', 'Light on the ship: power', Lp, 'power', 0, 400, 2),
       num('lamp.reach', 'Light on the ship: reach', Lp, 'reach', 5, 150, 1, ' m'),
       num('lamp.decay', 'Light on the ship: falloff', Lp, 'decay', 0.5, 3, 0.05),
       times('paint.pool', 'Pools painted on the road', 6, () => LIGHTS.PAINT.pool, (v) => { LIGHTS.PAINT.pool = v; G.mats.setPaint('pool', v); }),
     ]],
-    ['INSIDE SHIPS', true, [
+    ['INSIDE SHIPS', false, [
       num('rib.power', 'Light on the ship: power', Rb, 'power', 0, 300, 2),
       num('rib.reach', 'Light on the ship: reach', Rb, 'reach', 5, 120, 1, ' m'),
       num('rib.decay', 'Light on the ship: falloff', Rb, 'decay', 0.5, 3, 0.05),
@@ -74,15 +76,15 @@ function groups(G) {
       { id: 'ship.underReach', label: 'Underglow reach', min: 2, max: 40, step: 0.5, unit: ' m', get: () => G.ship.under.distance, set: (v) => { G.ship.under.distance = v; } },
     ]],
     ['SKY AND FILL', false, [
-      num('sun.out', 'Starlight outdoors', LIGHTS.SUN, 0, 0, 8, 0.05),
-      num('sun.in', 'Starlight indoors', LIGHTS.SUN, 1, 0, 3, 0.01),
+      num('sun.out', 'Starlight outdoors', sun, 0, 0, 8, 0.05),
+      num('sun.in', 'Starlight indoors', sun, 1, 0, 3, 0.01),
       num('ambient', 'Soft fill', LOOK, 'AMBIENT', 0, 2.5, 0.01),
     ]],
     ['BLOOM AND EXPOSURE', false, [
       num('expo', 'Exposure', RENDER, 'EXPOSURE', 0.3, 2.5, 0.01),
-      num('bloom.strength', 'Bloom strength', RENDER, 'BLOOM_STRENGTH', 0, 2.5, 0.01),
-      num('bloom.radius', 'Bloom spread', RENDER, 'BLOOM_RADIUS', 0, 1, 0.01),
-      num('bloom.threshold', 'Bloom starts at', RENDER, 'BLOOM_THRESHOLD', 0, 2, 0.01),
+      num('bloom.strength', 'Bloom strength', bloom, look ? 0 : 'BLOOM_STRENGTH', 0, 2.5, 0.01),
+      num('bloom.radius', 'Bloom spread', bloom, look ? 1 : 'BLOOM_RADIUS', 0, 1, 0.01),
+      num('bloom.threshold', 'Bloom starts at', bloom, look ? 2 : 'BLOOM_THRESHOLD', 0, 2, 0.01),
     ]],
     ['HAZE', false, [
       times('haze.light', 'Haze brightness', 4, () => LOOK.HAZE[1] / haze0[1], (v) => { LOOK.HAZE = haze0.map((x) => x * v); }),
@@ -98,6 +100,13 @@ function groups(G) {
       num('grade.grain', 'Grain', LOOK, 'GRAIN', 0, 0.2, 0.005),
     ]],
   ];
+  // The few that carry the look, measured: each of these moves the whole picture, where most of the others move
+  // a corner of it. They come first, under plainer names, and everything else starts folded away.
+  const MAIN = { 'grade.gamma': 'Contrast', 'haze.light': 'Haze brightness', 'sun.out': 'Starlight in the open', 'bloom.strength': 'Glow',
+    'in.expo': 'Brightness inside ships', 'head.lift': 'Headlight brightness', 'head.half': 'Headlight length (half as bright by)' };
+  const first = [];
+  for (const id in MAIN) for (const grp of all) { const i = grp[2].findIndex((c) => c.id === id); if (i >= 0) first.push({ ...grp[2].splice(i, 1)[0], label: MAIN[id] }); }
+  return [['START HERE', true, first], ...all];
 }
 
 const CSS = `

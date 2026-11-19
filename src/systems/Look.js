@@ -19,7 +19,7 @@ export const LOOK = {
   CLEAR: 26,              // no haze nearer the camera than this, metres
   FOG: 1 / 15000,         // the thin fog everywhere: density per metre...
   FOG_CAP: 1500,          // ...and the distance beyond which it stops building up (the sky gets this much)
-  HAZE: [0.105, 0.12, 0.135],  // the haze's own light, before the grade (linear; only its brightness matters)
+  HAZE: [0.042, 0.048, 0.054],  // the haze's own light, before the grade (linear; only its brightness matters)
   GLOW: 2.6,              // how much brighter the heart of a ship's bank is (lit by the ship)
   SHIP: 0.0062,           // density at the heart of the bank round a ship, per metre
   FLANK: 0.012,           // the two thicker banks either side of a ship's mouth
@@ -31,9 +31,12 @@ export const LOOK = {
   AHEAD: 2600,            // banks and ships further ahead than this are not drawn yet (they fade in)
   LIGHT: [0.24, 0.62, 0.86, 0.975],   // the ramp: how light the deep shade, the colour, the bright and the hot end are
   STOPS: [0.27, 0.58, 0.82],          // ...and the brightness at which a pixel gets each of the first three
-  GAMMA: 1.18,            // above 1 the middle shades sink toward black (darker, more contrast)
+  GAMMA: 1.75,            // above 1 the middle shades sink toward black (darker, more contrast)
   AMBIENT: 0.5,           // how much of the soft fill light is kept: the plating goes dark, the lights stay
-  INDOORS: [0.58, 0.7],   // inside a ship: exposure and bloom, as a share of what they are outside
+  INDOORS: [0.76, 0.7],   // inside a ship: exposure and bloom, as a share of what they are outside
+  BLOOM: [0.2, 0.7, 0.5], // the glow round bright things: how strong, how far it spreads, the brightness it starts at
+                          // (faint, wide and starting early: lit surfaces glow a little, nothing flares)
+  STARLIGHT: [0.5, 0.15], // the one light with a direction: in the open, and inside a ship (no shadows keep it out)
   SCAN: 0.085,            // scanlines
   GRAIN: 0.05,
   VIGNETTE: 0.42,
@@ -189,7 +192,7 @@ class HazePass extends Pass {
             float dark = 1.0 - smoothstep(0.12, 0.7, max(src.r, max(src.g, src.b)));
             float k = 0.5 * (beamAt(at - hA - hR, normalize(hD + hR * hL.z), hP) + beamAt(at - hA + hR, normalize(hD - hR * hL.z), hP));
             float kt = beamAt(at - tA, tD, tP);
-            vec3 add = ((src.rgb * hL.x + haze * hL.y) * k + (src.rgb * tL.x + haze * tL.y) * kt) * dark;
+            vec3 add = ((src.rgb * hL.x + hL.y) * k + (src.rgb * tL.x + tL.y) * kt) * dark;
             // however near the surface and however squarely the beam meets it, it is never given more than hL.w:
             // a wall a metre off the nose is lit, not burnt out
             surf += add * (hL.w / (hL.w + max(add.r, max(add.g, add.b))));
