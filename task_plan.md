@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 29 built on branch `claude/new-map-414ab7`, not merged: headlights and lit lamps, waiting on Adrian's play test (2026-11-18)
+Phase 29 complete and merged: headlights and lit lamps are on `main` and live (2026-11-18), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -341,10 +341,11 @@ make them actually properly luminescent." Then: "Yes, build it". Then, while fra
   fingerprints unchanged. Frame times: one clean 20 s run in real Chrome with the lights on, 117.1 fps,
   99th-percentile frame 13.8 ms, worst 22 ms (the dark look before this work: 118.2 fps, 12.1 ms, 17 ms). A
   same-sitting run with the lights off was not clean (Chrome was not in front) and is not a result.
-  Not verified: how it looks at full size in play (his to judge); frame times on low quality.
+  He played it and said "Merge to main". Merged the same day.
+  Not verified: frame times on low quality; a clean same-sitting cost comparison.
 
 ## Next Step
-Adrian is play testing the lighting on the branch (dev server). Not on `main`: merge only on his word.
+The lighting is on `main` and live. Adrian plays it and says what to change.
 His to steer, all in the `LIGHTS` table at the top of `src/systems/Lighting.js`: how wide, long and strong the
 headlights are (`HEAD`: `edge`, `core`, `half`, `reach`, `lift`, `gain`, `cap`), the tail wash (`TAIL`), the
 real lamp lights (`LAMP`, `RIB`: `power`). The painted pools' strength is where they are laid, in

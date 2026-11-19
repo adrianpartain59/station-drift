@@ -688,3 +688,7 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
 - Not a result: a lights-off run in the same sitting read 91.7 fps, slower than lights on, with another app in
   front of Chrome. Thrown away.
 - Not verified: the look at full size in play; low quality frame times; a wider set of seeds and looks.
+
+## The lighting merged into main (2026-11-18)
+- Adrian played the branch and said "Merge to main". Fast-forward: `main` had not moved since the soundtrack.
+- Before pushing: the changes were searched for private paths, keys and other projects' names. Nothing found.
