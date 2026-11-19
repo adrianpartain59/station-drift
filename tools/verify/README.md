@@ -167,7 +167,9 @@ and slide sounds, which is how the music's level in the game is judged. The
 whole song is `&bars=128` (it takes over a minute to render). The page makes no sound until you press play on it.
 
 The drum loop is `public/audio/break.wav`: four bars at the track's tempo, starting on the downbeat, already
-filtered. If the file is absent the game and this page fall back to a synthesized kit.
+filtered. If the file is absent the game and this page fall back to a synthesized kit. It is a filtered copy of
+a looperman.com download (`l-0291301-0394514`, "basic amen break with promo break"), used under that site's
+terms, which name computer games as a permitted use.
 
 ## Trying another speed
 

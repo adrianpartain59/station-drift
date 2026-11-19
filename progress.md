@@ -656,3 +656,15 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
   scheduled without an error. Build passes. Both fingerprints unchanged.
 - Not verified: how it sounds; whether 8 dB is the "lot louder" he meant; the game's effects against the louder
   music in play.
+
+## The soundtrack merged into main, with its drum loop (2026-11-18)
+- Adrian: "merge to main". The one open point was the loop file, which had been kept out of the repository.
+  Asked, he chose to publish it.
+- Where the loop comes from: looperman.com, the download named `l-0291301-0394514`, "basic amen break with
+  promo break", four bars at 160 BPM. The file in the repository is a filtered copy (lows cut under 150 Hz, top cut over 11 kHz, 32 kHz,
+  peak at -1 dB), not the original download.
+- What its licence says, read on 2026-11-18 from the site's terms: loops may be copied, edited and used "in
+  combination with other works such as, but not limited to, films, videos, computer games, commercials"; the
+  licence is royalty free and non-transferable; uploaders, not the site, vouch that a loop contains nothing
+  sampled from someone else's record. An amen break is by its nature a sample of an old record; that risk was
+  put to Adrian in the question and is his.

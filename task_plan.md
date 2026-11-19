@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 28 (the soundtrack mixed, saturated and made much louder in the game, on the branch, waiting on Adrian's ears; `main` is at Phase 23), branch `claude/new-map-414ab7`
+Phase 28 complete and merged: the loop-based soundtrack is on `main` and live (2026-11-18), branch `claude/new-map-414ab7`
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -314,18 +314,19 @@ right now, it could be a lot louder."
 - Level: the music is 6 dB louder on average and 8 dB louder to the ear, with the same peak ceiling.
 - The game's master chain gained a safety net after its compressor: clean below about -3 dB, bending over above
   it, so nothing reaches full scale when music, jets and a crash land together.
-- Status: built; code pushed to the branch; the loop file still local only. NOT on `main`.
+- Status: complete. He played it and said "merge to main". Asked whether the loop file should be published with
+  it, he chose to publish it. The filtered loop is now in the repository (`public/audio/break.wav`) and the
+  whole soundtrack is on `main`.
 
 ## Next Step
-Adrian listens to the loop-based soundtrack (a preview is in his Downloads; the dev server plays it in the game)
-and says what to change, and whether the loop file may be published. Until he says yes, `public/audio/break.wav`
-stays out of git (it is in this checkout's local ignore list) and nothing merges to `main`: without the file the
-live game would play the stand-in kit. The transcribed notes are the block at the top of `src/systems/Music.js`
-marked as the transcription. His to steer: the arrangement (`FORM`, one line per four bars), the loop's level and
-top (`breakBus`, the shelf beside it), the kick, the reese (built in the constructor), the three melodies
-(`BELL`, `KEYS`, `WHISTLE`), how loud it is in the game (`SONG.LEVEL`) and how dirty (`SONG.DRIVE`). Re-render with `tools/audio/render.html`. Test pages
-are loaded with `?mute` and closed afterwards; audio for him goes to his Downloads as an .m4a.
-Before that, still true: the live game is HARD on SKYWAY with the dark look.
+Adrian plays the live game with the new soundtrack and says what to change. Nothing is waiting on a branch.
+The transcribed notes are the block at the top of `src/systems/Music.js` marked as the transcription. His to
+steer: the arrangement (`FORM`, one line per four bars), the loop's level and top (`breakBus`, the shelf beside
+it), the kick, the reese (built in the constructor), the three melodies (`BELL`, `KEYS`, `WHISTLE`), how loud it
+is in the game (`SONG.LEVEL`) and how dirty (`SONG.DRIVE`). Re-render with `tools/audio/render.html`; judge the
+level with `&game`. Test pages are loaded with `?mute` and closed afterwards; audio for him goes to his
+Downloads as an .m4a.
+The live game is HARD on SKYWAY with the dark look and this soundtrack.
 Knobs for the look: the `LOOK` table and the `LOOKS` list in `src/systems/Look.js`.
 His calls on SKYWAY, none of them made for him: how many movers (SKYWAY.CALM_EVERY); how tight the ships' corners
 are (SKYWAY.SHIP_R / SHIP_A); the clock (PACE_SKYWAY_HARD in core/Maps.js); which end of a ship you fly in by
@@ -359,7 +360,7 @@ Keep secrets, private paths and other projects out of commits and out of these n
 | Every ship is entered between its engines | Bow-first and against the light a ship read as a gate |
 | The music's level in the game is set against the game's own sounds, rendered together through the real audio object | "Barely hear it" was true only while boosting: measured alone, the music looked loud enough |
 | The track runs at the drum loop's tempo (160 BPM); the loop is never stretched | Adrian asked for the beat to be built round the loop and freed the rhythm; stretching a break to 136 would smear it |
-| The drum loop file stays out of the public repository until Adrian says it may go in | It is a third-party loop; publishing it as a file is his decision, and hard to undo in git history |
+| The drum loop file stayed out of the public repository until Adrian said it may go in; he said so on 2026-11-18 | It is a third-party loop; publishing it as a file was his decision, and hard to undo in git history |
 | Chords and bass are transcribed from exact pitches (peak frequency to the cent, stereo centre and sides apart), never from pitch classes | A bass note's fifth and seventh harmonics read as a major third and a minor seventh; Phase 24 built D add9, D7 and F7 out of them |
 | The soundtrack keeps a reference beat's chords, tempo and chord placement and nothing else | Adrian's brief: "copy the chords but make your own beat". Chords are measured from the beat; every sound is synthesized here |
 | The track's level is set by measurement against the old track, not by ear | Nobody in the session can hear it. A-weighted, it sits about 6 dB over the old one in open air |
