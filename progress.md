@@ -692,3 +692,18 @@ Not verified: real hands; the cockpit view inside a spiral; easy mode inside a s
 ## The lighting merged into main (2026-11-18)
 - Adrian played the branch and said "Merge to main". Fast-forward: `main` had not moved since the soundtrack.
 - Before pushing: the changes were searched for private paths, keys and other projects' names. Nothing found.
+
+## The lighting bench, on the branch (2026-11-18)
+- Adrian asked for a way to hold the game with nothing over it and tune the lighting himself with on-screen
+  controls.
+- New: `src/ui/TunePanel.js`, loaded only by `?tune` (its own 9 kB file in the build). Changed:
+  `src/core/Game.js` (the quiet pause, STEP, lights that follow the tables while held), `src/ui/HUD.js` (the
+  pause screen stays away on the bench), `src/level/Materials.js` (painted light can be turned up and down),
+  `src/systems/Lighting.js` (`SUN` and `PAINT` join the table), `vite.config.js` (SAVE lands in the dev log).
+- One thing that went wrong: the panel's buttons came out 9 px tall. The page's stylesheet already had `.bar`
+  and `.row`; the panel's classes now all start `tn-`.
+- Checked in the browser: P and FREEZE both hold the game and the pause screen stays hidden; moving Brightness
+  and Beam width changed the held frame; values came back after a reload; STEP moved the ship 25 m and held
+  again; HIDE HUD, HIDE PANEL and its tab; SAVE reached the dev log; RESET put everything back; the keyboard is
+  never left on a slider. No console errors. Build passes, both fingerprints unchanged.
+- Not verified: the panel at his screen size; the sliders' ranges against what he will want.

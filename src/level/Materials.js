@@ -314,15 +314,22 @@ export class Materials {
   // on each is far more than the renderer can pay for (systems/Lighting.js). Added to what is under it, a hair above
   // the surface. `spill` fades across its width from its first edge; `pool` is brightest near one edge.
   painted(kind, hex, amt) {
-    const key = kind + ':' + hex + ':' + amt;
+    const key = kind + ':' + hex + ':' + amt, paint = (this.paint = this.paint || { pool: 1, spill: 1 });
     if (!this.neonCache.has(key)) {
-      this.neonCache.set(key, new THREE.MeshBasicMaterial({
-        map: kind === 'pool' ? this.poolTex : this.spillTex, color: new THREE.Color(hex).multiplyScalar(amt),
+      const m = new THREE.MeshBasicMaterial({
+        map: kind === 'pool' ? this.poolTex : this.spillTex, color: new THREE.Color(hex).multiplyScalar(amt * paint[kind]),
         transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
         polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
-      }));
+      });
+      m.userData.paint = { kind, hex, amt };
+      this.neonCache.set(key, m);
     }
     return this.neonCache.get(key);
+  }
+  /** How strong one kind of painted light is ('pool' or 'spill'), as a share of what it was laid at (LIGHTS.PAINT). */
+  setPaint(kind, k) {
+    (this.paint = this.paint || { pool: 1, spill: 1 })[kind] = k;
+    for (const m of this.neonCache.values()) { const q = m.userData.paint; if (q && q.kind === kind) m.color.set(q.hex).multiplyScalar(q.amt * k); }
   }
   spill(hex, amt) { return this.painted('spill', hex, amt); }
   pool(hex, amt) { return this.painted('pool', hex, amt); }

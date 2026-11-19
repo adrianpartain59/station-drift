@@ -94,7 +94,11 @@ export class Game {
     // Headlights, and real light from the lamps nearest the ship (systems/Lighting.js). ?lights=off is the game
     // as it was lit before, for comparing pictures and frame times.
     this.lit = params.get('lights') !== 'off';
-    if (this.lit) { this.lighting = new Lighting(this.scene, this.ship); this.lighting.setQuality(GameState.quality === 'high'); this.mats.glass.roughness = LIGHTS.GLASS; }
+    if (this.lit) { this.lighting = new Lighting(this.scene, this.ship); this.lighting.setQuality(GameState.quality === 'high'); this.mats.glass.roughness = LIGHTS.GLASS; for (const k in LIGHTS.PAINT) this.mats.setPaint(k, LIGHTS.PAINT[k]); }
+    // The lighting bench: ?tune puts a slider on every lighting number, and the pause (P, Esc, or its FREEZE
+    // button) leaves the picture uncovered so the lights can be judged on a still frame. See ui/TunePanel.js.
+    this.tuning = params.has('tune');
+    if (this.tuning) { this.hud.quietPause = true; import('../ui/TunePanel.js').then((m) => { this.tune = new m.TunePanel(this); }); }
 
     window.addEventListener('resize', () => this.resize());
     document.getElementById('playBtn').addEventListener('click', () => this.start());
@@ -265,6 +269,29 @@ export class Game {
     this.hud.setMap(name, MAPS);
     this.audio.ui();
     if (g.phase === 'title') { this.newRun(this.seed); this.hud.phase('title'); }
+  }
+
+  /**
+   * The lighting bench: put the lights where the tables say, now. The frame eases the sun, the exposure and the
+   * bloom toward their values, which a held game never does; `easing` leaves those three to the frame.
+   */
+  lightNow(easing = false) {
+    const indoors = this.phys.zone === 0, on = this.look.on, [expo, glow] = on && indoors ? LOOK.INDOORS : [1, 1];
+    this.hemi.intensity = 1.1 * (on ? LOOK.AMBIENT : 1);
+    this.scene.environmentIntensity = 0.55 * (on ? LOOK.AMBIENT : 1);
+    this.bloom.threshold = RENDER.BLOOM_THRESHOLD; this.bloom.radius = RENDER.BLOOM_RADIUS;
+    if (easing) return;
+    this.sun.intensity = LIGHTS.SUN[indoors ? 1 : 0];
+    if (on) { this.renderer.toneMappingExposure = RENDER.EXPOSURE * expo; this.bloom.strength = RENDER.BLOOM_STRENGTH * glow; }
+  }
+
+  /** The bench's FREEZE and STEP buttons. A step runs the game for `frames` frames and holds it again. */
+  tuneFreeze() { if (GameState.phase === 'playing' || GameState.phase === 'paused') this.togglePause(); }
+  tuneStepBy(frames) {
+    const g = GameState;
+    if (g.phase === 'playing') { g.phase = 'paused'; this.audio.ctx?.suspend(); }
+    if (g.phase !== 'paused') return;
+    g.phase = 'playing'; this.tuneStep = frames; this.hud.phase(g.phase);
   }
 
   togglePause() {
@@ -453,7 +480,14 @@ export class Game {
     else if (g.phase === 'over' && this.overTimer > 1.0 && inp.tap('Enter', 'Space', 'KeyR', 'PadStart')) this.start();
     else if ((g.phase === 'playing' || g.phase === 'paused') && inp.tap('Escape', 'KeyP')) this.togglePause();
 
-    if (g.phase === 'paused' || this.frozen) { inp.endFrame(); this.look.update(g.time, this.camera, this.track, ph.s); this.composer.render(); return; }
+    // the bench's STEP: let the game run for a few frames, then hold it again (the sound stays off throughout)
+    if (this.tuneStep > 0 && g.phase === 'playing' && --this.tuneStep === 0) { g.phase = 'paused'; this.hud.phase(g.phase); }
+    if (g.phase === 'paused' || this.frozen) {
+      inp.endFrame();
+      // on the bench the lights follow their sliders while the game is held
+      if (this.tuning) { if (this.lighting) { this.lighting.update(this.track, ph.s); this.look.beam(this.lighting); } this.lightNow(); }
+      this.look.update(g.time, this.camera, this.track, ph.s); this.composer.render(); return;
+    }
     if (params.has('perf')) this.perf(raw);
     // Test hook: ?stopwhen=drift freezes the game the first time a slide is well under way, for screenshots.
     if (params.get('stopwhen') === 'drift' && g.time > 0.5 && ph.drift && ph.driftT > 0.6) this.frozen = true;
@@ -512,7 +546,7 @@ export class Game {
 
     // Starlight can't reach inside a station (there are no shadows to block it), so fade it out
     // indoors; otherwise the glossy floor throws a blinding specular hot spot at the camera.
-    const sunTarget = ph.zone === 0 ? 0.15 : 2.4;
+    const sunTarget = LIGHTS.SUN[ph.zone === 0 ? 1 : 0];
     this.sun.intensity += (sunTarget - this.sun.intensity) * (1 - Math.exp(-3 * dt));
     // The dark look: inside a ship the neon is everywhere and it would all go to one bright wash,
     // so the exposure and the bloom come down indoors and back up in the open.
@@ -521,6 +555,7 @@ export class Game {
       this.renderer.toneMappingExposure += (RENDER.EXPOSURE * expo - this.renderer.toneMappingExposure) * k;
       this.bloom.strength += (RENDER.BLOOM_STRENGTH * glow - this.bloom.strength) * k;
     }
+    if (this.tuning) this.lightNow(true);
 
     this.track.ensure(this.span(ph.s)[1] + TRACK.CHUNK + 200);
     this.course.sync();

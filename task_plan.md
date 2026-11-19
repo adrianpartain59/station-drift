@@ -19,7 +19,7 @@ Done means:
 - `npm run build` passes, no console errors.
 
 ## Current Phase
-Phase 29 complete and merged: headlights and lit lamps are on `main` and live (2026-11-18), branch `claude/new-map-414ab7`
+Phase 30 built on branch `claude/new-map-414ab7`, not merged: the lighting bench (`?tune`); Adrian is tuning the lights by hand (2026-11-18)
 
 ## Phases
 ### Phase 1: Read the codebase, research drift games, write the design
@@ -344,7 +344,30 @@ make them actually properly luminescent." Then: "Yes, build it". Then, while fra
   He played it and said "Merge to main". Merged the same day.
   Not verified: frame times on low quality; a clean same-sitting cost comparison.
 
+### Phase 30: A bench to tune the lighting by hand (Adrian, 2026-11-18)
+His words: "basically pause the game but without the pause menu showing so I can fully see the game, then on
+screen put a bunch of controls for the lighting, then let me manually tune those to get the lighting I want".
+- `?tune` opens the game with a panel of 45 sliders down the right side, one on every number that decides how
+  it is lit: headlights, tail wash, roadside lamps, inside ships, the ship's own glow, starlight and fill, bloom
+  and exposure, haze, the grade. Each is wired straight to the table the game reads.
+- On the bench the pause (P, Esc, or the panel's FREEZE) puts nothing over the picture, and the lights follow
+  the sliders while the game is held. STEP runs the game on half a second. HIDE HUD and HIDE PANEL clear the
+  view. No key was added and none changed what it does.
+- What he sets is kept in his browser and only applied under `?tune`. SAVE copies every number and prints them in
+  the dev server's log (`[tune] ...`).
+- To make them reachable, the starlight's two levels and the painted light's strength moved into the `LIGHTS`
+  table (`SUN`, `PAINT`), with the same values as before.
+- Status: built and checked in the browser (freeze by key and by button, a slider moving the picture while
+  held, step, hide, save, reset, values kept across a reload, no console errors). Build passes, fingerprints
+  unchanged. On the branch only. Waiting on his numbers; then they are written into the tables.
+
 ## Next Step
+Adrian tunes at the dev server's address with `?tune`, presses SAVE, and says so. Read his numbers from the dev
+server's log (the last `[tune]` line: `changed` is what he moved, `all` is everything), write them into the
+tables they came from (the ids are in `src/ui/TunePanel.js`, next to the table and key each one drives; angles
+are saved in degrees and stored as cosines; the `haze.*` and `paint.*` values are multiples), run the build
+and the fingerprint, and show him. Merge to `main` only on his word.
+Before this, still true:
 The lighting is on `main` and live. Adrian plays it and says what to change.
 His to steer, all in the `LIGHTS` table at the top of `src/systems/Lighting.js`: how wide, long and strong the
 headlights are (`HEAD`: `edge`, `core`, `half`, `reach`, `lift`, `gain`, `cap`), the tail wash (`TAIL`), the

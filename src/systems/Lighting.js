@@ -39,6 +39,12 @@ export const LIGHTS = {
   // How rough the window glass is while these lights are on. As polished as it was (0.04), every lamp light showed
   // in it as a ball of glare hanging in the window; at this it is a faint sheen across the pane.
   GLASS: 0.7,
+  // The starlight (the one light with a direction): in the open, and inside a ship, where there are no shadows to
+  // keep it out and the glossy floor would throw it straight back at the camera.
+  SUN: [2.4, 0.15],
+  // The painted light, as a share of the strength it is laid at in level/WorldBuilder.js: the pools under the
+  // roadside lamps, and the wash along the neon inside ships.
+  PAINT: { pool: 1, spill: 1 },
 };
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };

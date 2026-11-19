@@ -154,6 +154,12 @@ Headlights, the wash behind the ship, real light from the lamps nearest the ship
 under the rest (`src/systems/Lighting.js`: every number is in the `LIGHTS` table; `__game.lighting.cfg` is the
 same table, live). `?lights=off` draws the game without any of it. Drawing only: the fingerprints do not move.
 
+`?tune` is the bench for setting them by eye: a panel of sliders on every lighting number (and on the bloom,
+exposure, haze and grade). On the bench the pause (P, Esc or FREEZE) leaves the picture uncovered and the lights
+follow the sliders while the game is held; STEP runs it on half a second. What is set is kept in that browser
+and applied only under `?tune`. SAVE copies the numbers and, on the dev server, prints them in its log
+(`[tune] ...`); they go into the tables by hand from there.
+
 ## The look
 
 The game draws in black and one colour, picked afresh for each run (`src/systems/Look.js`: every number is in the

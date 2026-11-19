@@ -54,7 +54,7 @@ export class HUD {
 
   phase(p) {
     this.show('title', p === 'title');
-    this.show('pause', p === 'paused');
+    this.show('pause', p === 'paused' && !this.quietPause);   // quietPause: the lighting bench (?tune) pauses with nothing over the picture
     this.show('over', p === 'over');
     this.show('hud', p === 'playing' || p === 'paused');
     if (p === 'title') this.el.best.textContent = GameState.best ? `${[this.mapLabel, this.modeLabel, 'BEST'].filter(Boolean).join(' ')} ${fmt(GameState.best)}  ·  BANK ${fmt(GameState.bank)} ◎` : '';
